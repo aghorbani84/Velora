@@ -1,0 +1,105 @@
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+complexity:
+  active: true
+  CyclomaticComplexMethod:
+    active: true
+    threshold: 35
+    ignoreAnnotated: ['Composable']
+  LongMethod:
+    active: true
+    threshold: 280
+    ignoreAnnotated: ['Composable']
+  LongParameterList:
+    active: true
+    functionThreshold: 22
+    constructorThreshold: 16
+    ignoreDefaultParameters: true
+    ignoreAnnotated: ['Composable']
+  LargeClass:
+    active: true
+    threshold: 650
+  NestedBlockDepth:
+    active: true
+    threshold: 6
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 55
+    thresholdInClasses: 55
+    thresholdInInterfaces: 25
+    thresholdInObjects: 25
+    ignoreAnnotatedFunctions: ['Composable', 'Preview']
+
+coroutines:
+  active: true
+  GlobalCoroutineUsage:
+    active: true
+  RedundantSuspendModifier:
+    active: true
+  SleepInsteadOfDelay:
+    active: true
+  SuspendFunWithFlowReturnType:
+    active: true
+
+empty-blocks:
+  active: true
+  EmptyCatchBlock:
+    active: true
+    allowedExceptionNameRegex: '_|(ignore|expected).*'
+  EmptyFunctionBlock:
+    active: true
+    ignoreOverridden: true
+
+exceptions:
+  active: true
+  SwallowedException:
+    active: false
+  TooGenericExceptionCaught:
+    active: false
+
+naming:
+  active: true
+  FunctionNaming:
+    active: true
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    active: true
+    constantPattern: '[A-Z][_A-Za-z0-9]*'
+
+performance:
+  active: true
+  SpreadOperator:
+    active: false
+
+potential-bugs:
+  active: true
+  EqualsAlwaysReturnsTrueOrFalse:
+    active: true
+  InvalidRange:
+    active: true
+  UnreachableCode:
+    active: true
+  UnsafeCallOnNullableType:
+    active: false
+
+style:
+  active: true
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: true
+    maxLineLength: 160
+    excludeCommentStatements: true
+  ReturnCount:
+    active: false
+  WildcardImport:
+    active: false
+  UnusedPrivateMember:
+    active: true
+    ignoreAnnotated: ['Preview']

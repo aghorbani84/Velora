@@ -1,0 +1,47 @@
+name: "🐛 Bug Report"
+description: "Report a playback, DSP, library indexing, or UI issue in VELORA"
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve **VELORA** (*Beyond Playback.*). Please provide reproducible details below.
+
+  - type: dropdown
+    id: subsystem
+    attributes:
+      label: "Affected Subsystem"
+      description: "Which engine or layer is experiencing the issue?"
+      options:
+        - "Audio / Video Playback (Media3 / ExoPlayer)"
+        - "10-Band Biquad Equalizer & RTA Visualizer"
+        - "MediaOrchestrator & Queue Management"
+        - "Library Scanner & Room Offline Cache"
+        - "OmniSearch / Media Copilot / Smart Playlists"
+        - "Lyrics & Subtitle Studio (SRT / WebVTT)"
+        - "Network Streaming (HLS / DASH / HTTPS)"
+        - "UI / UX (Dark Saffron Theme / RTL / Persian Localization)"
+        - "Cloud Sync (Firebase Auth / Firestore)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description & Reproduction Steps"
+      description: "Clear steps to reproduce the behavior."
+      placeholder: |
+        1. Open VELORA and navigate to...
+        2. Play a media file or stream with format...
+        3. Observe error...
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: "Device, Android Version & Media Format"
+      placeholder: "e.g., Pixel 8 Pro, Android 16 (API 36), FLAC 96kHz / 24-bit"
+    validations:
+      required: true

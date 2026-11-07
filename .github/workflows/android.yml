@@ -1,0 +1,99 @@
+name: VELORA Android CI
+
+on:
+  push:
+    branches: [ "main", "master", "develop", "kotlin-rewrite", "phase-*", "feature/*" ]
+  pull_request:
+    branches: [ "main", "master", "develop", "kotlin-rewrite" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-verify:
+    name: Static Analysis, Unit Tests & APK Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Setup Gradle with dependency caching
+        uses: gradle/actions/setup-gradle@417ae3ccd767c252f5661f1ace9f835f9654f2b5 # v4.3.1
+        with:
+          gradle-version: '9.3.1'
+          cache-read-only: false
+
+      - name: Prepare Gradle Wrapper, Environment & Debug Keystore
+        run: |
+          if [ ! -f ./gradlew ]; then
+            gradle wrapper
+          fi
+          chmod +x ./gradlew
+          if [ ! -f .env ] && [ -f .env.example ]; then
+            cp .env.example .env
+          fi
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+      - name: Run Detekt Static Analysis
+        run: ./gradlew detekt
+
+      - name: Run Android Lint
+        run: ./gradlew lintDebug
+
+      - name: Run Unit Test Suite
+        run: ./gradlew :app:testDebugUnitTest --tests com.example.ExampleUnitTest
+
+      - name: Assemble Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Package & Checksum APK
+        run: |
+          mkdir -p build-artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk build-artifacts/VELORA-debug.apk
+          cd build-artifacts
+          sha256sum VELORA-debug.apk > VELORA-debug.apk.sha256
+
+      - name: Upload VELORA APK Artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: VELORA-android-debug-apk
+          path: |
+            build-artifacts/VELORA-debug.apk
+            build-artifacts/VELORA-debug.apk.sha256
+          if-no-files-found: error
+
+      - name: Upload Static Analysis & Test Reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: VELORA-quality-reports
+          path: |
+            app/build/reports/detekt/
+            app/build/reports/lint-results-debug.html
+            app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore

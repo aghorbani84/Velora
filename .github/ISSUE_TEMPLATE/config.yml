@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "📥 Download Latest VELORA Release (APK & AAB)"
+    url: "../../releases/latest"
+    about: "Download signed Android APK and App Bundle releases directly from GitHub Releases."
+  - name: "🔐 Security Vulnerability Advisory"
+    url: "../../security/advisories/new"
+    about: "Report security or privacy vulnerabilities privately."

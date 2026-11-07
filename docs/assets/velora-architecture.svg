@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 520" width="100%" height="520" role="img" aria-label="VELORA System Architecture Diagram">
+  <defs>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#19191F" />
+      <stop offset="100%" stop-color="#202027" />
+    </linearGradient>
+    <linearGradient id="orchestratorGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#202027" />
+      <stop offset="50%" stop-color="#28231A" />
+      <stop offset="100%" stop-color="#202027" />
+    </linearGradient>
+    <marker id="arrowSaffron" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#E5A817" />
+    </marker>
+    <marker id="arrowGold" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#D9BD83" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1100" height="520" rx="16" fill="#0B0B0D" stroke="#2A2927" stroke-width="2" />
+
+  <text x="550" y="38" fill="#F5F2EB" font-family="Space Grotesk, Inter, sans-serif" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="2">
+    VELORA — LAYERED MULTIMEDIA &amp; INTELLIGENCE ARCHITECTURE
+  </text>
+
+  <!-- LAYER 1: PRESENTATION / UI LAYER -->
+  <rect x="45" y="58" width="1010" height="92" rx="12" fill="url(#cardGrad)" stroke="#2A2927" stroke-width="1.5" />
+  <text x="68" y="82" fill="#E5A817" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700" letter-spacing="1.4">
+    1. PRESENTATION LAYER (JETPACK COMPOSE • DARK SAFFRON DESIGN SYSTEM)
+  </text>
+
+  <g transform="translate(68, 94)" font-family="Inter, sans-serif" font-size="12" font-weight="600">
+    <rect x="0" y="0" width="180" height="40" rx="8" fill="#121216" stroke="#2A2927" />
+    <text x="90" y="25" fill="#F5F2EB" text-anchor="middle">Home &amp; Discovery Mixes</text>
+
+    <rect x="195" y="0" width="195" height="40" rx="8" fill="#121216" stroke="#2A2927" />
+    <text x="292" y="25" fill="#F5F2EB" text-anchor="middle">Now Playing &amp; 10-Band EQ</text>
+
+    <rect x="405" y="0" width="185" height="40" rx="8" fill="#121216" stroke="#2A2927" />
+    <text x="497" y="25" fill="#F5F2EB" text-anchor="middle">Video &amp; Subtitle Studio</text>
+
+    <rect x="605" y="0" width="185" height="40" rx="8" fill="#121216" stroke="#2A2927" />
+    <text x="697" y="25" fill="#F5F2EB" text-anchor="middle">OmniSearch &amp; Copilot</text>
+
+    <rect x="805" y="0" width="160" height="40" rx="8" fill="#121216" stroke="#2A2927" />
+    <text x="885" y="25" fill="#F5F2EB" text-anchor="middle">Plugin &amp; Cloud Hub</text>
+  </g>
+
+  <!-- Connector 1 -> 2 -->
+  <line x1="550" y1="150" x2="550" y2="182" stroke="#E5A817" stroke-width="2" marker-end="url(#arrowSaffron)" />
+  <text x="564" y="170" fill="#A5A29B" font-family="JetBrains Mono, monospace" font-size="10">StateFlow&lt;FazoraUiState&gt; / Unidirectional Intents</text>
+
+  <!-- LAYER 2: CENTRAL ORCHESTRATION LAYER -->
+  <rect x="45" y="186" width="1010" height="106" rx="12" fill="url(#orchestratorGrad)" stroke="#E5A817" stroke-width="1.8" />
+  <text x="68" y="212" fill="#F5C451" font-family="JetBrains Mono, monospace" font-size="11.5" font-weight="700" letter-spacing="1.4">
+    2. CENTRAL COORDINATION LAYER — IMediaOrchestrator &amp; MediaOrchestrator (Koin DI)
+  </text>
+
+  <g transform="translate(68, 226)" font-family="JetBrains Mono, monospace" font-size="11.5">
+    <rect x="0" y="0" width="305" height="48" rx="8" fill="#121216" stroke="#C88712" stroke-width="1" />
+    <text x="152" y="21" fill="#F5F2EB" text-anchor="middle" font-weight="700">StateFlow&lt;PlaybackState&gt;</text>
+    <text x="152" y="38" fill="#A5A29B" text-anchor="middle" font-size="10">play() • pause() • skipToNext() • seekTo()</text>
+
+    <rect x="330" y="0" width="315" height="48" rx="8" fill="#121216" stroke="#C88712" stroke-width="1" />
+    <text x="487" y="21" fill="#F5F2EB" text-anchor="middle" font-weight="700">StateFlow&lt;MediaOrchestratorState&gt;</text>
+    <text x="487" y="38" fill="#A5A29B" text-anchor="middle" font-size="10">Queue • Bookmarks • Lyrics Offset • Plugins</text>
+
+    <rect x="670" y="0" width="295" height="48" rx="8" fill="#121216" stroke="#C88712" stroke-width="1" />
+    <text x="817" y="21" fill="#D9BD83" text-anchor="middle" font-weight="700">SharedFlow&lt;VeloraMediaEvent&gt;</text>
+    <text x="817" y="38" fill="#A5A29B" text-anchor="middle" font-size="10">Lifecycle-Safe Domain Event Bus</text>
+  </g>
+
+  <!-- Connectors 2 -> 3 -->
+  <line x1="210" y1="292" x2="210" y2="332" stroke="#D9BD83" stroke-width="1.8" marker-end="url(#arrowGold)" />
+  <line x1="550" y1="292" x2="550" y2="332" stroke="#D9BD83" stroke-width="1.8" marker-end="url(#arrowGold)" />
+  <line x1="890" y1="292" x2="890" y2="332" stroke="#D9BD83" stroke-width="1.8" marker-end="url(#arrowGold)" />
+
+  <!-- LAYER 3: DOMAIN & DATA ENGINES -->
+  <!-- Box 3A: Playback & DSP -->
+  <rect x="45" y="336" width="315" height="154" rx="12" fill="url(#cardGrad)" stroke="#2A2927" stroke-width="1.5" />
+  <text x="65" y="362" fill="#E5A817" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">
+    3A. PLAYBACK &amp; ACOUSTIC DSP
+  </text>
+  <text x="65" y="386" fill="#F5F2EB" font-family="Inter, sans-serif" font-size="12.5" font-weight="600">• Media3 ExoPlayer + SessionService</text>
+  <text x="65" y="408" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• TenBandBiquadAudioProcessor (IIR)</text>
+  <text x="65" y="430" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• Goertzel 10-Band RTA + Waveform</text>
+  <text x="65" y="452" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• HLS (.m3u8) / DASH (.mpd) / HTTPS</text>
+  <text x="65" y="474" fill="#D9BD83" font-family="JetBrains Mono, monospace" font-size="11">• Hardware 5-Band Millibel Sync</text>
+
+  <!-- Box 3B: Intelligence & Copilot -->
+  <rect x="385" y="336" width="330" height="154" rx="12" fill="url(#cardGrad)" stroke="#2A2927" stroke-width="1.5" />
+  <text x="405" y="362" fill="#E5A817" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">
+    3B. MEDIA INTELLIGENCE ENGINES
+  </text>
+  <text x="405" y="386" fill="#F5F2EB" font-family="Inter, sans-serif" font-size="12.5" font-weight="600">• VeloraOmniSearchEngine (Levenshtein)</text>
+  <text x="405" y="408" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• VeloraSmartPlaylistEngine (5 Mixes)</text>
+  <text x="405" y="430" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• VeloraLyricsAndSubtitleEngine + SRT/VTT</text>
+  <text x="405" y="452" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• VeloraMediaCopilot &amp; Personal Graph</text>
+  <text x="405" y="474" fill="#D9BD83" font-family="JetBrains Mono, monospace" font-size="11">• Tier 1 Sandboxed Plugin Registry</text>
+
+  <!-- Box 3C: Persistence & Security -->
+  <rect x="740" y="336" width="315" height="154" rx="12" fill="url(#cardGrad)" stroke="#2A2927" stroke-width="1.5" />
+  <text x="760" y="362" fill="#E5A817" font-family="JetBrains Mono, monospace" font-size="11" font-weight="700">
+    3C. STORAGE, CLOUD &amp; SECURITY
+  </text>
+  <text x="760" y="386" fill="#F5F2EB" font-family="Inter, sans-serif" font-size="12.5" font-weight="600">• Room v3 Offline Cache &amp; History</text>
+  <text x="760" y="408" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• Atomic DataStore + Corrupt Recovery</text>
+  <text x="760" y="430" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• MediaStore + SAF Allowlist Scanner</text>
+  <text x="760" y="452" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• VeloraDownloadValidator (SSRF Guard)</text>
+  <text x="760" y="474" fill="#D9BD83" font-family="JetBrains Mono, monospace" font-size="11">• Firebase Auth + Zero-Trust Firestore</text>
+</svg>

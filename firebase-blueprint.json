@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with display name and preferences metadata",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique user identifier matching request.auth.uid"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account creation timestamp (server-generated)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last profile update timestamp (server-generated)"
+        }
+      },
+      "required": ["userId", "displayName", "createdAt"]
+    },
+    "CloudPlaylist": {
+      "title": "CloudPlaylist",
+      "description": "Cloud synchronized user playlist containing track identifiers",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user identifier matching request.auth.uid"
+        },
+        "name": {
+          "type": "string",
+          "description": "Playlist name"
+        },
+        "trackIds": {
+          "type": "array",
+          "description": "List of track identifiers in this playlist (max 200)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp (server-generated)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Update timestamp (server-generated)"
+        }
+      },
+      "required": ["userId", "name", "trackIds", "createdAt"]
+    },
+    "CloudEqPreset": {
+      "title": "CloudEqPreset",
+      "description": "Cloud synchronized 10-band biquad equalizer preset",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user identifier matching request.auth.uid"
+        },
+        "name": {
+          "type": "string",
+          "description": "Custom preset name"
+        },
+        "gainsDb": {
+          "type": "array",
+          "description": "Decibel gains for 10 ISO frequency bands (each -12dB to +12dB)",
+          "items": {
+            "type": "number"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp (server-generated)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Update timestamp (server-generated)"
+        }
+      },
+      "required": ["userId", "name", "gainsDb", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document keyed by userId"
+    },
+    "/users/{userId}/cloud_playlists/{playlistId}": {
+      "schema": "CloudPlaylist",
+      "description": "User subcollection of synced playlists"
+    },
+    "/users/{userId}/cloud_eq_presets/{presetId}": {
+      "schema": "CloudEqPreset",
+      "description": "User subcollection of synced 10-band EQ presets"
+    }
+  }
+}

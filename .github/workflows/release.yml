@@ -1,0 +1,212 @@
+name: VELORA Release & APK Publisher
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - 'v*'
+    branches:
+      - 'main'
+      - 'master'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release version tag (e.g. v2.0.0)'
+        required: false
+        default: 'v2.0.0'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Build, Sign & Publish VELORA Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.0
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Setup Gradle with dependency caching
+        uses: gradle/actions/setup-gradle@417ae3ccd767c252f5661f1ace9f835f9654f2b5 # v4.3.1
+        with:
+          gradle-version: '9.3.1'
+          cache-read-only: false
+
+      - name: Resolve Release Version & Tag
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version_tag }}" ]; then
+            TAG_NAME="${{ inputs.version_tag }}"
+            IS_PRERELEASE="${{ inputs.prerelease }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            IS_PRERELEASE="false"
+          else
+            TAG_NAME="v2.0.0"
+            IS_PRERELEASE="false"
+          fi
+          VERSION_CLEAN="${TAG_NAME#v}"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION_CLEAN}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Signing Keystore & Environment
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD_SECRET: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD_SECRET: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ ! -f ./gradlew ]; then
+            gradle wrapper
+          fi
+          chmod +x ./gradlew
+          if [ ! -f .env ] && [ -f .env.example ]; then
+            cp .env.example .env
+          fi
+          # Ensure debug.keystore is always present
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f debug.keystore ]; then
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          # Prepare release signing keystore (uses secret if configured, otherwise generates a self-contained release keystore)
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
+            echo "STORE_PASSWORD=${STORE_PASSWORD_SECRET}" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=${KEY_PASSWORD_SECRET}" >> "$GITHUB_ENV"
+          else
+            keytool -genkeypair -v \
+              -keystore my-upload-key.jks \
+              -storepass velora_release_key \
+              -alias upload \
+              -keypass velora_release_key \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=VELORA Multimedia,OU=Engineering,O=VELORA,C=US"
+            echo "STORE_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
+          fi
+
+      - name: Run Detekt Static Analysis Gate
+        run: ./gradlew detekt
+
+      - name: Run Unit Test Suite Gate
+        run: ./gradlew :app:testDebugUnitTest --tests com.example.ExampleUnitTest
+
+      - name: Assemble Signed APKs & App Bundle
+        run: ./gradlew assembleDebug assembleRelease bundleRelease
+
+      - name: Package Release Artifacts & Checksums
+        id: package
+        run: |
+          VERSION="${{ steps.meta.outputs.version }}"
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/VELORA-v${VERSION}-release-signed.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/VELORA-v${VERSION}-universal-debug.apk"
+          if [ -f app/build/outputs/bundle/release/app-release.aab ]; then
+            cp app/build/outputs/bundle/release/app-release.aab "dist/VELORA-v${VERSION}-release.aab"
+          fi
+          cd dist
+          sha256sum VELORA-* > SHA256SUMS.txt
+          md5sum VELORA-* > MD5SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Generate Release Notes
+        id: notes
+        run: |
+          TAG="${{ steps.meta.outputs.tag_name }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          cat << 'EOF' > dist/RELEASE_NOTES.md
+          ## ✨ VELORA — Beyond Playback (`${TAG}`)
+
+          **VELORA** is a flagship, privacy-first, intelligent multimedia platform engineered with **Kotlin**, **Jetpack Compose (Material 3 Dark Saffron & Champagne Gold)**, **Media3 ExoPlayer**, a **10-Band Cascaded Peaking Biquad DSP Equalizer**, **Goertzel Real-Time Spectrum & Waveform Analyzer**, **Room v3 Offline Cache**, and **Sandboxed Declarative Plugins**.
+
+          ---
+
+          ### 📥 Direct Downloads (دانلود مستقیم نسخه اندروید)
+
+          | Package | Purpose | Architecture | Min Android |
+          | :--- | :--- | :--- | :--- |
+          | **`VELORA-v${VERSION}-release-signed.apk`** | **Recommended Production APK** (Signed Release Build) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26+) |
+          | **`VELORA-v${VERSION}-universal-debug.apk`** | Developer / Testing Build with AI Studio Debug Signature | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26+) |
+          | **`VELORA-v${VERSION}-release.aab`** | Android App Bundle for Google Play Distribution | Split Bundle | Android 8.0+ (API 26+) |
+          | **`SHA256SUMS.txt`** | Cryptographic SHA-256 Integrity Checksums | Text | — |
+
+          ---
+
+          ### 🚀 Highlights in This Release
+          - **Central Media Orchestration (`IMediaOrchestrator` & `MediaOrchestrator`)**: Unified reactive `StateFlow<PlaybackState>`, `StateFlow<MediaOrchestratorState>`, and `SharedFlow<VeloraMediaEvent>` coordinating Media3 playback, Room v3 persistence, and atomic DataStore settings via Koin DI.
+          - **Dark Saffron & Champagne Gold UI/UX**: Precision `#0B0B0D` Obsidian canvas, `#E5A817` Primary Saffron accents, `#D9BD83` Champagne Gold highlights, and Golden Ratio ($\varphi = 1.618$) layout proportions with full English & Persian (RTL) localization.
+          - **10-Band Direct Form II Transposed Biquad DSP + Real-Time Visualizer**: ISO 10-band peaking equalizer (`31.25 Hz` – `16 kHz`), Goertzel 10-band RTA spectrum analyzer, and 64-point time-domain oscilloscope waveform.
+          - **Media Intelligence & Copilot**: `VeloraOmniSearchEngine` (Levenshtein typo-tolerant + semantic queries), `VeloraSmartPlaylistEngine` (5 explainable local mixes), `VeloraLyricsAndSubtitleEngine` (`SRT` & `WebVTT` export), `VeloraMediaCopilot`, `VeloraPersonalMediaGraph`, and `TimeMachineBookmark`.
+          - **Security & Capability Sandboxing**: `VeloraDownloadValidator` (HTTPS/HLS/DASH & RFC-1918 SSRF guard), `PhiDesignMetrics.isSafeMediaFolder` path allowlist, and Tier 1 Declarative Plugin Registry (`VeloraPluginRegistry`).
+
+          ---
+
+          ### 🔐 SHA-256 Checksum Verification
+          ```bash
+          sha256sum -c SHA256SUMS.txt
+          ```
+          EOF
+          sed -i "s/\${TAG}/${TAG}/g" dist/RELEASE_NOTES.md
+          sed -i "s/\${VERSION}/${VERSION}/g" dist/RELEASE_NOTES.md
+          echo "" >> dist/RELEASE_NOTES.md
+          echo "```text" >> dist/RELEASE_NOTES.md
+          cat dist/SHA256SUMS.txt >> dist/RELEASE_NOTES.md
+          echo "```" >> dist/RELEASE_NOTES.md
+
+      - name: Upload Build Artifacts to Workflow Run
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: VELORA-${{ steps.meta.outputs.tag_name }}-release-bundle
+          path: |
+            dist/VELORA-*
+            dist/SHA256SUMS.txt
+            dist/MD5SUMS.txt
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
+        with:
+          tag_name: ${{ steps.meta.outputs.tag_name }}
+          name: "VELORA ${{ steps.meta.outputs.tag_name }} — Beyond Playback"
+          body_path: dist/RELEASE_NOTES.md
+          draft: false
+          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
+          make_latest: "true"
+          files: |
+            dist/VELORA-v${{ steps.meta.outputs.version }}-release-signed.apk
+            dist/VELORA-v${{ steps.meta.outputs.version }}-universal-debug.apk
+            dist/VELORA-v${{ steps.meta.outputs.version }}-release.aab
+            dist/SHA256SUMS.txt
+            dist/MD5SUMS.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

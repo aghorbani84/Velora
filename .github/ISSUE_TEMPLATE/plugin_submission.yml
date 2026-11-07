@@ -1,0 +1,32 @@
+name: "🧩 Sandboxed Plugin Proposal"
+description: "Submit or propose a declarative capability-sandboxed plugin for VELORA"
+title: "[Plugin]: "
+labels: ["plugin", "ecosystem"]
+body:
+  - type: input
+    id: plugin_id
+    attributes:
+      label: "Plugin Identifier & Name"
+      placeholder: "e.g., velora.eq.studio-reference — Studio Reference Curve Pack"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: "Plugin Execution Tier & Capability"
+      options:
+        - "Tier 1 Declarative — EQ Preset Pack (EQ_PRESET_PROVIDER)"
+        - "Tier 1 Declarative — Theme / Saffron Accent Pack (THEME_CUSTOMIZATION)"
+        - "Tier 1 Declarative — Lyrics / Subtitle Formatter (LYRICS_LOOKUP / SUBTITLE_FORMATTER)"
+        - "Tier 2 Sandboxed Provider — Metadata Enrichment (METADATA_ENRICHMENT)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: manifest
+    attributes:
+      label: "Declarative Manifest & Security Review"
+      description: "List required permissions and verify that no arbitrary native code or unrestricted network access is used."
+    validations:
+      required: true

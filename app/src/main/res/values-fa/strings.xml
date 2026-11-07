@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">VELORA</string>
+    <string name="tagline">فراتر از پخش.</string>
+    <string name="library_header_badge">کتابخانه استودیویی ولورا</string>
+    <string name="nav_library">کتابخانه</string>
+    <string name="nav_music">موسیقی</string>
+    <string name="nav_artists">هنرمندان</string>
+    <string name="nav_video">ویدیو</string>
+    <string name="nav_search">جستجو</string>
+    <string name="nav_player">پخش و اکولایزر</string>
+    <string name="nav_settings">تنظیمات</string>
+    <string name="cd_play_pause">پخش یا توقف موقت</string>
+    <string name="cd_next_track">قطعه بعدی</string>
+    <string name="cd_previous_track">قطعه قبلی</string>
+    <string name="cd_shuffle_mode">تغییر حالت تصادفی</string>
+    <string name="cd_repeat_mode">تغییر حالت تکرار</string>
+    <string name="cd_mute_toggle">قطع یا وصل صدا</string>
+    <string name="cd_scan_media">اسکن رسانه دستگاه</string>
+    <string name="cd_add_folder">افزودن پوشه رسانه</string>
+    <string name="cd_open_player">باز کردن پخش‌کننده و اکولایزر</string>
+    <string name="cd_video_fullscreen">تغییر حالت تمام‌صفحه ویدیو</string>
+    <string name="cd_toggle_favorite">تغییر وضعیت علاقه‌مندی</string>
+</resources>

@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(docId) {
+      return docId is string &&
+             docId.size() >= 1 &&
+             docId.size() <= 128 &&
+             docId.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUserProfile(data, expectedUid) {
+      return data.userId == expectedUid &&
+             data.displayName is string &&
+             data.displayName.size() >= 1 &&
+             data.displayName.size() <= 80 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 120)) &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidPlaylist(data, expectedUid) {
+      return data.userId == expectedUid &&
+             data.name is string &&
+             data.name.size() >= 1 &&
+             data.name.size() <= 100 &&
+             data.trackIds is list &&
+             data.trackIds.size() <= 200 &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidEqPreset(data, expectedUid) {
+      return data.userId == expectedUid &&
+             data.name is string &&
+             data.name.size() >= 1 &&
+             data.name.size() <= 60 &&
+             data.gainsDb is list &&
+             data.gainsDb.size() == 10 &&
+             data.createdAt is timestamp &&
+             data.createdAt <= request.time &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'createdAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming(), userId) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt']);
+
+      allow delete: if isOwner(userId);
+
+      match /cloud_playlists/{playlistId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(playlistId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'trackIds', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'trackIds', 'createdAt', 'updatedAt']) &&
+                         isValidPlaylist(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidPlaylist(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'trackIds', 'updatedAt']);
+
+        allow delete: if isOwner(userId);
+      }
+
+      match /cloud_eq_presets/{presetId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(presetId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'gainsDb', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'gainsDb', 'createdAt', 'updatedAt']) &&
+                         isValidEqPreset(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidEqPreset(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'gainsDb', 'updatedAt']);
+
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

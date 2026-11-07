@@ -1,0 +1,31 @@
+name: "✨ Feature or Engine Enhancement"
+description: "Propose a new capability, codec integration, or intelligence improvement for VELORA"
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose an enhancement aligned with VELORA's core principle: **Build a better media experience, not merely a larger feature list.**
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "Architectural Domain"
+      options:
+        - "Playback & Acoustic DSP"
+        - "Media Intelligence & Copilot"
+        - "Lyrics & Subtitle Engine"
+        - "Sandboxed Plugin Ecosystem"
+        - "UI / UX & Adaptive Experience"
+        - "Cross-Device Continuity & Sync"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Problem Statement & Proposed Architecture"
+      description: "Describe the user value, architectural boundaries, and security/privacy considerations."
+    validations:
+      required: true
