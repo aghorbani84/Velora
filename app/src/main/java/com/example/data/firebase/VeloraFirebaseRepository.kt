@@ -23,9 +23,9 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
-private const val TAG = "FazoraFirebase"
+private const val TAG = "VeloraFirebase"
 
-class FazoraFirebaseRepository(
+class VeloraFirebaseRepository(
     private val db: FirebaseFirestore,
     val auth: FirebaseAuth = Firebase.auth
 ) {

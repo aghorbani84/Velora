@@ -60,7 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.data.playback.FazoraPlaybackService
+import com.example.data.playback.VeloraPlaybackService
 import com.example.data.playback.Media3PlayerEngine
 import com.example.ui.components.MiniPlayerBar
 import com.example.ui.screens.ArtistScreen
@@ -78,9 +78,9 @@ import com.example.ui.theme.FazoraGoldMuted
 import com.example.ui.theme.FazoraIvory
 import com.example.ui.theme.FazoraObsidian
 import com.example.ui.theme.FazoraSteel
-import com.example.ui.theme.FazoraTheme
+import com.example.ui.theme.VeloraTheme
 import com.example.ui.theme.PhiTokens
-import com.example.ui.viewmodel.FazoraViewModel
+import com.example.ui.viewmodel.VeloraViewModel
 import com.example.ui.viewmodel.addTimeMachineBookmark
 import com.example.ui.viewmodel.adjustLyricsOffset
 import com.example.ui.viewmodel.executeCopilotCommand
@@ -89,7 +89,7 @@ import com.example.ui.viewmodel.playSmartPlaylist
 import com.example.ui.viewmodel.toggleDeclarativePlugin
 import org.koin.androidx.compose.koinViewModel
 
-enum class FazoraDestination(
+enum class VeloraDestination(
     val route: String,
     val label: String,
     val labelFa: String,
@@ -111,30 +111,30 @@ class MainActivity : ComponentActivity() {
 
         // Start foreground-capable MediaSessionService so background playback persists
         runCatching {
-            startService(Intent(this, FazoraPlaybackService::class.java))
+            startService(Intent(this, VeloraPlaybackService::class.java))
         }
 
         setContent {
-            FazoraTheme {
-                FazoraRootApp()
+            VeloraTheme {
+                VeloraRootApp()
             }
         }
     }
 }
 
 @Composable
-fun FazoraRootApp(
-    viewModel: FazoraViewModel = koinViewModel()
+fun VeloraRootApp(
+    viewModel: VeloraViewModel = koinViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var currentDestination by rememberSaveable { mutableStateOf(FazoraDestination.LIBRARY) }
+    var currentDestination by rememberSaveable { mutableStateOf(VeloraDestination.LIBRARY) }
     val isPersian = uiState.settings.appLanguageCode == "fa"
     val layoutDirection = if (isPersian) LayoutDirection.Rtl else LayoutDirection.Ltr
 
     // BackHandler returns to Library from any secondary destination
-    BackHandler(enabled = currentDestination != FazoraDestination.LIBRARY) {
-        currentDestination = FazoraDestination.LIBRARY
+    BackHandler(enabled = currentDestination != VeloraDestination.LIBRARY) {
+        currentDestination = VeloraDestination.LIBRARY
     }
 
     val media3ExoPlayer = (viewModel.playerEngine as? Media3PlayerEngine)?.exoPlayer
@@ -157,7 +157,7 @@ fun FazoraRootApp(
                         .fillMaxHeight()
                         .testTag("fazora_nav_rail")
                 ) {
-                    FazoraDestination.entries.forEach { dest ->
+                    VeloraDestination.entries.forEach { dest ->
                         val selected = currentDestination == dest
                         val navLabel = if (isPersian) dest.labelFa else dest.label
                         NavigationRailItem(
@@ -225,14 +225,14 @@ fun FazoraRootApp(
                             }
                         }
 
-                        if (currentDestination != FazoraDestination.PLAYER) {
+                        if (currentDestination != VeloraDestination.PLAYER) {
                             MiniPlayerBar(
                                 engineState = uiState.engineState,
                                 repeatMode = uiState.queue.repeatMode,
                                 onTogglePlayPause = { viewModel.togglePlayPause() },
                                 onNext = { viewModel.skipToNext() },
                                 onCycleRepeat = { viewModel.cycleRepeatMode() },
-                                onOpenFullPlayer = { currentDestination = FazoraDestination.PLAYER }
+                                onOpenFullPlayer = { currentDestination = VeloraDestination.PLAYER }
                             )
                         }
 
@@ -245,7 +245,7 @@ fun FazoraRootApp(
                                     .fillMaxWidth()
                                     .testTag("fazora_bottom_nav")
                             ) {
-                                FazoraDestination.entries.forEach { dest ->
+                                VeloraDestination.entries.forEach { dest ->
                                     val selected = currentDestination == dest
                                     val navLabel = if (isPersian) dest.labelFa else dest.label
                                     NavigationBarItem(
@@ -287,7 +287,7 @@ fun FazoraRootApp(
                         .padding(innerPadding)
                 ) {
                     when (currentDestination) {
-                        FazoraDestination.LIBRARY -> LibraryScreen(
+                        VeloraDestination.LIBRARY -> LibraryScreen(
                             uiState = uiState,
                             onScanLibrary = { viewModel.scanLibrary() },
                             onAddFolderUri = { viewModel.addFolderUri(it) },
@@ -301,7 +301,7 @@ fun FazoraRootApp(
                             onPlayTrack = { track ->
                                 viewModel.playTrack(track, uiState.allTracks)
                                 if (track.mediaType == com.example.domain.model.MediaType.VIDEO) {
-                                    currentDestination = FazoraDestination.VIDEO
+                                    currentDestination = VeloraDestination.VIDEO
                                 }
                             },
                             onAddTrackToQueue = { viewModel.addTrackToQueue(it) },
@@ -319,7 +319,7 @@ fun FazoraRootApp(
                             }
                         )
 
-                        FazoraDestination.MUSIC -> MusicScreen(
+                        VeloraDestination.MUSIC -> MusicScreen(
                             uiState = uiState,
                             onPlayAll = { viewModel.playAllMusic(shuffle = false) },
                             onShuffleAll = { viewModel.playAllMusic(shuffle = true) },
@@ -329,7 +329,7 @@ fun FazoraRootApp(
                             onToggleFavorite = { viewModel.toggleFavorite(it) }
                         )
 
-                        FazoraDestination.ARTISTS -> ArtistScreen(
+                        VeloraDestination.ARTISTS -> ArtistScreen(
                             uiState = uiState,
                             onSelectArtist = { viewModel.selectArtist(it) },
                             onPlayArtist = { artist, shuffle ->
@@ -344,7 +344,7 @@ fun FazoraRootApp(
                             onToggleFavorite = { viewModel.toggleFavorite(it) }
                         )
 
-                        FazoraDestination.VIDEO -> VideoPlayerScreen(
+                        VeloraDestination.VIDEO -> VideoPlayerScreen(
                             uiState = uiState,
                             exoPlayer = media3ExoPlayer,
                             onPlayVideoTrack = { viewModel.playTrack(it, uiState.videoTracks) },
@@ -359,7 +359,7 @@ fun FazoraRootApp(
                             onToggleFavorite = { viewModel.toggleFavorite(it) }
                         )
 
-                        FazoraDestination.SEARCH -> SearchScreen(
+                        VeloraDestination.SEARCH -> SearchScreen(
                             uiState = uiState,
                             onQueryChange = { viewModel.updateSearchQuery(it) },
                             onPlayTrack = { viewModel.playTrack(it, uiState.searchResults) },
@@ -369,7 +369,7 @@ fun FazoraRootApp(
                             onExecuteCopilotCommand = { cmd -> viewModel.executeCopilotCommand(cmd) }
                         )
 
-                        FazoraDestination.PLAYER -> PlayerAndEqScreen(
+                        VeloraDestination.PLAYER -> PlayerAndEqScreen(
                             uiState = uiState,
                             onTogglePlayPause = { viewModel.togglePlayPause() },
                             onStop = { viewModel.stopPlayback() },
@@ -394,7 +394,7 @@ fun FazoraRootApp(
                             onAddBookmark = { viewModel.addTimeMachineBookmark() }
                         )
 
-                        FazoraDestination.SETTINGS -> SettingsScreen(
+                        VeloraDestination.SETTINGS -> SettingsScreen(
                             uiState = uiState,
                             onSetAutoHideMs = { viewModel.updateAutoHideControlsMs(it) },
                             onSignInWithGoogle = { viewModel.signInWithGoogle(context) },

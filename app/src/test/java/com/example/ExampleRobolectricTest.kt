@@ -3,13 +3,13 @@ package com.example
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import com.example.data.local.FazoraDatabase
+import com.example.data.local.VeloraDatabase
 import com.example.data.local.TrackEntity
 import com.example.data.playback.Media3PlayerEngine
-import com.example.data.repository.FazoraLibraryRepository
+import com.example.data.repository.VeloraLibraryRepository
 import com.example.data.scanner.BundledMediaSynthesizer
 import com.example.data.scanner.MediaLibraryScanner
-import com.example.data.settings.FazoraSettingsRepository
+import com.example.data.settings.VeloraSettingsRepository
 import com.example.domain.engine.PlaybackStatus
 import com.example.domain.model.MediaType
 import com.example.domain.model.QueueMode
@@ -39,17 +39,17 @@ import java.io.File
 class ExampleRobolectricTest {
 
     private lateinit var context: Context
-    private lateinit var database: FazoraDatabase
-    private lateinit var repository: FazoraLibraryRepository
+    private lateinit var database: VeloraDatabase
+    private lateinit var repository: VeloraLibraryRepository
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        database = Room.inMemoryDatabaseBuilder(context, FazoraDatabase::class.java)
+        database = Room.inMemoryDatabaseBuilder(context, VeloraDatabase::class.java)
             .allowMainThreadQueries()
             .build()
         val scanner = MediaLibraryScanner(context)
-        repository = FazoraLibraryRepository(
+        repository = VeloraLibraryRepository(
             context = context,
             trackDao = database.trackDao(),
             playlistDao = database.playlistDao(),
@@ -157,7 +157,7 @@ class ExampleRobolectricTest {
     @Test
     fun `DataStore settings persist atomically and corrupt file creates backup and falls back to defaults`() = runBlocking {
         val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val settingsRepo = FazoraSettingsRepository(
+        val settingsRepo = VeloraSettingsRepository(
             context = context,
             scope = testScope,
             fileName = "test_fazora_settings_${System.currentTimeMillis()}"
@@ -176,11 +176,11 @@ class ExampleRobolectricTest {
             parentFile?.mkdirs()
             writeBytes(byteArrayOf(0xFF.toByte(), 0x00, 0x7F, 0x42, 0x13))
         }
-        val backup = FazoraSettingsRepository.backupCorruptFileIfPresent(corruptFile)
+        val backup = VeloraSettingsRepository.backupCorruptFileIfPresent(corruptFile)
         assertNotNull(backup)
         assertTrue(backup!!.exists())
 
-        val recoveredRepo = FazoraSettingsRepository(
+        val recoveredRepo = VeloraSettingsRepository(
             context = context,
             scope = testScope,
             fileName = corruptName
@@ -245,7 +245,7 @@ class ExampleRobolectricTest {
     @Test
     fun `IMediaOrchestrator coordinates play, pause, skipToNext, stop, seekTo, and observable PlaybackState flow`() = runBlocking {
         val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
-        val settingsRepo = FazoraSettingsRepository(
+        val settingsRepo = VeloraSettingsRepository(
             context = context,
             scope = testScope,
             fileName = "orchestrator_settings_${System.currentTimeMillis()}"

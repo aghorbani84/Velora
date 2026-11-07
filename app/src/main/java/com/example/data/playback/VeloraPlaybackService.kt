@@ -8,7 +8,7 @@ import com.example.MainActivity
 import com.example.domain.engine.PlayerEngine
 import org.koin.android.ext.android.inject
 
-class FazoraPlaybackService : MediaSessionService() {
+class VeloraPlaybackService : MediaSessionService() {
 
     private val playerEngine: PlayerEngine by inject()
     private var mediaSession: MediaSession? = null

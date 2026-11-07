@@ -2,9 +2,9 @@ package com.example.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.firebase.FazoraFirebaseRepository
-import com.example.data.repository.FazoraLibraryRepository
-import com.example.data.settings.FazoraSettingsRepository
+import com.example.data.firebase.VeloraFirebaseRepository
+import com.example.data.repository.VeloraLibraryRepository
+import com.example.data.settings.VeloraSettingsRepository
 import com.example.domain.engine.EnginePlaybackState
 import com.example.domain.engine.MediaOrchestrator
 import com.example.domain.engine.MediaOrchestratorState
@@ -52,7 +52,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class FazoraUiState(
+typealias FazoraUiState = VeloraUiState
+
+data class VeloraUiState(
     val allTracks: List<Track> = emptyList(),
     val audioTracks: List<Track> = emptyList(),
     val videoTracks: List<Track> = emptyList(),
@@ -84,11 +86,11 @@ data class FazoraUiState(
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class FazoraViewModel(
-    private val repository: FazoraLibraryRepository,
-    private val settingsRepository: FazoraSettingsRepository,
+class VeloraViewModel(
+    private val repository: VeloraLibraryRepository,
+    private val settingsRepository: VeloraSettingsRepository,
     val playerEngine: PlayerEngine,
-    val firebaseRepository: FazoraFirebaseRepository,
+    val firebaseRepository: VeloraFirebaseRepository,
     val mediaOrchestrator: IMediaOrchestrator = MediaOrchestrator(repository, settingsRepository, playerEngine)
 ) : ViewModel() {
 
@@ -104,7 +106,7 @@ class FazoraViewModel(
         repository.searchTracks(query)
     }
 
-    val uiState: StateFlow<FazoraUiState> = combine(
+    val uiState: StateFlow<VeloraUiState> = combine(
         repository.allTracks,
         repository.playlists,
         repository.allEqPresets,
@@ -119,11 +121,11 @@ class FazoraViewModel(
         repository.playbackHistory,
         _sortOrder,
         _filterMode,
-        transform = ::assembleFazoraUiState
+        transform = ::assembleVeloraUiState
     ).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = FazoraUiState()
+        initialValue = VeloraUiState()
     )
 
     init {
@@ -423,27 +425,27 @@ class FazoraViewModel(
     }
 }
 
-fun FazoraViewModel.playSmartPlaylist(smartPlaylist: SmartPlaylist, shuffle: Boolean = false) {
+fun VeloraViewModel.playSmartPlaylist(smartPlaylist: SmartPlaylist, shuffle: Boolean = false) {
     mediaOrchestrator.playSmartPlaylist(smartPlaylist, shuffle)
 }
 
-fun FazoraViewModel.playNetworkStream(streamUrl: String, customTitle: String = "VELORA Live Stream") {
+fun VeloraViewModel.playNetworkStream(streamUrl: String, customTitle: String = "VELORA Live Stream") {
     mediaOrchestrator.playNetworkStream(streamUrl, customTitle)
 }
 
-fun FazoraViewModel.adjustLyricsOffset(deltaMs: Long) {
+fun VeloraViewModel.adjustLyricsOffset(deltaMs: Long) {
     mediaOrchestrator.adjustLyricsOffset(deltaMs)
 }
 
-fun FazoraViewModel.addTimeMachineBookmark(label: String = "Studio Marker") {
+fun VeloraViewModel.addTimeMachineBookmark(label: String = "Studio Marker") {
     mediaOrchestrator.addTimeMachineBookmark(label)
 }
 
-fun FazoraViewModel.toggleDeclarativePlugin(pluginId: String) {
+fun VeloraViewModel.toggleDeclarativePlugin(pluginId: String) {
     mediaOrchestrator.toggleDeclarativePlugin(pluginId)
 }
 
-fun FazoraViewModel.executeCopilotCommand(rawCommand: String) {
+fun VeloraViewModel.executeCopilotCommand(rawCommand: String) {
     val result = com.example.domain.model.VeloraMediaCopilot.interpretCommand(rawCommand)
     val state = uiState.value
     val isPersian = state.settings.appLanguageCode == "fa"
@@ -489,8 +491,8 @@ fun FazoraViewModel.executeCopilotCommand(rawCommand: String) {
 }
 
 private suspend fun syncCloudDataForUser(
-    firebaseRepository: FazoraFirebaseRepository,
-    snapshot: FazoraUiState,
+    firebaseRepository: VeloraFirebaseRepository,
+    snapshot: VeloraUiState,
     userId: String
 ) {
     snapshot.playlists.forEach { playlist ->
@@ -515,7 +517,7 @@ private suspend fun syncCloudDataForUser(
     }
 }
 
-private fun assembleFazoraUiState(values: Array<Any?>): FazoraUiState {
+private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
     @Suppress("UNCHECKED_CAST")
     val rawTracks = values[0] as List<Track>
     @Suppress("UNCHECKED_CAST")
@@ -568,7 +570,7 @@ private fun assembleFazoraUiState(values: Array<Any?>): FazoraUiState {
         (omniMatches.map { it.track } + dbSearchResults).distinctBy { it.id }
     }
 
-    return FazoraUiState(
+    return VeloraUiState(
         allTracks = sortedTracks,
         audioTracks = audioTracks,
         videoTracks = videoTracks,

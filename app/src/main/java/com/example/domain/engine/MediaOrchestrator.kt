@@ -1,8 +1,8 @@
 package com.example.domain.engine
 
 import androidx.media3.common.MediaItem
-import com.example.data.repository.FazoraLibraryRepository
-import com.example.data.settings.FazoraSettingsRepository
+import com.example.data.repository.VeloraLibraryRepository
+import com.example.data.settings.VeloraSettingsRepository
 import com.example.domain.model.DeclarativePluginManifest
 import com.example.domain.model.EqPreset
 import com.example.domain.model.EqSpecification
@@ -67,12 +67,12 @@ data class MediaOrchestratorState(
 )
 
 /**
- * Central coordination layer between [PlayerEngine], [FazoraLibraryRepository] (Room),
- * and [FazoraSettingsRepository] (DataStore), implementing [IMediaOrchestrator].
+ * Central coordination layer between [PlayerEngine], [VeloraLibraryRepository] (Room),
+ * and [VeloraSettingsRepository] (DataStore), implementing [IMediaOrchestrator].
  */
 class MediaOrchestrator(
-    private val repository: FazoraLibraryRepository,
-    private val settingsRepository: FazoraSettingsRepository,
+    private val repository: VeloraLibraryRepository,
+    private val settingsRepository: VeloraSettingsRepository,
     val playerEngine: PlayerEngine,
     dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate
 ) : IMediaOrchestrator {

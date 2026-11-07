@@ -5,7 +5,7 @@
 ### 🎯 Affected Subsystems
 - [ ] `IMediaOrchestrator` / `MediaOrchestrator` (`com.example.orchestrator` / `com.example.domain.engine`)
 - [ ] Playback & Acoustic DSP (`Media3PlayerEngine`, `TenBandBiquadAudioProcessor`, Goertzel RTA)
-- [ ] Storage & Persistence (`FazoraLibraryRepository` Room v3, `FazoraSettingsRepository` DataStore)
+- [ ] Storage & Persistence (`VeloraLibraryRepository` Room v3, `VeloraSettingsRepository` DataStore)
 - [ ] Media Intelligence (`VeloraOmniSearchEngine`, `VeloraSmartPlaylistEngine`, `VeloraMediaCopilot`)
 - [ ] Lyrics & Subtitles (`VeloraLyricsAndSubtitleEngine`, `VeloraSubtitleExporter`)
 - [ ] Security & Sandboxed Plugins (`VeloraDownloadValidator`, `VeloraPluginRegistry`, `firestore.rules`)

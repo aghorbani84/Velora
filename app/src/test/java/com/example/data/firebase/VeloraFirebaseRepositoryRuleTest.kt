@@ -10,12 +10,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-class FazoraFirebaseRepositoryRuleTest : FirestoreEmulatorTestBase() {
+class VeloraFirebaseRepositoryRuleTest : FirestoreEmulatorTestBase() {
 
     @Test
     fun saveAndObserveCloudPlaylists_authenticatedUser_succeeds() = runBlocking {
         val aliceUid = signInTestUser(ALICE_EMAIL)
-        val repository = FazoraFirebaseRepository(db = firestore, auth = auth)
+        val repository = VeloraFirebaseRepository(db = firestore, auth = auth)
 
         val playlistId = "playlist_obsidian_flow"
         val trackIds = listOf("audio_track_1", "audio_track_2")
@@ -44,7 +44,7 @@ class FazoraFirebaseRepositoryRuleTest : FirestoreEmulatorTestBase() {
     @Test
     fun crossUserAccess_aliceCannotAccessBobsPlaylists_fails() = runBlocking {
         val bobUid = signInTestUser(BOB_EMAIL)
-        val bobRepository = FazoraFirebaseRepository(db = firestore, auth = auth)
+        val bobRepository = VeloraFirebaseRepository(db = firestore, auth = auth)
 
         withTimeout(DEFAULT_TIMEOUT_MS) {
             bobRepository.saveCloudPlaylist(
@@ -57,7 +57,7 @@ class FazoraFirebaseRepositoryRuleTest : FirestoreEmulatorTestBase() {
 
         // Switch user to Alice
         val aliceUid = signInTestUser(ALICE_EMAIL)
-        val aliceRepository = FazoraFirebaseRepository(db = firestore, auth = auth)
+        val aliceRepository = VeloraFirebaseRepository(db = firestore, auth = auth)
 
         try {
             withTimeout(DEFAULT_TIMEOUT_MS) {
@@ -79,7 +79,7 @@ class FazoraFirebaseRepositoryRuleTest : FirestoreEmulatorTestBase() {
     @Test
     fun saveAndObserveCloudEqPresets_authenticatedUser_succeeds() = runBlocking {
         val aliceUid = signInTestUser(ALICE_EMAIL)
-        val repository = FazoraFirebaseRepository(db = firestore, auth = auth)
+        val repository = VeloraFirebaseRepository(db = firestore, auth = auth)
 
         val presetId = "tape_warmth_preset"
         val gains = listOf(3.5, 2.5, 1.0, 0.0, -0.5, 0.0, 1.0, 2.0, 3.0, 4.0)

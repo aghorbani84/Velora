@@ -124,9 +124,10 @@ interface PlaybackHistoryDao {
     version = 3,
     exportSchema = false
 )
-abstract class FazoraDatabase : RoomDatabase() {
+abstract class VeloraDatabase : RoomDatabase() {
     abstract fun trackDao(): TrackDao
     abstract fun playlistDao(): PlaylistDao
     abstract fun eqPresetDao(): EqPresetDao
     abstract fun playbackHistoryDao(): PlaybackHistoryDao
 }
+

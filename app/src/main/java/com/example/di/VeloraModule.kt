@@ -1,41 +1,41 @@
 package com.example.di
 
 import androidx.room.Room
-import com.example.data.local.FazoraDatabase
+import com.example.data.firebase.VeloraFirebaseRepository
+import com.example.data.local.VeloraDatabase
 import com.example.data.playback.Media3PlayerEngine
-import com.example.data.repository.FazoraLibraryRepository
+import com.example.data.repository.VeloraLibraryRepository
 import com.example.data.scanner.MediaLibraryScanner
-import com.example.data.settings.FazoraSettingsRepository
-import com.example.data.firebase.FazoraFirebaseRepository
+import com.example.data.settings.VeloraSettingsRepository
 import com.example.domain.engine.MediaOrchestrator
 import com.example.domain.engine.PlayerEngine
 import com.example.orchestrator.IMediaOrchestrator
-import com.example.ui.viewmodel.FazoraViewModel
+import com.example.ui.viewmodel.VeloraViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
-val fazoraAppModule = module {
+val veloraAppModule = module {
     single {
         Room.databaseBuilder(
             androidContext(),
-            FazoraDatabase::class.java,
-            "fazora_library.db"
+            VeloraDatabase::class.java,
+            "velora_library.db"
         ).fallbackToDestructiveMigration(dropAllTables = true).build()
     }
 
-    single { get<FazoraDatabase>().trackDao() }
-    single { get<FazoraDatabase>().playlistDao() }
-    single { get<FazoraDatabase>().eqPresetDao() }
-    single { get<FazoraDatabase>().playbackHistoryDao() }
+    single { get<VeloraDatabase>().trackDao() }
+    single { get<VeloraDatabase>().playlistDao() }
+    single { get<VeloraDatabase>().eqPresetDao() }
+    single { get<VeloraDatabase>().playbackHistoryDao() }
 
     single { MediaLibraryScanner(androidContext()) }
-    single { FazoraSettingsRepository(androidContext()) }
+    single { VeloraSettingsRepository(androidContext()) }
 
     single<PlayerEngine> { Media3PlayerEngine(androidContext()) }
 
     single {
-        FazoraLibraryRepository(
+        VeloraLibraryRepository(
             context = androidContext(),
             trackDao = get(),
             playlistDao = get(),
@@ -55,10 +55,10 @@ val fazoraAppModule = module {
 
     single<IMediaOrchestrator> { get<MediaOrchestrator>() }
 
-    single { FazoraFirebaseRepository(androidContext()) }
+    single { VeloraFirebaseRepository(androidContext()) }
 
     viewModel {
-        FazoraViewModel(
+        VeloraViewModel(
             repository = get(),
             settingsRepository = get(),
             playerEngine = get(),
@@ -67,3 +67,4 @@ val fazoraAppModule = module {
         )
     }
 }
+

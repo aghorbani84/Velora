@@ -88,10 +88,10 @@ interface IMediaOrchestrator {
 | Subsystem | Implementation Class | Responsibility |
 | :--- | :--- | :--- |
 | **Media Orchestrator** | `MediaOrchestrator` (`IMediaOrchestrator`) | Central state machine coordinating `PlayerEngine`, Room history, DataStore session persistence, queue management, and domain events. |
-| **Audio & Video Playback** | `Media3PlayerEngine` + `FazoraPlaybackService` | AndroidX Media3 ExoPlayer & foreground `MediaSessionService` with bilateral seek clamping (`[0, durationMs]`), audio focus, and explicit error surfacing. |
+| **Audio & Video Playback** | `Media3PlayerEngine` + `VeloraPlaybackService` | AndroidX Media3 ExoPlayer & foreground `MediaSessionService` with bilateral seek clamping (`[0, durationMs]`), audio focus, and explicit error surfacing. |
 | **10-Band DSP & RTA** | `TenBandBiquadAudioProcessor` | Real-time 10-band cascaded Direct Form II Transposed RBJ peaking biquad filter (`31.25 Hz`–`16 kHz`) + Goertzel RTA spectrum + 64-point oscilloscope waveform. |
-| **Offline Library & History** | `FazoraLibraryRepository` (`FazoraDatabase` v3) | Incremental `MediaStore` + SAF folder indexing, deduplication by `mediaStoreId` & `uri`, custom EQ presets, playlists, and offline playback history. |
-| **Atomic Settings Store** | `FazoraSettingsRepository` | Jetpack DataStore Preferences with `ReplaceFileCorruptionHandler` creating automatic `.corrupt.bak` forensic backups before safe recovery. |
+| **Offline Library & History** | `VeloraLibraryRepository` (`VeloraDatabase` v3) | Incremental `MediaStore` + SAF folder indexing, deduplication by `mediaStoreId` & `uri`, custom EQ presets, playlists, and offline playback history. |
+| **Atomic Settings Store** | `VeloraSettingsRepository` | Jetpack DataStore Preferences with `ReplaceFileCorruptionHandler` creating automatic `.corrupt.bak` forensic backups before safe recovery. |
 | **OmniSearch Engine** | `VeloraOmniSearchEngine` | Prefix, substring, Levenshtein typo-tolerant fuzzy matching, and semantic intent queries (`favorite`, `unfinished`, `hi-res`, `night`). |
 | **Smart Playlist Engine** | `VeloraSmartPlaylistEngine` | Deterministic, explainable local recommendation mixes (*Daily Saffron Mix*, *Most Played*, *Continue Listening*, *Hidden Gems & Hi-Res*, *Favorite Collection*). |
 | **Lyrics & Subtitle Studio** | `VeloraLyricsAndSubtitleEngine` + `VeloraSubtitleExporter` | Time-synchronized lyrics & subtitles with `±250ms` offset calibration, RTL/Unicode support (Persian, Arabic, Japanese, English), and `SRT` / `WebVTT` export. |

@@ -10,8 +10,8 @@ Thank you for your interest in contributing to **VELORA**! We engineer VELORA to
 2. **Clean Architecture Boundaries:**
    - `com.example.orchestrator`: `IMediaOrchestrator` contract and state models (`PlaybackState`, `MediaOrchestratorState`).
    - `com.example.domain`: Pure Kotlin business logic, DSP math (`TenBandBiquadAudioProcessor`), queue invariants (`PlaybackQueue`), and intelligence engines (`VeloraIntelligenceEngine`, `VeloraEcosystemEngines`).
-   - `com.example.data`: Platform implementations (`Media3PlayerEngine`, `FazoraLibraryRepository` Room v3, `FazoraSettingsRepository` DataStore, `VeloraCloudRepository` Firestore).
-   - `com.example.ui`: Jetpack Compose Material 3 screens (`Dark Saffron & Champagne Gold` theme) and `FazoraViewModel`.
+   - `com.example.data`: Platform implementations (`Media3PlayerEngine`, `VeloraLibraryRepository` Room v3, `VeloraSettingsRepository` DataStore, `VeloraFirebaseRepository` Firestore).
+   - `com.example.ui`: Jetpack Compose Material 3 screens (`Dark Saffron & Champagne Gold` theme) and `VeloraViewModel`.
 3. **No Silent Failures:** Never swallow exceptions (`catch (_: Exception) {}`). Surface actionable state via `PlaybackStatus.ERROR` or `VeloraMediaEvent.ErrorRaised`.
 4. **No Fake Functionality:** Every UI control must be wired to a real domain/data implementation and tagged with `Modifier.testTag("snake_case_tag")`.
 

@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
 
-class FazoraLibraryRepository(
+class VeloraLibraryRepository(
     private val context: Context,
     private val trackDao: TrackDao,
     private val playlistDao: PlaylistDao,

@@ -33,10 +33,10 @@ import java.io.File
 import java.io.IOException
 import java.util.Locale
 
-class FazoraSettingsRepository(
+class VeloraSettingsRepository(
     private val context: Context,
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-    fileName: String = "fazora_settings"
+    fileName: String = "velora_settings"
 ) {
     private val rawDataStoreFile: File = context.preferencesDataStoreFile(fileName)
 
@@ -197,7 +197,7 @@ class FazoraSettingsRepository(
     }
 
     companion object {
-        private const val TAG = "FazoraSettings"
+        private const val TAG = "VeloraSettings"
 
         private val KEY_EQ_ENABLED = booleanPreferencesKey("eq_enabled")
         private val KEY_ACTIVE_EQ_PRESET = stringPreferencesKey("active_eq_preset")

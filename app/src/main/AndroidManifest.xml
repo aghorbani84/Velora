@@ -16,7 +16,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".FazoraApplication"
+        android:name=".VeloraApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -40,7 +40,7 @@
 
         <!-- Media3 Foreground Playback Service for continuous background playback and system media controls -->
         <service
-            android:name=".data.playback.FazoraPlaybackService"
+            android:name=".data.playback.VeloraPlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>

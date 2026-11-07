@@ -49,7 +49,7 @@
 
   <!-- Connector 1 -> 2 -->
   <line x1="550" y1="150" x2="550" y2="182" stroke="#E5A817" stroke-width="2" marker-end="url(#arrowSaffron)" />
-  <text x="564" y="170" fill="#A5A29B" font-family="JetBrains Mono, monospace" font-size="10">StateFlow&lt;FazoraUiState&gt; / Unidirectional Intents</text>
+  <text x="564" y="170" fill="#A5A29B" font-family="JetBrains Mono, monospace" font-size="10">StateFlow&lt;VeloraUiState&gt; / Unidirectional Intents</text>
 
   <!-- LAYER 2: CENTRAL ORCHESTRATION LAYER -->
   <rect x="45" y="186" width="1010" height="106" rx="12" fill="url(#orchestratorGrad)" stroke="#E5A817" stroke-width="1.8" />

@@ -28,20 +28,21 @@ private val VeloraSaffronColorScheme = darkColorScheme(
     onError = VeloraObsidian
 )
 
-val FazoraShapes = Shapes(
+val VeloraShapes = Shapes(
     small = RoundedCornerShape(PhiTokens.CornerRadius8),
     medium = RoundedCornerShape(PhiTokens.CornerRadius13),
     large = RoundedCornerShape(PhiTokens.CornerRadius21)
 )
 
 @Composable
-fun FazoraTheme(
+fun VeloraTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
         colorScheme = VeloraSaffronColorScheme,
         typography = FazoraTypography,
-        shapes = FazoraShapes,
+        shapes = VeloraShapes,
         content = content
     )
 }
+
