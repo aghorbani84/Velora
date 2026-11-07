@@ -37,6 +37,8 @@ data class EnginePlaybackState(
     val audioTracks: List<AudioTrackInfo> = emptyList(),
     val subtitlesEnabled: Boolean = true,
     val videoAspectMode: VideoAspectMode = VideoAspectMode.FIT,
+    val videoWidth: Int = 0,
+    val videoHeight: Int = 0,
     val engineAvailable: Boolean = false,
     val audioSessionId: Int = 0,
     val errorMessage: String? = null

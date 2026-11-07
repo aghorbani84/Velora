@@ -216,7 +216,7 @@ fun VeloraRootApp(
         currentDestination = homeDestination
     }
 
-    val media3ExoPlayer = (viewModel.playerEngine as? Media3PlayerEngine)?.exoPlayer
+    val media3ExoPlayer = viewModel.exoPlayer
 
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
         BoxWithConstraints(
@@ -382,7 +382,8 @@ fun VeloraRootApp(
                             }
                         }
 
-                        if (currentDestination != VeloraDestination.PLAYER) {
+                        if (currentDestination != VeloraDestination.PLAYER &&
+                            currentDestination != VeloraDestination.VIDEO) {
                             MiniPlayerBar(
                                 engineState = uiState.engineState,
                                 repeatMode = uiState.queue.repeatMode,

@@ -22,8 +22,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import android.content.Intent
+import android.view.LayoutInflater
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
@@ -31,26 +38,35 @@ import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,15 +79,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.R
+import com.example.domain.engine.PlaybackStatus
 import com.example.domain.model.PhiDesignMetrics
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.Track
@@ -115,22 +137,55 @@ fun VideoPlayerScreen(
     onAutoScanMedia: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val engine = uiState.engineState
     val isPersian = uiState.settings.appLanguageCode == "fa"
     val isCurrentTrackVideo = engine.currentTrack?.mediaType == com.example.domain.model.MediaType.VIDEO
     val activeVideo = if (isCurrentTrackVideo) engine.currentTrack else uiState.videoTracks.firstOrNull()
 
+    var showSubtitleDialog by remember { mutableStateOf(false) }
+    var showAudioDialog by remember { mutableStateOf(false) }
+    var seekNotice by remember { mutableStateOf<String?>(null) }
+    var controlsLocked by remember { mutableStateOf(false) }
+    var controlsVisible by remember { mutableStateOf(true) }
+    var interactionNonce by remember { mutableIntStateOf(0) }
+    var isFullscreen by remember { mutableStateOf(false) }
+    var isDraggingSeek by remember { mutableStateOf(false) }
+    var dragSeekFraction by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(seekNotice) {
+        if (seekNotice != null) {
+            delay(900L)
+            seekNotice = null
+        }
+    }
+
+    LaunchedEffect(controlsVisible, engine.isPlaying, interactionNonce, uiState.settings.autoHideVideoControlsMs) {
+        if (controlsVisible && engine.isPlaying && !controlsLocked) {
+            delay(uiState.settings.autoHideVideoControlsMs.coerceAtLeast(3500L))
+            controlsVisible = false
+        }
+    }
+
     val videoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            val fileName = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: "Local Video"
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            val fileName = uri.lastPathSegment
+                ?.substringAfterLast('/')
+                ?.takeIf { it.isNotBlank() } ?: "Local Video"
             val pickedTrack = Track(
                 id = "picked_video_${System.currentTimeMillis()}",
                 mediaStoreId = System.currentTimeMillis(),
                 title = fileName,
-                artist = "Device Storage",
-                album = "Local Video",
+                artist = if (isPersian) "حافظه محلی" else "Device Storage",
+                album = if (isPersian) "ویدیوهای دستگاه" else "Local Videos",
                 durationMs = 0L,
                 uri = uri.toString(),
                 folderPath = "/storage/emulated/0/Movies",
@@ -140,16 +195,25 @@ fun VideoPlayerScreen(
         }
     }
 
-    var controlsVisible by remember { mutableStateOf(true) }
-    var interactionNonce by remember { mutableIntStateOf(0) }
-    var isFullscreen by remember { mutableStateOf(false) }
-    var isDraggingSeek by remember { mutableStateOf(false) }
-    var dragSeekFraction by remember { mutableFloatStateOf(0f) }
-
-    LaunchedEffect(controlsVisible, engine.isPlaying, interactionNonce, uiState.settings.autoHideVideoControlsMs) {
-        if (controlsVisible && engine.isPlaying) {
-            delay(uiState.settings.autoHideVideoControlsMs)
-            controlsVisible = false
+    val galleryPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val fileName = uri.lastPathSegment
+                ?.substringAfterLast('/')
+                ?.takeIf { it.isNotBlank() } ?: "Gallery Video"
+            val pickedTrack = Track(
+                id = "gallery_video_${System.currentTimeMillis()}",
+                mediaStoreId = System.currentTimeMillis(),
+                title = fileName,
+                artist = if (isPersian) "گالری" else "Gallery",
+                album = if (isPersian) "ویدیوهای دستگاه" else "Device Videos",
+                durationMs = 0L,
+                uri = uri.toString(),
+                folderPath = "/storage/emulated/0/DCIM",
+                mediaType = com.example.domain.model.MediaType.VIDEO
+            )
+            onPlayVideoTrack(pickedTrack)
         }
     }
 
@@ -165,17 +229,436 @@ fun VideoPlayerScreen(
         0f
     }
 
+    val nativeRatio = if (engine.videoWidth > 0 && engine.videoHeight > 0) {
+        engine.videoWidth.toFloat() / engine.videoHeight.toFloat()
+    } else {
+        16f / 9f
+    }
+
     val aspectRatioFloat = when (engine.videoAspectMode) {
-        VideoAspectMode.FIT -> 16f / 9f
-        VideoAspectMode.FILL -> 18f / 9f
+        VideoAspectMode.FIT -> nativeRatio.coerceIn(0.5f, 2.4f)
+        VideoAspectMode.FILL -> 16f / 9f
         VideoAspectMode.GOLDEN_PHI -> PhiTokens.PHI
         VideoAspectMode.SIXTEEN_NINE -> 16f / 9f
     }
 
+    val resolutionLabel = when {
+        engine.videoHeight >= 2160 -> "4K UHD"
+        engine.videoHeight >= 1080 -> "1080p FHD"
+        engine.videoHeight >= 720 -> "720p HD"
+        engine.videoHeight > 0 -> "${engine.videoHeight}p"
+        else -> "HD Video"
+    }
+
     val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
 
+    if (isFullscreen) {
+        Dialog(
+            onDismissRequest = { isFullscreen = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            BackHandler { isFullscreen = false }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                if (exoPlayer != null) {
+                    AndroidView(
+                        factory = { ctx ->
+                            val playerView = LayoutInflater.from(ctx).inflate(
+                                R.layout.velora_video_player_view,
+                                null,
+                                false
+                            ) as PlayerView
+                            playerView.apply {
+                                setEnableComposeSurfaceSyncWorkaround(true)
+                                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                useController = false
+                                keepScreenOn = true
+                                player = exoPlayer
+                                onResume()
+                            }
+                        },
+                        update = { view ->
+                            if (view.player !== exoPlayer) {
+                                view.player = exoPlayer
+                            }
+                            view.onResume()
+                            view.resizeMode = when (engine.videoAspectMode) {
+                                VideoAspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                VideoAspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                VideoAspectMode.GOLDEN_PHI -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                                VideoAspectMode.SIXTEEN_NINE -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            }
+                        },
+                        onRelease = { view -> view.player = null },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .testTag("fullscreen_media3_player_view")
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(controlsLocked) {
+                            detectTapGestures(
+                                onDoubleTap = { offset ->
+                                    if (!controlsLocked) {
+                                        interactionNonce++
+                                        val isRight = offset.x > size.width / 2
+                                        if (isRight) {
+                                            onSeekTo(engine.positionMs + 10_000L)
+                                            seekNotice = "+10s"
+                                        } else {
+                                            onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
+                                            seekNotice = "-10s"
+                                        }
+                                    }
+                                },
+                                onTap = {
+                                    controlsVisible = !controlsVisible
+                                    interactionNonce++
+                                }
+                            )
+                        }
+                )
+
+                if (seekNotice != null) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.75f),
+                        shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .border(1.dp, FazoraGold, RoundedCornerShape(PhiTokens.CornerRadius21))
+                    ) {
+                        Text(
+                            text = seekNotice.orEmpty(),
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = FazoraGold,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                        )
+                    }
+                }
+
+                if (engine.status == PlaybackStatus.BUFFERING) {
+                    CircularProgressIndicator(
+                        color = FazoraGold,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = controlsVisible,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .padding(PhiTokens.Space21)
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = activeVideo?.title ?: "Velora Cinema",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = FazoraIvory,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "$resolutionLabel • ${engine.videoAspectMode.label}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = FazoraGold
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { controlsLocked = !controlsLocked },
+                                        modifier = Modifier.minimumInteractiveComponentSize()
+                                    ) {
+                                        Icon(
+                                            imageVector = if (controlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                                            contentDescription = "Lock controls",
+                                            tint = if (controlsLocked) FazoraGold else FazoraSteel
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { isFullscreen = false },
+                                        modifier = Modifier.minimumInteractiveComponentSize()
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.FullscreenExit,
+                                            contentDescription = "Exit Fullscreen",
+                                            tint = FazoraIvory
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (!controlsLocked) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            interactionNonce++
+                                            onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
+                                            seekNotice = "-10s"
+                                        },
+                                        modifier = Modifier.size(54.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Replay10,
+                                            contentDescription = "-10s",
+                                            tint = FazoraIvory,
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            interactionNonce++
+                                            if (!isCurrentTrackVideo && activeVideo != null) {
+                                                onPlayVideoTrack(activeVideo)
+                                            } else {
+                                                onTogglePlayPause()
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = FazoraGold,
+                                            contentColor = FazoraObsidian
+                                        ),
+                                        modifier = Modifier.size(68.dp),
+                                        shape = CircleShape
+                                    ) {
+                                        val icon = if (engine.isPlaying && isCurrentTrackVideo) {
+                                            Icons.Default.Pause
+                                        } else {
+                                            Icons.Default.PlayArrow
+                                        }
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(34.dp)
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            interactionNonce++
+                                            onSeekTo(engine.positionMs + 10_000L)
+                                            seekNotice = "+10s"
+                                        },
+                                        modifier = Modifier.size(54.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Forward10,
+                                            contentDescription = "+10s",
+                                            tint = FazoraIvory,
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
+                                }
+
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Slider(
+                                        value = seekFraction,
+                                        onValueChange = { frac ->
+                                            isDraggingSeek = true
+                                            dragSeekFraction = frac
+                                        },
+                                        onValueChangeFinished = {
+                                            isDraggingSeek = false
+                                            onSeekTo((dragSeekFraction * durationMs).toLong())
+                                        },
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = FazoraGold,
+                                            activeTrackColor = FazoraGold,
+                                            inactiveTrackColor = FazoraSteel.copy(alpha = 0.4f)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Row(
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = Track.formatDurationMs(currentPosMs),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = FazoraIvory
+                                        )
+                                        Text(
+                                            text = Track.formatDurationMs(durationMs),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = FazoraSteel
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showSubtitleDialog) {
+        AlertDialog(
+            onDismissRequest = { showSubtitleDialog = false },
+            containerColor = FazoraCarbonElevated,
+            title = {
+                Text(
+                    text = if (isPersian) "تنظیمات زیرنویس ویدیو" else "Video Subtitles",
+                    color = FazoraIvory
+                )
+            },
+            text = {
+                Column {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSetSubtitlesEnabled(!engine.subtitlesEnabled) }
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isPersian) "نمایش زیرنویس" else "Display Subtitles",
+                            color = FazoraIvory
+                        )
+                        RadioButton(
+                            selected = engine.subtitlesEnabled,
+                            onClick = { onSetSubtitlesEnabled(!engine.subtitlesEnabled) },
+                            colors = RadioButtonDefaults.colors(selectedColor = FazoraGold)
+                        )
+                    }
+
+                    if (engine.subtitleTracks.isEmpty()) {
+                        Text(
+                            text = if (isPersian)
+                                "این ویدیو فاقد زیرنویس توکار است."
+                            else
+                                "No embedded subtitles found in current video stream.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = FazoraSteel,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    } else {
+                        engine.subtitleTracks.forEach { sub ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onSetSubtitlesEnabled(true)
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                RadioButton(
+                                    selected = sub.isSelected && engine.subtitlesEnabled,
+                                    onClick = { onSetSubtitlesEnabled(true) },
+                                    colors = RadioButtonDefaults.colors(selectedColor = FazoraGold)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${sub.label} (${sub.language})",
+                                    color = FazoraIvory,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showSubtitleDialog = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FazoraGold,
+                        contentColor = FazoraObsidian
+                    )
+                ) {
+                    Text(if (isPersian) "تایید" else "OK")
+                }
+            }
+        )
+    }
+
+    if (showAudioDialog) {
+        AlertDialog(
+            onDismissRequest = { showAudioDialog = false },
+            containerColor = FazoraCarbonElevated,
+            title = {
+                Text(
+                    text = if (isPersian) "ترک صوتی و زبان ویدیو" else "Audio Stream / Language",
+                    color = FazoraIvory
+                )
+            },
+            text = {
+                Column {
+                    if (engine.audioTracks.isEmpty()) {
+                        Text(
+                            text = if (isPersian) "یک ترک صوتی استریو فعال است." else "Standard audio track is active.",
+                            color = FazoraSteel
+                        )
+                    } else {
+                        engine.audioTracks.forEach { aud ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelectAudioTrack(aud.id) }
+                                    .padding(vertical = 6.dp)
+                            ) {
+                                RadioButton(
+                                    selected = aud.isSelected,
+                                    onClick = { onSelectAudioTrack(aud.id) },
+                                    colors = RadioButtonDefaults.colors(selectedColor = FazoraGold)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${aud.label} (${aud.language})",
+                                    color = FazoraIvory,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showAudioDialog = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FazoraGold,
+                        contentColor = FazoraObsidian
+                    )
+                ) {
+                    Text(if (isPersian) "بستن" else "Close")
+                }
+            }
+        )
+    }
+
     LazyColumn(
-        contentPadding = PaddingValues(if (isFullscreen) PhiTokens.Space8 else PhiTokens.Space21),
+        contentPadding = PaddingValues(PhiTokens.Space21),
         verticalArrangement = Arrangement.spacedBy(PhiTokens.Space21),
         modifier = modifier
             .fillMaxSize()
@@ -196,33 +679,50 @@ fun VideoPlayerScreen(
                             .fillMaxWidth()
                             .aspectRatio(aspectRatioFloat)
                             .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
-                            .background(FazoraObsidian)
-                            .clickable {
-                                controlsVisible = !controlsVisible
-                                interactionNonce++
+                            .background(Color.Black)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = { offset ->
+                                        interactionNonce++
+                                        val isRight = offset.x > size.width / 2
+                                        if (isRight) {
+                                            onSeekTo(engine.positionMs + 10_000L)
+                                            seekNotice = "+10s"
+                                        } else {
+                                            onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
+                                            seekNotice = "-10s"
+                                        }
+                                    },
+                                    onTap = {
+                                        controlsVisible = !controlsVisible
+                                        interactionNonce++
+                                    }
+                                )
                             }
                             .testTag("video_surface_container")
                     ) {
                         if (exoPlayer != null) {
                             AndroidView(
                                 factory = { ctx ->
-                                    PlayerView(ctx).apply {
+                                    val playerView = LayoutInflater.from(ctx).inflate(
+                                        R.layout.velora_video_player_view,
+                                        null,
+                                        false
+                                    ) as PlayerView
+                                    playerView.apply {
+                                        setEnableComposeSurfaceSyncWorkaround(true)
+                                        setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                                         useController = false
-                                        player = exoPlayer
-                                        setShutterBackgroundColor(android.graphics.Color.BLACK)
                                         keepScreenOn = true
-                                        resizeMode = when (engine.videoAspectMode) {
-                                            VideoAspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                            VideoAspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                            VideoAspectMode.GOLDEN_PHI -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                                            VideoAspectMode.SIXTEEN_NINE -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                        }
+                                        player = exoPlayer
+                                        onResume()
                                     }
                                 },
                                 update = { view ->
                                     if (view.player !== exoPlayer) {
                                         view.player = exoPlayer
                                     }
+                                    view.onResume()
                                     view.resizeMode = when (engine.videoAspectMode) {
                                         VideoAspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                                         VideoAspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -230,22 +730,65 @@ fun VideoPlayerScreen(
                                         VideoAspectMode.SIXTEEN_NINE -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                                     }
                                 },
+                                onRelease = { view -> view.player = null },
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .testTag("media3_player_view")
                             )
                         }
 
-                        if (!isCurrentTrackVideo) {
-                            SpectrumAnalyzerCanvas(
-                                spectrumBandsDb = engine.spectrumBandsDb,
-                                eqGainsDb = engine.eqBandGainsDb,
-                                eqEnabled = engine.eqEnabled,
+                        if (!isCurrentTrackVideo && activeVideo != null) {
+                            Column(
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .height(64.dp)
-                                    .padding(horizontal = PhiTokens.Space8)
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.85f))
+                                    .padding(PhiTokens.Space13)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = FazoraGold,
+                                    modifier = Modifier
+                                        .size(54.dp)
+                                        .clickable { onPlayVideoTrack(activeVideo) }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = activeVideo.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = FazoraIvory
+                                )
+                                Text(
+                                    text = if (isPersian) "برای پخش لمس کنید" else "Tap to Play Video",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = FazoraSteel
+                                )
+                            }
+                        }
+
+                        if (seekNotice != null) {
+                            Surface(
+                                color = Color.Black.copy(alpha = 0.75f),
+                                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .border(1.dp, FazoraGold, RoundedCornerShape(PhiTokens.CornerRadius21))
+                            ) {
+                                Text(
+                                    text = seekNotice.orEmpty(),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = FazoraGold,
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+
+                        if (engine.status == PlaybackStatus.BUFFERING) {
+                            CircularProgressIndicator(
+                                color = FazoraGold,
+                                modifier = Modifier.align(Alignment.Center)
                             )
                         }
 
@@ -272,12 +815,13 @@ fun VideoPlayerScreen(
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = activeVideo?.title ?: "Fazora Motion Calibration",
+                                                text = activeVideo?.title ?: "Velora Cinema",
                                                 style = MaterialTheme.typography.titleMedium,
-                                                color = FazoraIvory
+                                                color = FazoraIvory,
+                                                maxLines = 1
                                             )
                                             Text(
-                                                text = "${engine.videoAspectMode.label} • ${engine.playbackSpeed}x",
+                                                text = "$resolutionLabel • ${engine.videoAspectMode.label} • ${engine.playbackSpeed}x",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = FazoraGold
                                             )
@@ -292,7 +836,7 @@ fun VideoPlayerScreen(
                                             }
                                             IconButton(
                                                 onClick = {
-                                                    isFullscreen = !isFullscreen
+                                                    isFullscreen = true
                                                     interactionNonce++
                                                 },
                                                 modifier = Modifier
@@ -300,11 +844,7 @@ fun VideoPlayerScreen(
                                                     .testTag("video_fullscreen_button")
                                             ) {
                                                 Icon(
-                                                    imageVector = if (isFullscreen) {
-                                                        Icons.Default.FullscreenExit
-                                                    } else {
-                                                        Icons.Default.Fullscreen
-                                                    },
+                                                    imageVector = Icons.Default.Fullscreen,
                                                     contentDescription = stringResource(R.string.cd_video_fullscreen),
                                                     tint = FazoraGold
                                                 )
@@ -321,9 +861,16 @@ fun VideoPlayerScreen(
                                             onClick = {
                                                 interactionNonce++
                                                 onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
+                                                seekNotice = "-10s"
                                             },
                                             modifier = Modifier.testTag("video_seek_back_10s")
                                         ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Replay10,
+                                                contentDescription = "-10s",
+                                                tint = FazoraIvory
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
                                             Text("-10s", color = FazoraIvory)
                                         }
 
@@ -366,10 +913,17 @@ fun VideoPlayerScreen(
                                             onClick = {
                                                 interactionNonce++
                                                 onSeekTo(engine.positionMs + 10_000L)
+                                                seekNotice = "+10s"
                                             },
                                             modifier = Modifier.testTag("video_seek_fwd_10s")
                                         ) {
                                             Text("+10s", color = FazoraIvory)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.Forward10,
+                                                contentDescription = "+10s",
+                                                tint = FazoraIvory
+                                            )
                                         }
                                     }
 
@@ -422,7 +976,7 @@ fun VideoPlayerScreen(
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
                     Text(
-                        text = "Playback Speed",
+                        text = if (isPersian) "سرعت پخش ویدیو" else "Playback Speed",
                         style = MaterialTheme.typography.labelLarge,
                         color = FazoraGold
                     )
@@ -453,7 +1007,7 @@ fun VideoPlayerScreen(
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
                     Text(
-                        text = "Aspect Ratio & Framing",
+                        text = if (isPersian) "نسبت ابعاد تصویر" else "Aspect Ratio & Framing",
                         style = MaterialTheme.typography.labelLarge,
                         color = FazoraGold
                     )
@@ -488,7 +1042,7 @@ fun VideoPlayerScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         OutlinedButton(
-                            onClick = { onSetSubtitlesEnabled(!engine.subtitlesEnabled) },
+                            onClick = { showSubtitleDialog = true },
                             modifier = Modifier
                                 .weight(1f)
                                 .minimumInteractiveComponentSize()
@@ -497,22 +1051,17 @@ fun VideoPlayerScreen(
                             Icon(Icons.Default.Subtitles, contentDescription = null, tint = FazoraGold)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
                             Text(
-                                text = if (engine.subtitlesEnabled) {
-                                    "Subtitles: ON (${engine.subtitleTracks.size})"
+                                text = if (isPersian) {
+                                    if (engine.subtitlesEnabled) "زیرنویس: روشن" else "زیرنویس: خاموش"
                                 } else {
-                                    "Subtitles: OFF"
+                                    if (engine.subtitlesEnabled) "Subtitles: ON" else "Subtitles: OFF"
                                 },
                                 color = FazoraIvory
                             )
                         }
 
                         OutlinedButton(
-                            onClick = {
-                                val nextAudio = engine.audioTracks.firstOrNull { !it.isSelected }
-                                if (nextAudio != null) {
-                                    onSelectAudioTrack(nextAudio.id)
-                                }
-                            },
+                            onClick = { showAudioDialog = true },
                             modifier = Modifier
                                 .weight(1f)
                                 .minimumInteractiveComponentSize()
@@ -521,7 +1070,11 @@ fun VideoPlayerScreen(
                             Icon(Icons.Default.Audiotrack, contentDescription = null, tint = FazoraGold)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
                             Text(
-                                text = "Audio Tracks (${engine.audioTracks.size.coerceAtLeast(1)})",
+                                text = if (isPersian) {
+                                    "ترک‌های صوتی (${engine.audioTracks.size.coerceAtLeast(1)})"
+                                } else {
+                                    "Audio Tracks (${engine.audioTracks.size.coerceAtLeast(1)})"
+                                },
                                 color = FazoraIvory
                             )
                         }
@@ -546,20 +1099,41 @@ fun VideoPlayerScreen(
                         ) {
                             Icon(Icons.Default.FolderOpen, contentDescription = null)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(if (isPersian) "انتخاب ویدیو از دستگاه" else "Pick Local Video")
+                            Text(if (isPersian) "انتخاب ویدیو" else "Pick Video")
                         }
 
                         OutlinedButton(
-                            onClick = onAutoScanMedia,
+                            onClick = { galleryPickerLauncher.launch("video/*") },
                             modifier = Modifier
                                 .weight(1f)
                                 .minimumInteractiveComponentSize()
-                                .testTag("autoscan_video_button")
+                                .testTag("gallery_video_button")
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = FazoraGold)
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = FazoraGold)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(if (isPersian) "اسکن خودکار ویدیوها" else "Auto-Scan Media", color = FazoraIvory)
+                            Text(if (isPersian) "گالری فیلم" else "From Gallery", color = FazoraIvory)
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+
+                    OutlinedButton(
+                        onClick = onAutoScanMedia,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .minimumInteractiveComponentSize()
+                            .testTag("autoscan_video_button")
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, tint = FazoraGold)
+                        Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                        Text(
+                            text = if (isPersian) {
+                                "🔄 جست‌وجو و اسکن خودکار ویدیوهای حافظه"
+                            } else {
+                                "🔄 Auto-Scan Device Videos"
+                            },
+                            color = FazoraIvory
+                        )
                     }
                 }
             }
@@ -567,7 +1141,11 @@ fun VideoPlayerScreen(
 
         item {
             Text(
-                text = "Video Streams (${uiState.videoTracks.size})",
+                text = if (isPersian) {
+                    "ویدیوهای موجود (${uiState.videoTracks.size})"
+                } else {
+                    "Video Streams (${uiState.videoTracks.size})"
+                },
                 style = MaterialTheme.typography.headlineMedium,
                 color = FazoraIvory
             )

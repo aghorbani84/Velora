@@ -2,7 +2,9 @@ package com.example.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.exoplayer.ExoPlayer
 import com.example.data.firebase.VeloraFirebaseRepository
+import com.example.data.playback.Media3PlayerEngine
 import com.example.data.repository.VeloraLibraryRepository
 import com.example.data.settings.VeloraSettingsRepository
 import com.example.domain.engine.EnginePlaybackState
@@ -99,6 +101,9 @@ class VeloraViewModel(
     val firebaseRepository: VeloraFirebaseRepository,
     val mediaOrchestrator: IMediaOrchestrator = MediaOrchestrator(repository, settingsRepository, playerEngine)
 ) : ViewModel() {
+
+    val exoPlayer: ExoPlayer?
+        get() = (playerEngine as? Media3PlayerEngine)?.exoPlayer
 
     private val _searchQuery = MutableStateFlow("")
     private val _selectedArtist = MutableStateFlow<String?>(null)
