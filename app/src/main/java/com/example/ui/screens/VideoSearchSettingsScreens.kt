@@ -105,6 +105,7 @@ fun VideoPlayerScreen(
     onAddTrackToQueue: (Track) -> Unit,
     onAddTrackToPlaylist: (Long, String) -> Unit,
     onToggleFavorite: (Track) -> Unit = {},
+    onEnterPip: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val engine = uiState.engineState
@@ -248,51 +249,85 @@ fun VideoPlayerScreen(
                                                 color = FazoraGold
                                             )
                                         }
-                                        IconButton(
-                                            onClick = {
-                                                isFullscreen = !isFullscreen
-                                                interactionNonce++
-                                            },
-                                            modifier = Modifier
-                                                .minimumInteractiveComponentSize()
-                                                .testTag("video_fullscreen_button")
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isFullscreen) {
-                                                    Icons.Default.FullscreenExit
-                                                } else {
-                                                    Icons.Default.Fullscreen
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            OutlinedButton(
+                                                onClick = { onEnterPip() },
+                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                                modifier = Modifier.testTag("video_pip_button")
+                                            ) {
+                                                Text("PiP", color = FazoraGold)
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    isFullscreen = !isFullscreen
+                                                    interactionNonce++
                                                 },
-                                                contentDescription = stringResource(R.string.cd_video_fullscreen),
-                                                tint = FazoraGold
-                                            )
+                                                modifier = Modifier
+                                                    .minimumInteractiveComponentSize()
+                                                    .testTag("video_fullscreen_button")
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isFullscreen) {
+                                                        Icons.Default.FullscreenExit
+                                                    } else {
+                                                        Icons.Default.Fullscreen
+                                                    },
+                                                    contentDescription = stringResource(R.string.cd_video_fullscreen),
+                                                    tint = FazoraGold
+                                                )
+                                            }
                                         }
                                     }
 
-                                    Button(
-                                        onClick = {
-                                            interactionNonce++
-                                            if (engine.currentTrack == null && activeVideo != null) {
-                                                onPlayVideoTrack(activeVideo)
-                                            } else {
-                                                onTogglePlayPause()
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = FazoraGold,
-                                            contentColor = FazoraObsidian
-                                        ),
-                                        modifier = Modifier
-                                            .align(Alignment.CenterHorizontally)
-                                            .minimumInteractiveComponentSize()
-                                            .testTag("video_play_pause_button")
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
                                     ) {
-                                        Icon(
-                                            imageVector = if (engine.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                            contentDescription = null
-                                        )
-                                        Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                                        Text(if (engine.isPlaying) "Pause Stream" else "Play Stream")
+                                        OutlinedButton(
+                                            onClick = {
+                                                interactionNonce++
+                                                onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
+                                            },
+                                            modifier = Modifier.testTag("video_seek_back_10s")
+                                        ) {
+                                            Text("-10s", color = FazoraIvory)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                interactionNonce++
+                                                if (engine.currentTrack == null && activeVideo != null) {
+                                                    onPlayVideoTrack(activeVideo)
+                                                } else {
+                                                    onTogglePlayPause()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = FazoraGold,
+                                                contentColor = FazoraObsidian
+                                            ),
+                                            modifier = Modifier
+                                                .minimumInteractiveComponentSize()
+                                                .testTag("video_play_pause_button")
+                                        ) {
+                                            Icon(
+                                                imageVector = if (engine.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                contentDescription = null
+                                            )
+                                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                                            Text(if (engine.isPlaying) "Pause Stream" else "Play Stream")
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = {
+                                                interactionNonce++
+                                                onSeekTo(engine.positionMs + 10_000L)
+                                            },
+                                            modifier = Modifier.testTag("video_seek_fwd_10s")
+                                        ) {
+                                            Text("+10s", color = FazoraIvory)
+                                        }
                                     }
 
                                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -665,6 +700,7 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     onSetLanguageCode: (String) -> Unit = {},
     onTogglePlugin: (String) -> Unit = {},
+    onExportBackupJson: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val settings = uiState.settings
@@ -952,6 +988,27 @@ fun SettingsScreen(
                                 Text("${timeout / 1000.0}s")
                             }
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Button(
+                        onClick = onExportBackupJson,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FazoraGold,
+                            contentColor = FazoraObsidian
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .minimumInteractiveComponentSize()
+                            .testTag("export_backup_json_button")
+                    ) {
+                        Text(
+                            if (settings.appLanguageCode == "fa") {
+                                "پشتیبان‌گیری آفلاین (JSON Snapshot) از پلی‌لیست‌ها و تنظیمات"
+                            } else {
+                                "Export One-Tap Offline JSON Backup Snapshot"
+                            }
+                        )
                     }
                 }
             }

@@ -24,12 +24,16 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.app.Activity
+import android.app.PictureInPictureParams
+import android.util.Rational
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -65,6 +69,7 @@ import com.example.ui.screens.ArtistScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.MusicScreen
 import com.example.ui.screens.PlayerAndEqScreen
+import com.example.ui.screens.RadioScreen
 import com.example.ui.screens.SearchScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.VideoPlayerScreen
@@ -79,12 +84,25 @@ import com.example.ui.theme.FazoraSteel
 import com.example.ui.theme.VeloraTheme
 import com.example.ui.theme.PhiTokens
 import com.example.ui.viewmodel.VeloraViewModel
+import com.example.ui.viewmodel.addCustomRadioStation
+import com.example.ui.viewmodel.addRadioStationToQueue
 import com.example.ui.viewmodel.addTimeMachineBookmark
 import com.example.ui.viewmodel.adjustLyricsOffset
+import com.example.ui.viewmodel.clearAbLoop
 import com.example.ui.viewmodel.executeCopilotCommand
+import com.example.ui.viewmodel.exportOfflineBackupJson
+import com.example.ui.viewmodel.importCustomLyricsOrSrt
 import com.example.ui.viewmodel.playNetworkStream
 import com.example.ui.viewmodel.playSmartPlaylist
+import com.example.ui.viewmodel.setAbLoopPointA
+import com.example.ui.viewmodel.setAbLoopPointB
+import com.example.ui.viewmodel.setBassBoostPercent
+import com.example.ui.viewmodel.setCrossfadeSeconds
+import com.example.ui.viewmodel.setPreampGainDb
+import com.example.ui.viewmodel.setSleepTimerMinutes
+import com.example.ui.viewmodel.setStereoWidthPercent
 import com.example.ui.viewmodel.toggleDeclarativePlugin
+import com.example.ui.viewmodel.tuneRadioStation
 import org.koin.androidx.compose.koinViewModel
 
 enum class VeloraDestination(
@@ -95,6 +113,7 @@ enum class VeloraDestination(
 ) {
     LIBRARY("library", "Library", "کتابخانه", Icons.Default.LibraryMusic),
     MUSIC("music", "Music", "موسیقی", Icons.Default.MusicNote),
+    RADIO("radio", "Radio", "رادیو", Icons.Default.Radio),
     ARTISTS("artists", "Artists", "هنرمندان", Icons.Default.Album),
     VIDEO("video", "Video", "ویدیو", Icons.Default.Movie),
     SEARCH("search", "Search", "جستجو", Icons.Default.Search),
@@ -225,7 +244,8 @@ fun VeloraRootApp(
                                 onTogglePlayPause = { viewModel.togglePlayPause() },
                                 onNext = { viewModel.skipToNext() },
                                 onCycleRepeat = { viewModel.cycleRepeatMode() },
-                                onOpenFullPlayer = { currentDestination = VeloraDestination.PLAYER }
+                                onOpenFullPlayer = { currentDestination = VeloraDestination.PLAYER },
+                                onPrevious = { viewModel.skipToPrevious() }
                             )
                         }
 
@@ -322,6 +342,15 @@ fun VeloraRootApp(
                             onToggleFavorite = { viewModel.toggleFavorite(it) }
                         )
 
+                        VeloraDestination.RADIO -> RadioScreen(
+                            uiState = uiState,
+                            onTuneStation = { viewModel.tuneRadioStation(it) },
+                            onAddStationToQueue = { viewModel.addRadioStationToQueue(it) },
+                            onAddCustomStation = { name, url, genre ->
+                                viewModel.addCustomRadioStation(name, url, genre)
+                            }
+                        )
+
                         VeloraDestination.ARTISTS -> ArtistScreen(
                             uiState = uiState,
                             onSelectArtist = { viewModel.selectArtist(it) },
@@ -349,7 +378,16 @@ fun VeloraRootApp(
                             onSelectAudioTrack = { viewModel.selectAudioTrack(it) },
                             onAddTrackToQueue = { viewModel.addTrackToQueue(it) },
                             onAddTrackToPlaylist = { pid, tid -> viewModel.addTrackToPlaylist(pid, tid) },
-                            onToggleFavorite = { viewModel.toggleFavorite(it) }
+                            onToggleFavorite = { viewModel.toggleFavorite(it) },
+                            onEnterPip = {
+                                runCatching {
+                                    val activity = context as? Activity
+                                    val params = PictureInPictureParams.Builder()
+                                        .setAspectRatio(Rational(16, 9))
+                                        .build()
+                                    activity?.enterPictureInPictureMode(params)
+                                }
+                            }
                         )
 
                         VeloraDestination.SEARCH -> SearchScreen(
@@ -384,7 +422,16 @@ fun VeloraRootApp(
                             onSetVisualizerMode = { viewModel.setVisualizerMode(it) },
                             onToggleFavorite = { viewModel.toggleFavorite(it) },
                             onAdjustLyricsOffset = { viewModel.adjustLyricsOffset(it) },
-                            onAddBookmark = { viewModel.addTimeMachineBookmark() }
+                            onAddBookmark = { viewModel.addTimeMachineBookmark() },
+                            onSetPreampDb = { viewModel.setPreampGainDb(it) },
+                            onSetBassBoost = { viewModel.setBassBoostPercent(it) },
+                            onSetStereoWidth = { viewModel.setStereoWidthPercent(it) },
+                            onSetCrossfadeSec = { viewModel.setCrossfadeSeconds(it) },
+                            onSetLoopPointA = { viewModel.setAbLoopPointA() },
+                            onSetLoopPointB = { viewModel.setAbLoopPointB() },
+                            onClearLoop = { viewModel.clearAbLoop() },
+                            onSetSleepTimerMinutes = { viewModel.setSleepTimerMinutes(it) },
+                            onImportCustomLrcOrSrt = { viewModel.importCustomLyricsOrSrt(it) }
                         )
 
                         VeloraDestination.SETTINGS -> SettingsScreen(
@@ -393,7 +440,8 @@ fun VeloraRootApp(
                             onSignInWithGoogle = { viewModel.signInWithGoogle(context) },
                             onSignOut = { viewModel.signOut() },
                             onSetLanguageCode = { viewModel.setAppLanguageCode(it) },
-                            onTogglePlugin = { viewModel.toggleDeclarativePlugin(it) }
+                            onTogglePlugin = { viewModel.toggleDeclarativePlugin(it) },
+                            onExportBackupJson = { viewModel.exportOfflineBackupJson(context.filesDir) }
                         )
                     }
                 }

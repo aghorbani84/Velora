@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +52,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,6 +84,7 @@ fun MiniPlayerBar(
     onNext: () -> Unit,
     onCycleRepeat: () -> Unit,
     onOpenFullPlayer: () -> Unit,
+    onPrevious: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val track = engineState.currentTrack
@@ -98,6 +101,20 @@ fun MiniPlayerBar(
             .fillMaxWidth()
             .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(topStart = PhiTokens.CornerRadius13, topEnd = PhiTokens.CornerRadius13))
             .clip(RoundedCornerShape(topStart = PhiTokens.CornerRadius13, topEnd = PhiTokens.CornerRadius13))
+            .pointerInput(Unit) {
+                var totalDrag = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { totalDrag = 0f },
+                    onHorizontalDrag = { _, dragAmount -> totalDrag += dragAmount },
+                    onDragEnd = {
+                        if (totalDrag < -75f) {
+                            onNext()
+                        } else if (totalDrag > 75f) {
+                            onPrevious()
+                        }
+                    }
+                )
+            }
             .clickable { onOpenFullPlayer() }
             .testTag("mini_player_bar")
     ) {

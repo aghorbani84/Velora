@@ -40,6 +40,15 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
     private var eqEnabled: Boolean = true
 
     @Volatile
+    private var preampLinearGain: Double = 1.0
+
+    @Volatile
+    private var bassBoostExtraDb: Float = 0f
+
+    @Volatile
+    private var stereoWidthFactor: Double = 0.0
+
+    @Volatile
     private var currentGainsDb: List<Float> = List(EqSpecification.BAND_COUNT) { 0f }
 
     @Volatile
@@ -62,11 +71,39 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
         eqEnabled = enabled
     }
 
+    fun setPreampGainDb(preampDb: Float) {
+        val clamped = preampDb.coerceIn(-12f, 12f)
+        preampLinearGain = Math.pow(10.0, clamped / 20.0)
+    }
+
+    fun setBassBoostPercent(percent: Int) {
+        val clamped = percent.coerceIn(0, 100)
+        bassBoostExtraDb = (clamped / 100f) * 6.0f
+        recomputeCoefficients()
+    }
+
+    fun setStereoWidthPercent(percent: Int) {
+        val clamped = percent.coerceIn(0, 100)
+        stereoWidthFactor = (clamped / 100.0) * 0.85
+    }
+
     fun setBandGains(gainsDb: List<Float>) {
         val normalized = EqSpecification.normalizeGains(gainsDb)
         currentGainsDb = normalized
+        recomputeCoefficients()
+    }
+
+    private fun recomputeCoefficients() {
         val sr = if (inputAudioFormat.sampleRate > 0) inputAudioFormat.sampleRate else 44100
-        coefficients = BiquadEqDsp.calculateTenBandCoefficients(sr, normalized)
+        val effectiveGains = currentGainsDb.mapIndexed { index, gain ->
+            val extra = when (index) {
+                0 -> bassBoostExtraDb
+                1 -> bassBoostExtraDb * 0.65f
+                else -> 0f
+            }
+            EqSpecification.clampGainDb(gain + extra)
+        }
+        coefficients = BiquadEqDsp.calculateTenBandCoefficients(sr, effectiveGains)
     }
 
     override fun configure(inputAudioFormat: AudioFormat): AudioFormat {
@@ -78,10 +115,7 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
         val channels = inputAudioFormat.channelCount.coerceAtLeast(1)
         z1State = Array(EqSpecification.BAND_COUNT) { DoubleArray(channels) }
         z2State = Array(EqSpecification.BAND_COUNT) { DoubleArray(channels) }
-        coefficients = BiquadEqDsp.calculateTenBandCoefficients(
-            sampleRateHz = inputAudioFormat.sampleRate,
-            gainsDb = currentGainsDb
-        )
+        recomputeCoefficients()
         return outputAudioFormat
     }
 
@@ -102,23 +136,35 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
         val channels = inputAudioFormat.channelCount.coerceAtLeast(1)
         val activeCoeffs = coefficients
         val applyEq = eqEnabled
+        val preamp = preampLinearGain
+        val width = stereoWidthFactor
 
         val frameCount = remaining / (2 * channels)
         val analysisWindowSize = frameCount.coerceAtMost(512)
         val monoAnalysisBuffer = FloatArray(analysisWindowSize)
         var broadbandEnergySum = 0.0
         var maxPeakAbs = 0.0
+        val frameSamples = DoubleArray(channels)
 
         for (frameIdx in 0 until frameCount) {
             var frameMonoSum = 0.0
             for (ch in 0 until channels) {
                 val rawShort = inputBuffer.short
-                val processedSample = processChannelSample(
-                    rawSample = rawShort / 32768.0,
+                frameSamples[ch] = processChannelSample(
+                    rawSample = (rawShort / 32768.0) * preamp,
                     channel = ch,
                     applyEq = applyEq,
                     activeCoeffs = activeCoeffs
                 )
+            }
+            if (applyEq && channels == 2 && width > 0.01) {
+                val mid = 0.5 * (frameSamples[0] + frameSamples[1])
+                val side = 0.5 * (frameSamples[0] - frameSamples[1]) * (1.0 + width)
+                frameSamples[0] = (mid + side).coerceIn(-1.0, 1.0)
+                frameSamples[1] = (mid - side).coerceIn(-1.0, 1.0)
+            }
+            for (ch in 0 until channels) {
+                val processedSample = frameSamples[ch]
                 broadbandEnergySum += processedSample * processedSample
                 val absSample = abs(processedSample)
                 if (absSample > maxPeakAbs) {

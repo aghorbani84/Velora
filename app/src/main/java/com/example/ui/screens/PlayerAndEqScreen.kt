@@ -118,6 +118,15 @@ fun PlayerAndEqScreen(
     onToggleFavorite: (Track) -> Unit = {},
     onAdjustLyricsOffset: (Long) -> Unit = {},
     onAddBookmark: () -> Unit = {},
+    onSetPreampDb: (Float) -> Unit = {},
+    onSetBassBoost: (Int) -> Unit = {},
+    onSetStereoWidth: (Int) -> Unit = {},
+    onSetCrossfadeSec: (Int) -> Unit = {},
+    onSetLoopPointA: () -> Unit = {},
+    onSetLoopPointB: () -> Unit = {},
+    onClearLoop: () -> Unit = {},
+    onSetSleepTimerMinutes: (Int) -> Unit = {},
+    onImportCustomLrcOrSrt: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val engine = uiState.engineState
@@ -714,6 +723,22 @@ fun PlayerAndEqScreen(
                     }
                 }
             }
+        }
+
+        item {
+            StudioDspRackPanel(
+                dspState = uiState.studioDspState,
+                isPersian = uiState.settings.appLanguageCode == "fa",
+                onSetPreampDb = onSetPreampDb,
+                onSetBassBoost = onSetBassBoost,
+                onSetStereoWidth = onSetStereoWidth,
+                onSetCrossfadeSec = onSetCrossfadeSec,
+                onSetLoopPointA = onSetLoopPointA,
+                onSetLoopPointB = onSetLoopPointB,
+                onClearLoop = onClearLoop,
+                onSetSleepTimerMinutes = onSetSleepTimerMinutes,
+                onImportCustomLrcOrSrt = onImportCustomLrcOrSrt
+            )
         }
 
         if (uiState.activeLyrics.isNotEmpty()) {

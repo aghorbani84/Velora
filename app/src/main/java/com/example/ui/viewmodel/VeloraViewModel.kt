@@ -18,7 +18,9 @@ import com.example.domain.model.PlaybackHistoryEntry
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.Playlist
 import com.example.domain.model.ScanProgress
+import com.example.domain.model.RadioStation
 import com.example.domain.model.SmartPlaylist
+import com.example.domain.model.StudioDspState
 import com.example.domain.model.SyncedLyricLine
 import com.example.domain.model.TimeMachineBookmark
 import com.example.domain.model.Track
@@ -26,6 +28,7 @@ import com.example.domain.model.TrackFilterMode
 import com.example.domain.model.TrackSortOrder
 import com.example.domain.model.VeloraOmniSearchEngine
 import com.example.domain.model.VeloraPluginRegistry
+import com.example.domain.model.VeloraRadioCatalog
 import com.example.domain.model.VeloraSmartPlaylistEngine
 import com.example.domain.model.VideoAspectMode
 import com.example.domain.model.VisualizerMode
@@ -44,6 +47,7 @@ import com.example.orchestrator.setEqEnabled
 import com.example.orchestrator.toggleDeclarativePlugin
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -65,6 +69,8 @@ data class VeloraUiState(
     val lyricsOffsetMs: Long = 0L,
     val timeMachineBookmarks: List<TimeMachineBookmark> = emptyList(),
     val declarativePlugins: List<DeclarativePluginManifest> = VeloraPluginRegistry.DEFAULT_DECLARATIVE_PLUGINS,
+    val radioStations: List<RadioStation> = VeloraRadioCatalog.BUILT_IN_STATIONS,
+    val studioDspState: StudioDspState = StudioDspState(),
     val sortOrder: TrackSortOrder = TrackSortOrder.TITLE_ASC,
     val filterMode: TrackFilterMode = TrackFilterMode.ALL,
     val artistsMap: Map<String, List<Track>> = emptyMap(),
@@ -100,6 +106,11 @@ class VeloraViewModel(
     private val _sortOrder = MutableStateFlow(TrackSortOrder.TITLE_ASC)
     private val _filterMode = MutableStateFlow(TrackFilterMode.ALL)
 
+    internal val customRadioStationsFlow = MutableStateFlow<List<RadioStation>>(emptyList())
+    internal val studioDspStateFlow = MutableStateFlow(StudioDspState())
+    internal val customLyricsOverrideFlow = MutableStateFlow<List<SyncedLyricLine>?>(null)
+    internal var sleepTimerJob: Job? = null
+
     val playbackState: StateFlow<PlaybackState> = mediaOrchestrator.playbackState
 
     private val searchResultsFlow = _searchQuery.flatMapLatest { query ->
@@ -121,6 +132,9 @@ class VeloraViewModel(
         repository.playbackHistory,
         _sortOrder,
         _filterMode,
+        customRadioStationsFlow,
+        studioDspStateFlow,
+        customLyricsOverrideFlow,
         transform = ::assembleVeloraUiState
     ).stateIn(
         scope = viewModelScope,
@@ -131,6 +145,15 @@ class VeloraViewModel(
     init {
         viewModelScope.launch {
             mediaOrchestrator.bootstrapAndRestoreSession()
+        }
+        viewModelScope.launch {
+            playerEngine.playbackState.collect { engine ->
+                val dsp = studioDspStateFlow.value
+                val endMs = dsp.loopEndMs ?: Long.MAX_VALUE
+                if (dsp.isAbLoopActive && engine.positionMs >= endMs) {
+                    mediaOrchestrator.seekTo(dsp.loopStartMs ?: 0L)
+                }
+            }
         }
     }
 
@@ -537,6 +560,11 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
     val playbackHistory = values[11] as List<PlaybackHistoryEntry>
     val sortOrder = values[12] as TrackSortOrder
     val filterMode = values[13] as TrackFilterMode
+    @Suppress("UNCHECKED_CAST")
+    val customRadios = (values.getOrNull(14) as? List<RadioStation>).orEmpty()
+    val studioDsp = (values.getOrNull(15) as? StudioDspState) ?: StudioDspState()
+    @Suppress("UNCHECKED_CAST")
+    val customLyrics = values.getOrNull(16) as? List<SyncedLyricLine>
 
     val filteredTracks = when (filterMode) {
         TrackFilterMode.ALL -> rawTracks
@@ -577,10 +605,12 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         favoriteTracks = favoriteTracks,
         smartPlaylists = smartPlaylists,
         omniSearchMatches = omniMatches,
-        activeLyrics = orchestrator.activeLyrics,
+        activeLyrics = customLyrics ?: orchestrator.activeLyrics,
         lyricsOffsetMs = orchestrator.lyricsOffsetMs,
         timeMachineBookmarks = orchestrator.timeMachineBookmarks,
         declarativePlugins = orchestrator.declarativePlugins,
+        radioStations = customRadios + VeloraRadioCatalog.BUILT_IN_STATIONS,
+        studioDspState = studioDsp,
         sortOrder = sortOrder,
         filterMode = filterMode,
         artistsMap = artistsMap,

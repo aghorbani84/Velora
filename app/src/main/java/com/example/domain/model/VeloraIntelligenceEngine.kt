@@ -80,7 +80,11 @@ object VeloraCompatibilityMatrix {
         return (lower.startsWith("https://") || lower.startsWith("http://")) &&
             !lower.contains(" ") &&
             !lower.contains("javascript:") &&
-            !lower.contains("file://")
+            !lower.contains("file://") &&
+            !lower.contains("://127.") &&
+            !lower.contains("://localhost") &&
+            !lower.contains("://0.0.0.0") &&
+            !lower.contains("://169.254.")
     }
 }
 

@@ -376,5 +376,57 @@ class ExampleUnitTest {
         assertEquals(sampleTracks.size * 3, graph.totalEdges)
         assertTrue(com.example.domain.model.VeloraPlatformMatrix.CAPABILITY_MATRIX.isNotEmpty())
     }
+
+    @Test
+    fun `VeloraRadioCatalog, StudioDspState, and VeloraBackupExporter support live radio filtering and DSP state`() {
+        val allStations = com.example.domain.model.VeloraRadioCatalog.BUILT_IN_STATIONS
+        assertTrue("Built-in radio catalog must contain stations", allStations.size >= 10)
+
+        val persianStations = com.example.domain.model.VeloraRadioCatalog.filterStations(
+            allStations = allStations,
+            category = com.example.domain.model.RadioCategory.PERSIAN,
+            query = ""
+        )
+        assertTrue("Persian category must return stations", persianStations.isNotEmpty())
+
+        val customStation = com.example.domain.model.VeloraRadioCatalog.createCustomStation(
+            name = "Tehran Night FM",
+            streamUrl = "https://stream.radioparadise.com/mp3-192",
+            genreOrCountry = "Persian / Synth"
+        )
+        assertTrue(customStation != null)
+        assertEquals("radio_${customStation!!.id}", customStation.toPlayableTrack().id)
+
+        // Unsafe localhost SSRF radio stream must be rejected
+        val unsafeStation = com.example.domain.model.VeloraRadioCatalog.createCustomStation(
+            name = "Localhost Bad",
+            streamUrl = "http://127.0.0.1:8080/stream.mp3"
+        )
+        assertNull(unsafeStation)
+
+        // StudioDspState A-B loop & sleep timer formatting
+        val dsp = com.example.domain.model.StudioDspState(
+            preampGainDb = 3.5f,
+            bassBoostPercent = 65,
+            stereoWidthPercent = 40,
+            crossfadeSeconds = 4,
+            loopStartMs = 10_000L,
+            loopEndMs = 25_000L,
+            sleepTimerRemainingSec = 95,
+            sleepTimerLabel = "15m"
+        )
+        assertTrue(dsp.isAbLoopActive)
+        assertEquals("01:35", dsp.formattedSleepTimer)
+
+        val backupJson = com.example.domain.model.VeloraBackupExporter.exportBackupJson(
+            playlists = emptyList(),
+            eqPresets = com.example.domain.model.EqPreset.BUILT_IN_PRESETS,
+            bookmarks = emptyList(),
+            customStations = listOf(customStation),
+            dspState = dsp
+        )
+        assertTrue(backupJson.contains("\"product\": \"VELORA\""))
+        assertTrue(backupJson.contains("\"customRadioStations\": 1"))
+    }
 }
 
