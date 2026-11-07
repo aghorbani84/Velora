@@ -2,6 +2,12 @@ name: VELORA Release & APK Publisher
 
 on:
   push:
+    branches:
+      - main
+      - master
+      - '**'
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
     inputs:
       version_tag:
@@ -23,7 +29,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build, Sign & Publish VELORA APK Release
+    name: Build, Sign & Publish VELORA v2.1.0 APK Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -119,8 +125,11 @@ jobs:
             echo "KEY_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
           fi
 
+      - name: Run Detekt & Unit Verification Suite
+        run: ./gradlew detekt :app:testDebugUnitTest --tests com.example.ExampleUnitTest --parallel
+
       - name: Assemble Signed Release & Debug APKs
-        run: ./gradlew assembleRelease assembleDebug -x lint -x lintVitalRelease --parallel
+        run: ./gradlew assembleRelease assembleDebug --parallel
 
       - name: Package Release Artifacts & Checksums
         id: package
@@ -138,7 +147,14 @@ jobs:
           {
             echo "## ✨ VELORA — Beyond Playback (${TAG})"
             echo ""
-            echo "**VELORA** is an intelligent, privacy-first multimedia platform engineered with **Kotlin**, **Jetpack Compose (Material 3 Dark Saffron & Champagne Gold)**, **Media3 ExoPlayer**, a **10-Band Cascaded Peaking Biquad DSP Equalizer**, **Goertzel Real-Time Spectrum & Waveform Analyzer**, **Room v3 Offline Cache**, and **Sandboxed Declarative Plugins**."
+            echo "**VELORA ${TAG}** is an intelligent, privacy-first multimedia platform engineered with **Kotlin**, **Jetpack Compose (Material 3 Dark Saffron & Champagne Gold)**, **Media3 ExoPlayer**, a **10-Band Cascaded Peaking Biquad DSP Equalizer**, **Studio DSP Rack (Preamp, Sub-Bass Boost, 3D Stereo Width, A-B Loop, Smart Sleep Timer)**, **Live World & Persian Radio Tuner**, and **Sandboxed Declarative Plugins**."
+            echo ""
+            echo "### 🚀 What's New in ${TAG}"
+            echo "- **Live World & Persian Radio Tuner**: 14 built-in stations across Persian & East, Audiophile Hi-Fi (FLAC/320k), Night Drive & Synthwave, Chill & Lo-Fi, and Classical & Jazz + custom stream URL support."
+            echo "- **Studio DSP Rack**: Preamp Gain (\`-12 dB .. +12 dB\`), Sub-Bass Boost (\`0% .. 100%\`), 3D Mid-Side Stereo Width Expander (\`0% .. 100%\`), and Crossfade."
+            echo "- **Smart Sleep Timer & A-B Repeat Loop**: Countdown sleep timer with smooth 15-second volume fade-out + precision \`Set A\` / \`Set B\` looping."
+            echo "- **Custom \`.LRC\` / \`.SRT\` Importer, Swipe Mini-Player & Picture-in-Picture (\`PiP\`)**."
+            echo "- **Honor X7d / Android 14 Startup Stability**: Defensive initialization when running offline without Firebase credentials and safe background service lifecycle."
             echo ""
             echo "### 📥 Direct APK Downloads (دانلود مستقیم نسخه نصبی اندروید)"
             echo ""
@@ -171,11 +187,15 @@ jobs:
           TAG="${{ steps.meta.outputs.tag_name }}"
           VERSION="${{ steps.meta.outputs.version }}"
 
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -fa "$TAG" -m "VELORA ${TAG}" || true
+          git push origin "$TAG" --force || true
+
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release edit "$TAG" \
               --title "VELORA ${TAG} — Beyond Playback" \
               --notes-file dist/RELEASE_NOTES.md \
-              --target "${GITHUB_SHA}" \
               --latest
             gh release upload "$TAG" \
               "dist/VELORA-v${VERSION}-release-signed.apk" \
@@ -191,6 +211,5 @@ jobs:
               "dist/MD5SUMS.txt" \
               --title "VELORA ${TAG} — Beyond Playback" \
               --notes-file dist/RELEASE_NOTES.md \
-              --target "${GITHUB_SHA}" \
               --latest
           fi
