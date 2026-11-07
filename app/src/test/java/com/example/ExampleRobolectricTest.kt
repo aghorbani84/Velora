@@ -71,6 +71,13 @@ class ExampleRobolectricTest {
     }
 
     @Test
+    fun `MainActivity launches and renders VeloraRootApp without crashing`() {
+        val controller = org.robolectric.Robolectric.buildActivity(MainActivity::class.java).setup()
+        assertNotNull(controller.get())
+        controller.pause().stop().destroy()
+    }
+
+    @Test
     fun `Room repository indexes bundled WAV tracks, deduplicates by mediaStoreId, preserves favorites, and searches`() = runBlocking {
         val tracks = repository.performScan(emptySet(), includeMediaStore = false)
         assertTrue("Expected at least 5 studio master tracks, found ${tracks.size}", tracks.size >= 5)

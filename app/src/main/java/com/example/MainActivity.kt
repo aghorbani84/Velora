@@ -1,6 +1,5 @@
 package com.example
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -60,7 +59,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.data.playback.VeloraPlaybackService
 import com.example.data.playback.Media3PlayerEngine
 import com.example.ui.components.MiniPlayerBar
 import com.example.ui.screens.ArtistScreen
@@ -108,11 +106,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // Start foreground-capable MediaSessionService so background playback persists
-        runCatching {
-            startService(Intent(this, VeloraPlaybackService::class.java))
-        }
 
         setContent {
             VeloraTheme {

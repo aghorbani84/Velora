@@ -119,34 +119,36 @@ class MediaOrchestrator(
     }
 
     override suspend fun bootstrapAndRestoreSession() {
-        val savedSettings = settingsRepository.getSettingsOnce()
-        playerEngine.setEqEnabled(savedSettings.eqEnabled)
-        playerEngine.setEqBandGains(savedSettings.customEqGainsDb)
-        playerEngine.setPlaybackSpeed(savedSettings.defaultPlaybackSpeed)
-        playerEngine.setVideoAspectMode(savedSettings.videoAspectMode)
+        runCatching {
+            val savedSettings = settingsRepository.getSettingsOnce()
+            playerEngine.setEqEnabled(savedSettings.eqEnabled)
+            playerEngine.setEqBandGains(savedSettings.customEqGainsDb)
+            playerEngine.setPlaybackSpeed(savedSettings.defaultPlaybackSpeed)
+            playerEngine.setVideoAspectMode(savedSettings.videoAspectMode)
 
-        var tracks = repository.getAllTracksOnce()
-        if (tracks.isEmpty()) {
-            tracks = repository.performScan(savedSettings.allowedFolderUris)
-            _events.tryEmit(VeloraMediaEvent.MediaDiscovered(tracks.size))
-        }
+            var tracks = repository.getAllTracksOnce()
+            if (tracks.isEmpty()) {
+                tracks = repository.performScan(savedSettings.allowedFolderUris)
+                _events.tryEmit(VeloraMediaEvent.MediaDiscovered(tracks.size))
+            }
 
-        if (!initialRestoreCompleted && tracks.isNotEmpty()) {
-            initialRestoreCompleted = true
-            val trackById = tracks.associateBy { it.id }
-            val restoredQueueTracks = savedSettings.lastQueueTrackIds
-                .mapNotNull { trackById[it] }
-                .ifEmpty { tracks }
-            val startIdx = savedSettings.lastActiveTrackId?.let { activeId ->
-                restoredQueueTracks.indexOfFirst { it.id == activeId }.takeIf { it >= 0 }
-            } ?: 0
+            if (!initialRestoreCompleted && tracks.isNotEmpty()) {
+                initialRestoreCompleted = true
+                val trackById = tracks.associateBy { it.id }
+                val restoredQueueTracks = savedSettings.lastQueueTrackIds
+                    .mapNotNull { trackById[it] }
+                    .ifEmpty { tracks }
+                val startIdx = savedSettings.lastActiveTrackId?.let { activeId ->
+                    restoredQueueTracks.indexOfFirst { it.id == activeId }.takeIf { it >= 0 }
+                } ?: 0
 
-            val restoredQueue = PlaybackQueue(
-                mode = savedSettings.queueMode,
-                repeatMode = savedSettings.repeatMode
-            ).setQueue(restoredQueueTracks, startIdx)
+                val restoredQueue = PlaybackQueue(
+                    mode = savedSettings.queueMode,
+                    repeatMode = savedSettings.repeatMode
+                ).setQueue(restoredQueueTracks, startIdx)
 
-            queueFlow.value = restoredQueue
+                queueFlow.value = restoredQueue
+            }
         }
     }
 

@@ -1,11 +1,6 @@
 package com.example.data.scanner
 
 import android.content.Context
-import android.media.MediaCodec
-import android.media.MediaCodecInfo
-import android.media.MediaFormat
-import android.media.MediaMuxer
-import android.util.Log
 import com.example.domain.model.MediaType
 import com.example.domain.model.Track
 import java.io.File
@@ -17,7 +12,6 @@ import kotlin.math.sin
 
 object BundledMediaSynthesizer {
 
-    private const val TAG = "BundledMediaSynth"
     private const val SAMPLE_RATE = 44100
 
     data class SynthSpec(
@@ -107,27 +101,16 @@ object BundledMediaSynthesizer {
             )
         }
 
-        val videoFile = File(studioDir, "fazora_motion_precision.mp4")
-        val mp4Created = if (!videoFile.exists() || videoFile.length() < 512L) {
-            generatePlayableMp4Video(videoFile)
-        } else {
-            true
+        val fallbackVideoAudioFile = File(studioDir, "fazora_motion_precision_stream.wav")
+        if (!fallbackVideoAudioFile.exists() || fallbackVideoAudioFile.length() < 1024L) {
+            writeStereoWavFile(
+                targetFile = fallbackVideoAudioFile,
+                durationSeconds = 10,
+                frequenciesHz = listOf(146.83, 220.0, 293.66, 440.0, 880.0),
+                modRateHz = 1.618
+            )
         }
-
-        val effectiveVideoUri = if (mp4Created && videoFile.exists() && videoFile.length() > 512L) {
-            videoFile.absolutePath
-        } else {
-            val fallbackVideoAudioFile = File(studioDir, "fazora_motion_precision_stream.wav")
-            if (!fallbackVideoAudioFile.exists() || fallbackVideoAudioFile.length() < 1024L) {
-                writeStereoWavFile(
-                    targetFile = fallbackVideoAudioFile,
-                    durationSeconds = 10,
-                    frequenciesHz = listOf(146.83, 220.0, 293.66, 440.0, 880.0),
-                    modRateHz = 1.618
-                )
-            }
-            fallbackVideoAudioFile.absolutePath
-        }
+        val effectiveVideoUri = fallbackVideoAudioFile.absolutePath
 
         results.add(
             Track(
@@ -208,121 +191,6 @@ object BundledMediaSynthesizer {
                 fos.write(pcmBuffer.array(), 0, framesThisBatch * 4)
                 frameIdx += framesThisBatch
             }
-        }
-    }
-
-    private fun generatePlayableMp4Video(outputFile: File): Boolean {
-        var codec: MediaCodec? = null
-        var muxer: MediaMuxer? = null
-        return try {
-            val width = 320
-            val height = 192
-            val mime = MediaFormat.MIMETYPE_VIDEO_AVC
-            val format = MediaFormat.createVideoFormat(mime, width, height).apply {
-                setInteger(
-                    MediaFormat.KEY_COLOR_FORMAT,
-                    MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible
-                )
-                setInteger(MediaFormat.KEY_BIT_RATE, 400_000)
-                setInteger(MediaFormat.KEY_FRAME_RATE, 15)
-                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
-            }
-            codec = MediaCodec.createEncoderByType(mime)
-            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            codec.start()
-
-            muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            val bufferInfo = MediaCodec.BufferInfo()
-            var trackIndex = -1
-            var muxerStarted = false
-            val totalFrames = 150
-            val frameSize = width * height * 3 / 2
-            val frameData = ByteArray(frameSize)
-
-            for (frameIdx in 0..totalFrames) {
-                val inputIndex = codec.dequeueInputBuffer(10_000L)
-                if (inputIndex >= 0) {
-                    val inputBuffer = codec.getInputBuffer(inputIndex)
-                    inputBuffer?.clear()
-                    if (frameIdx == totalFrames) {
-                        codec.queueInputBuffer(
-                            inputIndex,
-                            0,
-                            0,
-                            (frameIdx * 1_000_000L) / 15L,
-                            MediaCodec.BUFFER_FLAG_END_OF_STREAM
-                        )
-                    } else {
-                        populateYuv420Frame(frameData, width, height, frameIdx)
-                        inputBuffer?.put(frameData)
-                        codec.queueInputBuffer(
-                            inputIndex,
-                            0,
-                            frameSize,
-                            (frameIdx * 1_000_000L) / 15L,
-                            0
-                        )
-                    }
-                }
-
-                var draining = true
-                while (draining) {
-                    val outIndex = codec.dequeueOutputBuffer(bufferInfo, 10_000L)
-                    when {
-                        outIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> draining = false
-                        outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                            trackIndex = muxer.addTrack(codec.outputFormat)
-                            muxer.start()
-                            muxerStarted = true
-                        }
-                        outIndex >= 0 -> {
-                            draining = writeSampleAndCheckContinue(codec, muxer, bufferInfo, outIndex, trackIndex, muxerStarted)
-                        }
-                    }
-                }
-            }
-            if (muxerStarted) {
-                muxer.stop()
-            }
-            true
-        } catch (e: Throwable) {
-            Log.d(TAG, "Hardware H.264 encoder unavailable; using WAV stream fallback: ${e.message}")
-            false
-        } finally {
-            runCatching { codec?.release() }
-            runCatching { muxer?.release() }
-        }
-    }
-
-    private fun writeSampleAndCheckContinue(
-        codec: MediaCodec,
-        muxer: MediaMuxer,
-        bufferInfo: MediaCodec.BufferInfo,
-        outIndex: Int,
-        trackIndex: Int,
-        muxerStarted: Boolean
-    ): Boolean {
-        val encodedData = codec.getOutputBuffer(outIndex)
-        if (encodedData != null && bufferInfo.size > 0 && muxerStarted) {
-            encodedData.position(bufferInfo.offset)
-            encodedData.limit(bufferInfo.offset + bufferInfo.size)
-            muxer.writeSampleData(trackIndex, encodedData, bufferInfo)
-        }
-        codec.releaseOutputBuffer(outIndex, false)
-        return (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0
-    }
-
-    private fun populateYuv420Frame(frameData: ByteArray, width: Int, height: Int, frameIdx: Int) {
-        val yPlaneSize = width * height
-        val barX = (frameIdx * 4) % width
-        for (y in 0 until height) {
-            for (x in 0 until width) {
-                val isBar = kotlin.math.abs(x - barX) < 18
-                frameData[y * width + x] = if (isBar) 195.toByte() else 24.toByte()
-            }
-        }
-        for (uv in yPlaneSize until frameData.size) {
-            frameData[uv] = 128.toByte()
         }
     }
 }

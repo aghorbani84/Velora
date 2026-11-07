@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release version tag (e.g. v2.0.0)'
+        description: 'Release version tag (e.g. v2.0.1)'
         required: false
-        default: 'v2.0.0'
+        default: 'v2.0.1'
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -64,7 +64,7 @@ jobs:
             TAG_NAME="${GITHUB_REF#refs/tags/}"
             IS_PRERELEASE="false"
           else
-            TAG_NAME="v2.0.0"
+            TAG_NAME="v2.0.1"
             IS_PRERELEASE="false"
           fi
           VERSION_CLEAN="${TAG_NAME#v}"
