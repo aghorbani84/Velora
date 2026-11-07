@@ -124,11 +124,11 @@ class MediaLibraryScanner(
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.ALBUM_ID,
-            MediaStore.Audio.Media.DATE_ADDED,
-            MediaStore.Audio.Media.RELATIVE_PATH
+            MediaStore.Audio.Media.DATE_ADDED
         )
 
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        // Include all audio tracks >= 5 seconds or flagged as music, capturing downloads and recordings
+        val selection = "(${MediaStore.Audio.Media.DURATION} >= 5000) OR (${MediaStore.Audio.Media.IS_MUSIC} != 0)"
         runCatching {
             context.contentResolver.query(
                 collection,
@@ -138,29 +138,31 @@ class MediaLibraryScanner(
                 "${MediaStore.Audio.Media.TITLE} ASC"
             )?.use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
-                val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
-                val relPathCol = cursor.getColumnIndex(MediaStore.Audio.Media.RELATIVE_PATH)
+                val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+                val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+                val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+                val durationCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+                val albumIdCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
+                val dateCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)
 
                 while (cursor.moveToNext()) {
                     val mediaId = cursor.getLong(idCol)
-                    val title = cursor.getString(titleCol)?.takeIf { it.isNotBlank() } ?: "Track $mediaId"
-                    val artist = cursor.getString(artistCol)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Unknown Artist"
-                    val album = cursor.getString(albumCol)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Unknown Album"
-                    val durationMs = cursor.getLong(durationCol).coerceAtLeast(1000L)
-                    val albumId = cursor.getLong(albumIdCol)
-                    val dateAdded = cursor.getLong(dateCol) * 1000L
-                    val relPath = if (relPathCol >= 0) cursor.getString(relPathCol) ?: "Music/" else "Music/"
+                    val title = (if (titleCol >= 0) cursor.getString(titleCol) else null)?.takeIf { it.isNotBlank() } ?: "Audio $mediaId"
+                    val artist = (if (artistCol >= 0) cursor.getString(artistCol) else null)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Device Music"
+                    val album = (if (albumCol >= 0) cursor.getString(albumCol) else null)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Music Library"
+                    val durationMs = (if (durationCol >= 0) cursor.getLong(durationCol) else 0L).coerceAtLeast(1000L)
+                    val albumId = if (albumIdCol >= 0) cursor.getLong(albumIdCol) else -1L
+                    val dateAdded = (if (dateCol >= 0) cursor.getLong(dateCol) else 0L) * 1000L
 
                     val contentUri = ContentUris.withAppendedId(collection, mediaId).toString()
-                    val artworkUri = ContentUris.withAppendedId(
-                        Uri.parse("content://media/external/audio/albumart"),
-                        albumId
-                    ).toString()
+                    val artworkUri = if (albumId >= 0) {
+                        ContentUris.withAppendedId(
+                            Uri.parse("content://media/external/audio/albumart"),
+                            albumId
+                        ).toString()
+                    } else {
+                        null
+                    }
 
                     tracks.add(
                         Track(
@@ -171,7 +173,7 @@ class MediaLibraryScanner(
                             album = album,
                             durationMs = durationMs,
                             uri = contentUri,
-                            folderPath = "/storage/emulated/0/${relPath.trimStart('/')}",
+                            folderPath = "/storage/emulated/0/Music",
                             mediaType = MediaType.AUDIO,
                             artworkUri = artworkUri,
                             addedTimestampMs = dateAdded
@@ -179,7 +181,7 @@ class MediaLibraryScanner(
                     )
                 }
             }
-        }
+        }.onFailure { Log.w(TAG, "MediaStore audio query warning: ${it.message}") }
         return tracks
     }
 
@@ -191,14 +193,13 @@ class MediaLibraryScanner(
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         }
 
+        // Note: MediaStore.Video.Media does NOT have ARTIST or ALBUM columns in Android SDK.
         val projection = arrayOf(
             MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.DISPLAY_NAME,
             MediaStore.Video.Media.TITLE,
-            MediaStore.Video.Media.ARTIST,
-            MediaStore.Video.Media.ALBUM,
             MediaStore.Video.Media.DURATION,
-            MediaStore.Video.Media.DATE_ADDED,
-            MediaStore.Video.Media.RELATIVE_PATH
+            MediaStore.Video.Media.DATE_ADDED
         )
 
         runCatching {
@@ -207,24 +208,21 @@ class MediaLibraryScanner(
                 projection,
                 null,
                 null,
-                "${MediaStore.Video.Media.TITLE} ASC"
+                "${MediaStore.Video.Media.DATE_ADDED} DESC"
             )?.use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
-                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.ARTIST)
-                val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.ALBUM)
-                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
-                val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
-                val relPathCol = cursor.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
+                val displayCol = cursor.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
+                val titleCol = cursor.getColumnIndex(MediaStore.Video.Media.TITLE)
+                val durationCol = cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
+                val dateCol = cursor.getColumnIndex(MediaStore.Video.Media.DATE_ADDED)
 
                 while (cursor.moveToNext()) {
                     val mediaId = cursor.getLong(idCol)
-                    val title = cursor.getString(titleCol)?.takeIf { it.isNotBlank() } ?: "Video $mediaId"
-                    val artist = cursor.getString(artistCol)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Cinema Capture"
-                    val album = cursor.getString(albumCol)?.takeIf { it.isNotBlank() && it != "<unknown>" } ?: "Video Library"
-                    val durationMs = cursor.getLong(durationCol).coerceAtLeast(1000L)
-                    val dateAdded = cursor.getLong(dateCol) * 1000L
-                    val relPath = if (relPathCol >= 0) cursor.getString(relPathCol) ?: "Movies/" else "Movies/"
+                    val displayName = if (displayCol >= 0) cursor.getString(displayCol) else null
+                    val rawTitle = if (titleCol >= 0) cursor.getString(titleCol) else null
+                    val title = (rawTitle ?: displayName)?.takeIf { it.isNotBlank() } ?: "Video $mediaId"
+                    val durationMs = (if (durationCol >= 0) cursor.getLong(durationCol) else 0L).coerceAtLeast(1000L)
+                    val dateAdded = (if (dateCol >= 0) cursor.getLong(dateCol) else 0L) * 1000L
 
                     val contentUri = ContentUris.withAppendedId(collection, mediaId).toString()
 
@@ -233,11 +231,11 @@ class MediaLibraryScanner(
                             id = "ms_video_$mediaId",
                             mediaStoreId = 1_000_000_000L + mediaId,
                             title = title,
-                            artist = artist,
-                            album = album,
+                            artist = "Local Video",
+                            album = "Device Videos",
                             durationMs = durationMs,
                             uri = contentUri,
-                            folderPath = "/storage/emulated/0/${relPath.trimStart('/')}",
+                            folderPath = "/storage/emulated/0/Movies",
                             mediaType = MediaType.VIDEO,
                             artworkUri = null,
                             addedTimestampMs = dateAdded
@@ -245,7 +243,7 @@ class MediaLibraryScanner(
                     )
                 }
             }
-        }
+        }.onFailure { Log.w(TAG, "MediaStore video query warning: ${it.message}") }
         return tracks
     }
 

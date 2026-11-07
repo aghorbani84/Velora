@@ -886,8 +886,28 @@ fun MusicScreen(
     onAddTrackToQueue: (Track) -> Unit,
     onAddTrackToPlaylist: (Long, String) -> Unit,
     onToggleFavorite: (Track) -> Unit = {},
+    onAutoScanMedia: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val isPersian = uiState.settings.appLanguageCode == "fa"
+    val permissionsToRequest = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        onAutoScanMedia()
+    }
+
     LazyColumn(
         contentPadding = PaddingValues(PhiTokens.Space21),
         verticalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
@@ -912,7 +932,7 @@ fun MusicScreen(
                     )
                     Spacer(modifier = Modifier.height(PhiTokens.Space8))
                     Text(
-                        text = "Music Collection (${uiState.audioTracks.size})",
+                        text = "${if (isPersian) "مجموعه آهنگ‌ها" else "Music Collection"} (${uiState.audioTracks.size})",
                         style = MaterialTheme.typography.headlineLarge,
                         color = FazoraIvory
                     )
@@ -934,7 +954,7 @@ fun MusicScreen(
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text("Play All (${uiState.audioTracks.size})")
+                            Text(if (isPersian) "پخش همه (${uiState.audioTracks.size})" else "Play All (${uiState.audioTracks.size})")
                         }
 
                         OutlinedButton(
@@ -946,8 +966,25 @@ fun MusicScreen(
                         ) {
                             Icon(Icons.Default.Shuffle, contentDescription = null, tint = FazoraGold)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text("Shuffle", color = FazoraIvory)
+                            Text(if (isPersian) "تصادفی" else "Shuffle", color = FazoraIvory)
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                    OutlinedButton(
+                        onClick = { permissionLauncher.launch(permissionsToRequest) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .minimumInteractiveComponentSize()
+                            .testTag("music_auto_scan_button")
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null, tint = FazoraGold)
+                        Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                        Text(
+                            if (isPersian) "🔄 جست‌وجو و اسکن خودکار آهنگ‌های حافظه" else "🔄 Auto-Scan Device Music Storage",
+                            color = FazoraIvory
+                        )
                     }
                 }
             }

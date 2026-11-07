@@ -127,7 +127,7 @@ class MediaOrchestrator(
             playerEngine.setVideoAspectMode(savedSettings.videoAspectMode)
 
             var tracks = repository.getAllTracksOnce()
-            if (tracks.isEmpty()) {
+            if (tracks.isEmpty() || savedSettings.autoScanOnStartup) {
                 tracks = repository.performScan(savedSettings.allowedFolderUris)
                 _events.tryEmit(VeloraMediaEvent.MediaDiscovered(tracks.size))
             }

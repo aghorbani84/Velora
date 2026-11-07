@@ -127,11 +127,14 @@ fun PlayerAndEqScreen(
     onClearLoop: () -> Unit = {},
     onSetSleepTimerMinutes: (Int) -> Unit = {},
     onImportCustomLrcOrSrt: (String) -> Unit = {},
+    onToggleSimpleMode: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val engine = uiState.engineState
     val queue = uiState.queue
     val activeTrack = engine.currentTrack ?: queue.currentTrack
+    val isPersian = uiState.settings.appLanguageCode == "fa"
+    val isSimpleMode = uiState.settings.isSimpleMode
 
     var isDraggingTimeline by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
@@ -554,14 +557,65 @@ fun PlayerAndEqScreen(
             }
         }
 
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-            ) {
+        if (isSimpleMode) {
+            item {
+                Surface(
+                    color = FazoraCarbon,
+                    shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                        .clickable { onToggleSimpleMode(false) }
+                        .testTag("simple_mode_open_studio_card")
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(PhiTokens.Space21)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isPersian) {
+                                    "🎛️ اکولایزر ۱۰ بانده و استودیو DSP"
+                                } else {
+                                    "🎛️ 10-Band Biquad EQ & Studio DSP"
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                color = FazoraGold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isPersian) {
+                                    "تنظیم فرکانس‌ها، بوست ساب‌بیس، پهنای استریو 3D و تایمر خواب"
+                                } else {
+                                    "Adjust frequency bands, sub-bass boost, 3D width & sleep timer"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FazoraSteel
+                            )
+                        }
+                        Button(
+                            onClick = { onToggleSimpleMode(false) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = FazoraGold,
+                                contentColor = FazoraObsidian
+                            ),
+                            modifier = Modifier.testTag("open_studio_pro_button")
+                        ) {
+                            Text(if (isPersian) "باز کردن" else "Open Studio")
+                        }
+                    }
+                }
+            }
+        } else {
+            item {
+                Surface(
+                    color = FazoraCarbon,
+                    shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -740,6 +794,7 @@ fun PlayerAndEqScreen(
                 onImportCustomLrcOrSrt = onImportCustomLrcOrSrt
             )
         }
+    }
 
         if (uiState.activeLyrics.isNotEmpty()) {
             item {

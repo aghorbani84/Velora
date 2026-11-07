@@ -66,7 +66,9 @@ data class AppSettings(
     val lastActiveTrackId: String? = null,
     val lastPositionMs: Long = 0L,
     val corruptionFallbackCount: Int = 0,
-    val appLanguageCode: String = "en"
+    val appLanguageCode: String = "en",
+    val isSimpleMode: Boolean = true,
+    val autoScanOnStartup: Boolean = true
 )
 
 data class ScanProgress(

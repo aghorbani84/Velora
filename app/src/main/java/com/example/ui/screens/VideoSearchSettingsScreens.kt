@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -26,14 +28,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -106,10 +112,33 @@ fun VideoPlayerScreen(
     onAddTrackToPlaylist: (Long, String) -> Unit,
     onToggleFavorite: (Track) -> Unit = {},
     onEnterPip: () -> Unit = {},
+    onAutoScanMedia: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val engine = uiState.engineState
-    val activeVideo = engine.currentTrack ?: uiState.videoTracks.firstOrNull()
+    val isPersian = uiState.settings.appLanguageCode == "fa"
+    val isCurrentTrackVideo = engine.currentTrack?.mediaType == com.example.domain.model.MediaType.VIDEO
+    val activeVideo = if (isCurrentTrackVideo) engine.currentTrack else uiState.videoTracks.firstOrNull()
+
+    val videoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val fileName = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: "Local Video"
+            val pickedTrack = Track(
+                id = "picked_video_${System.currentTimeMillis()}",
+                mediaStoreId = System.currentTimeMillis(),
+                title = fileName,
+                artist = "Device Storage",
+                album = "Local Video",
+                durationMs = 0L,
+                uri = uri.toString(),
+                folderPath = "/storage/emulated/0/Movies",
+                mediaType = com.example.domain.model.MediaType.VIDEO
+            )
+            onPlayVideoTrack(pickedTrack)
+        }
+    }
 
     var controlsVisible by remember { mutableStateOf(true) }
     var interactionNonce by remember { mutableIntStateOf(0) }
@@ -180,6 +209,8 @@ fun VideoPlayerScreen(
                                     PlayerView(ctx).apply {
                                         useController = false
                                         player = exoPlayer
+                                        setShutterBackgroundColor(android.graphics.Color.BLACK)
+                                        keepScreenOn = true
                                         resizeMode = when (engine.videoAspectMode) {
                                             VideoAspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                                             VideoAspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -205,16 +236,18 @@ fun VideoPlayerScreen(
                             )
                         }
 
-                        SpectrumAnalyzerCanvas(
-                            spectrumBandsDb = engine.spectrumBandsDb,
-                            eqGainsDb = engine.eqBandGainsDb,
-                            eqEnabled = engine.eqEnabled,
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .padding(horizontal = PhiTokens.Space8)
-                        )
+                        if (!isCurrentTrackVideo) {
+                            SpectrumAnalyzerCanvas(
+                                spectrumBandsDb = engine.spectrumBandsDb,
+                                eqGainsDb = engine.eqBandGainsDb,
+                                eqEnabled = engine.eqEnabled,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .padding(horizontal = PhiTokens.Space8)
+                            )
+                        }
 
                         this@Column.AnimatedVisibility(
                             visible = controlsVisible,
@@ -297,7 +330,7 @@ fun VideoPlayerScreen(
                                         Button(
                                             onClick = {
                                                 interactionNonce++
-                                                if (engine.currentTrack == null && activeVideo != null) {
+                                                if (!isCurrentTrackVideo && activeVideo != null) {
                                                     onPlayVideoTrack(activeVideo)
                                                 } else {
                                                     onTogglePlayPause()
@@ -311,12 +344,22 @@ fun VideoPlayerScreen(
                                                 .minimumInteractiveComponentSize()
                                                 .testTag("video_play_pause_button")
                                         ) {
+                                            val playPauseIcon = if (engine.isPlaying && isCurrentTrackVideo) {
+                                                Icons.Default.Pause
+                                            } else {
+                                                Icons.Default.PlayArrow
+                                            }
+                                            val playPauseLabel = if (engine.isPlaying && isCurrentTrackVideo) {
+                                                if (isPersian) "توقف ویدیو" else "Pause Video"
+                                            } else {
+                                                if (isPersian) "پخش ویدیو" else "Play Video"
+                                            }
                                             Icon(
-                                                imageVector = if (engine.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                                imageVector = playPauseIcon,
                                                 contentDescription = null
                                             )
                                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                                            Text(if (engine.isPlaying) "Pause Stream" else "Play Stream")
+                                            Text(playPauseLabel)
                                         }
 
                                         OutlinedButton(
@@ -481,6 +524,41 @@ fun VideoPlayerScreen(
                                 text = "Audio Tracks (${engine.audioTracks.size.coerceAtLeast(1)})",
                                 color = FazoraIvory
                             )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = FazoraGold,
+                                contentColor = FazoraObsidian
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .minimumInteractiveComponentSize()
+                                .testTag("pick_video_button")
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null)
+                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                            Text(if (isPersian) "انتخاب ویدیو از دستگاه" else "Pick Local Video")
+                        }
+
+                        OutlinedButton(
+                            onClick = onAutoScanMedia,
+                            modifier = Modifier
+                                .weight(1f)
+                                .minimumInteractiveComponentSize()
+                                .testTag("autoscan_video_button")
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = FazoraGold)
+                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                            Text(if (isPersian) "اسکن خودکار ویدیوها" else "Auto-Scan Media", color = FazoraIvory)
                         }
                     }
                 }
@@ -701,10 +779,14 @@ fun SettingsScreen(
     onSetLanguageCode: (String) -> Unit = {},
     onTogglePlugin: (String) -> Unit = {},
     onExportBackupJson: () -> Unit = {},
+    onToggleSimpleMode: (Boolean) -> Unit = {},
+    onToggleAutoScanOnStartup: (Boolean) -> Unit = {},
+    onAutoScanMedia: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val settings = uiState.settings
     val user = uiState.firebaseUser
+    val isPersian = settings.appLanguageCode == "fa"
     val contrastIvoryObsidian = remember { PhiDesignMetrics.contrastRatio(HEX_IVORY, HEX_OBSIDIAN) }
     val contrastIvoryCarbon = remember { PhiDesignMetrics.contrastRatio(HEX_IVORY, HEX_CARBON) }
     val contrastGoldObsidian = remember { PhiDesignMetrics.contrastRatio(HEX_GOLD, HEX_OBSIDIAN) }
@@ -718,6 +800,140 @@ fun SettingsScreen(
             .background(FazoraObsidian)
             .testTag("settings_screen")
     ) {
+        item {
+            Surface(
+                color = FazoraCarbon,
+                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                    .testTag("simple_mode_card")
+            ) {
+                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
+                    Text(
+                        text = if (isPersian) "طراحی رابط کاربری و تراکم صفحه" else "INTERFACE DENSITY & WORKSPACE MODE",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = FazoraGold
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Text(
+                        text = if (isPersian) "حالت ساده (خلوت) / حالت استودیوی پیشرفته" else "Simple Mode / Studio Advanced Mode",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = FazoraIvory
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Text(
+                        text = if (isPersian)
+                            "حالت ساده: محیط خلوت و مینیمال بدون منوها و اسلایدرهای شلوغ، متمرکز بر پخش روان آهنگ و ویدیو.\n" +
+                            "حالت استودیو: فعال‌سازی تمام تب‌های تخصصی، اکولایزر ۱۰ بانده Biquad، بوست ساب‌بیس، پهنای استریو 3D و بوک‌مارک."
+                        else
+                            "Simple Mode keeps the player clean, distraction-free, and uncluttered. " +
+                            "Studio Advanced Mode reveals the full 10-band DSP rack, Goertzel analyzer, and depth controls.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = FazoraSteel
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13)) {
+                        Button(
+                            onClick = { onToggleSimpleMode(true) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (settings.isSimpleMode) FazoraGold else FazoraCarbonElevated,
+                                contentColor = if (settings.isSimpleMode) FazoraObsidian else FazoraIvory
+                            ),
+                            modifier = Modifier.weight(1f).minimumInteractiveComponentSize()
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isPersian) "✨ حالت ساده" else "✨ Simple Mode")
+                        }
+
+                        Button(
+                            onClick = { onToggleSimpleMode(false) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!settings.isSimpleMode) FazoraGold else FazoraCarbonElevated,
+                                contentColor = if (!settings.isSimpleMode) FazoraObsidian else FazoraIvory
+                            ),
+                            modifier = Modifier.weight(1f).minimumInteractiveComponentSize()
+                        ) {
+                            Icon(Icons.Default.Tune, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isPersian) "🎛️ استودیو پیشرفته" else "🎛️ Studio Pro")
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Surface(
+                color = FazoraCarbon,
+                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                    .testTag("auto_scan_settings_card")
+            ) {
+                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
+                    Text(
+                        text = if (isPersian) "پایش خودکار رسانه‌های دستگاه" else "AUTOMATIC MEDIA DISCOVERY",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = FazoraGold
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Text(
+                        text = if (isPersian) {
+                            "جست‌وجو و اسکن خودکار آهنگ‌ها و ویدیوها"
+                        } else {
+                            "Auto-Scan Device Music & Videos"
+                        },
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = FazoraIvory
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Text(
+                        text = if (isPersian) {
+                            "با فعال بودن این گزینه، ولورا هنگام ورود تمام آهنگ‌ها، دانلودها، " +
+                                "فایل‌های تلگرام/واتساپ و ویدیوهای دستگاه را خودکار شناسایی و فهرست می‌کند."
+                        } else {
+                            "Automatically indexes newly added audio files, downloads, " +
+                                "voice recordings, and videos whenever VELORA launches."
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = FazoraSteel
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (isPersian) "اسکن خودکار هنگام اجرای برنامه" else "Auto-scan on app launch",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = FazoraIvory
+                        )
+                        androidx.compose.material3.Switch(
+                            checked = settings.autoScanOnStartup,
+                            onCheckedChange = { onToggleAutoScanOnStartup(it) }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Button(
+                        onClick = onAutoScanMedia,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FazoraGold,
+                            contentColor = FazoraObsidian
+                        ),
+                        modifier = Modifier.fillMaxWidth().minimumInteractiveComponentSize()
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (isPersian) "🔄 اسکن کامل و خودکار حافظه همین حالا" else "🔄 Auto-Scan All Device Storage Now")
+                    }
+                }
+            }
+        }
+
         item {
             Surface(
                 color = FazoraCarbon,

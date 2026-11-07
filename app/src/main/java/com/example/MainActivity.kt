@@ -1,10 +1,16 @@
 package com.example
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -21,6 +28,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,14 +38,20 @@ import android.app.PictureInPictureParams
 import android.util.Rational
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Radio
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -48,16 +63,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -140,13 +159,61 @@ fun VeloraRootApp(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var currentDestination by rememberSaveable { mutableStateOf(VeloraDestination.LIBRARY) }
     val isPersian = uiState.settings.appLanguageCode == "fa"
+    val isSimpleMode = uiState.settings.isSimpleMode
+    val homeDestination = if (isSimpleMode) VeloraDestination.MUSIC else VeloraDestination.LIBRARY
+    var currentDestination by rememberSaveable { mutableStateOf(VeloraDestination.MUSIC) }
     val layoutDirection = if (isPersian) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-    // BackHandler returns to Library from any secondary destination
-    BackHandler(enabled = currentDestination != VeloraDestination.LIBRARY) {
-        currentDestination = VeloraDestination.LIBRARY
+    val visibleDestinations = if (isSimpleMode) {
+        listOf(
+            VeloraDestination.MUSIC,
+            VeloraDestination.VIDEO,
+            VeloraDestination.RADIO,
+            VeloraDestination.SETTINGS
+        )
+    } else {
+        VeloraDestination.entries
+    }
+
+    LaunchedEffect(isSimpleMode) {
+        if (isSimpleMode && currentDestination !in visibleDestinations && currentDestination != VeloraDestination.PLAYER) {
+            currentDestination = VeloraDestination.MUSIC
+        }
+    }
+
+    val permissionsToRequest = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        viewModel.autoScanDeviceMedia()
+    }
+
+    LaunchedEffect(uiState.settings.autoScanOnStartup) {
+        if (uiState.settings.autoScanOnStartup) {
+            val allGranted = permissionsToRequest.all { perm ->
+                ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+            }
+            if (allGranted) {
+                viewModel.autoScanDeviceMedia()
+            }
+        }
+    }
+
+    // BackHandler returns to home destination from any secondary destination
+    BackHandler(enabled = currentDestination != homeDestination) {
+        currentDestination = homeDestination
     }
 
     val media3ExoPlayer = (viewModel.playerEngine as? Media3PlayerEngine)?.exoPlayer
@@ -169,7 +236,7 @@ fun VeloraRootApp(
                         .fillMaxHeight()
                         .testTag("fazora_nav_rail")
                 ) {
-                    VeloraDestination.entries.forEach { dest ->
+                    visibleDestinations.forEach { dest ->
                         val selected = currentDestination == dest
                         val navLabel = if (isPersian) dest.labelFa else dest.label
                         NavigationRailItem(
@@ -203,6 +270,84 @@ fun VeloraRootApp(
 
             Scaffold(
                 containerColor = FazoraObsidian,
+                topBar = {
+                    Surface(
+                        color = FazoraCarbon,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.statusBars)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "VELORA",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = FazoraGold
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    color = FazoraCarbonElevated,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(
+                                        text = if (isSimpleMode) "SIMPLE" else "STUDIO",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isSimpleMode) FazoraIvory else FazoraGold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                IconButton(
+                                    onClick = { permissionLauncher.launch(permissionsToRequest) },
+                                    modifier = Modifier.minimumInteractiveComponentSize().testTag("top_bar_auto_scan_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Auto-scan media",
+                                        tint = FazoraGold
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { viewModel.setSimpleMode(!isSimpleMode) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isSimpleMode) FazoraCarbonElevated else FazoraGold,
+                                        contentColor = if (isSimpleMode) FazoraGold else FazoraObsidian
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.testTag("top_bar_mode_switcher_button")
+                                ) {
+                                    Icon(
+                                        imageVector = if (isSimpleMode) Icons.Default.Tune else Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (isSimpleMode) {
+                                            if (isPersian) "حالت پیشرفته" else "Studio Pro"
+                                        } else {
+                                            if (isPersian) "حالت ساده" else "Simple Mode"
+                                        },
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
                 bottomBar = {
                     Column(
                         modifier = Modifier
@@ -258,7 +403,7 @@ fun VeloraRootApp(
                                     .fillMaxWidth()
                                     .testTag("fazora_bottom_nav")
                             ) {
-                                VeloraDestination.entries.forEach { dest ->
+                                visibleDestinations.forEach { dest ->
                                     val selected = currentDestination == dest
                                     val navLabel = if (isPersian) dest.labelFa else dest.label
                                     NavigationBarItem(
@@ -339,7 +484,8 @@ fun VeloraRootApp(
                             onPlayTrack = { viewModel.playTrack(it, uiState.audioTracks) },
                             onAddTrackToQueue = { viewModel.addTrackToQueue(it) },
                             onAddTrackToPlaylist = { pid, tid -> viewModel.addTrackToPlaylist(pid, tid) },
-                            onToggleFavorite = { viewModel.toggleFavorite(it) }
+                            onToggleFavorite = { viewModel.toggleFavorite(it) },
+                            onAutoScanMedia = { viewModel.autoScanDeviceMedia() }
                         )
 
                         VeloraDestination.RADIO -> RadioScreen(
@@ -387,7 +533,8 @@ fun VeloraRootApp(
                                         .build()
                                     activity?.enterPictureInPictureMode(params)
                                 }
-                            }
+                            },
+                            onAutoScanMedia = { viewModel.autoScanDeviceMedia() }
                         )
 
                         VeloraDestination.SEARCH -> SearchScreen(
@@ -431,7 +578,8 @@ fun VeloraRootApp(
                             onSetLoopPointB = { viewModel.setAbLoopPointB() },
                             onClearLoop = { viewModel.clearAbLoop() },
                             onSetSleepTimerMinutes = { viewModel.setSleepTimerMinutes(it) },
-                            onImportCustomLrcOrSrt = { viewModel.importCustomLyricsOrSrt(it) }
+                            onImportCustomLrcOrSrt = { viewModel.importCustomLyricsOrSrt(it) },
+                            onToggleSimpleMode = { viewModel.setSimpleMode(it) }
                         )
 
                         VeloraDestination.SETTINGS -> SettingsScreen(
@@ -441,7 +589,10 @@ fun VeloraRootApp(
                             onSignOut = { viewModel.signOut() },
                             onSetLanguageCode = { viewModel.setAppLanguageCode(it) },
                             onTogglePlugin = { viewModel.toggleDeclarativePlugin(it) },
-                            onExportBackupJson = { viewModel.exportOfflineBackupJson(context.filesDir) }
+                            onExportBackupJson = { viewModel.exportOfflineBackupJson(context.filesDir) },
+                            onToggleSimpleMode = { viewModel.setSimpleMode(it) },
+                            onToggleAutoScanOnStartup = { viewModel.setAutoScanOnStartup(it) },
+                            onAutoScanMedia = { viewModel.autoScanDeviceMedia() }
                         )
                     }
                 }

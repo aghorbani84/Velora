@@ -101,32 +101,39 @@ object BundledMediaSynthesizer {
             )
         }
 
-        val fallbackVideoAudioFile = File(studioDir, "fazora_motion_precision_stream.wav")
-        if (!fallbackVideoAudioFile.exists() || fallbackVideoAudioFile.length() < 1024L) {
-            writeStereoWavFile(
-                targetFile = fallbackVideoAudioFile,
-                durationSeconds = 10,
-                frequenciesHz = listOf(146.83, 220.0, 293.66, 440.0, 880.0),
-                modRateHz = 1.618
-            )
-        }
-        val effectiveVideoUri = fallbackVideoAudioFile.absolutePath
-
         results.add(
             Track(
                 id = "studio_video_1",
                 mediaStoreId = 900_101L,
-                title = "Fazora Motion Calibration Reel (1080p Phi Frame)",
-                artist = "Fazora Visual Lab",
-                album = "Motion Calibration",
-                durationMs = 10_000L,
-                uri = effectiveVideoUri,
+                title = "Big Buck Bunny (1080p Cinema Demo)",
+                artist = "Blender Foundation",
+                album = "Open Cinema Showcase",
+                durationMs = 596_000L,
+                uri = "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4",
                 folderPath = studioDir.absolutePath,
                 mediaType = MediaType.VIDEO,
                 artworkUri = null,
                 addedTimestampMs = System.currentTimeMillis(),
                 sampleRateHz = SAMPLE_RATE,
                 bitrateKbps = 2400
+            )
+        )
+
+        results.add(
+            Track(
+                id = "studio_video_2",
+                mediaStoreId = 900_102L,
+                title = "Tears of Steel (Sci-Fi 4K / 1080p Reel)",
+                artist = "Mango Open Movie",
+                album = "VFX Master Collection",
+                durationMs = 734_000L,
+                uri = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+                folderPath = studioDir.absolutePath,
+                mediaType = MediaType.VIDEO,
+                artworkUri = null,
+                addedTimestampMs = System.currentTimeMillis(),
+                sampleRateHz = SAMPLE_RATE,
+                bitrateKbps = 4800
             )
         )
 

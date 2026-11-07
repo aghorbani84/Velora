@@ -166,6 +166,34 @@ class VeloraViewModel(
         }
     }
 
+    fun autoScanDeviceMedia() {
+        scanLibrary()
+    }
+
+    fun setSimpleMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateSimpleMode(enabled)
+            val msg = if (enabled) {
+                if (uiState.value.settings.appLanguageCode == "fa") "به حالت ساده و خلوت تغییر یافت" else "Switched to Simple Mode"
+            } else {
+                if (uiState.value.settings.appLanguageCode == "fa") "به حالت استودیوی پیشرفته تغییر یافت" else "Switched to Studio Advanced Mode"
+            }
+            mediaOrchestrator.postBanner(msg)
+        }
+    }
+
+    fun setAutoScanOnStartup(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.updateAutoScanOnStartup(enabled)
+            val msg = if (enabled) {
+                if (uiState.value.settings.appLanguageCode == "fa") "اسکن خودکار هنگام ورود فعال شد" else "Auto-scan on launch enabled"
+            } else {
+                if (uiState.value.settings.appLanguageCode == "fa") "اسکن خودکار هنگام ورود غیرفعال شد" else "Auto-scan on launch disabled"
+            }
+            mediaOrchestrator.postBanner(msg)
+        }
+    }
+
     fun addFolderUri(uriOrPath: String) {
         viewModelScope.launch {
             val accepted = settingsRepository.addAllowedFolder(uriOrPath)

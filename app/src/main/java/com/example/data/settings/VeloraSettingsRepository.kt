@@ -104,6 +104,14 @@ class VeloraSettingsRepository(
         dataStore.edit { it[KEY_APP_LANGUAGE] = normalized }
     }
 
+    suspend fun updateSimpleMode(enabled: Boolean) {
+        dataStore.edit { it[KEY_SIMPLE_MODE] = enabled }
+    }
+
+    suspend fun updateAutoScanOnStartup(enabled: Boolean) {
+        dataStore.edit { it[KEY_AUTO_SCAN_STARTUP] = enabled }
+    }
+
     suspend fun addAllowedFolder(folderUriOrPath: String): Boolean {
         if (!PhiDesignMetrics.isSafeMediaFolder(folderUriOrPath)) {
             Log.w(TAG, "Rejected unsafe media folder path: $folderUriOrPath")
@@ -192,7 +200,9 @@ class VeloraSettingsRepository(
             lastActiveTrackId = prefs[KEY_LAST_ACTIVE_TRACK],
             lastPositionMs = (prefs[KEY_LAST_POSITION_MS] ?: 0L).coerceAtLeast(0L),
             corruptionFallbackCount = prefs[KEY_CORRUPTION_COUNT] ?: 0,
-            appLanguageCode = prefs[KEY_APP_LANGUAGE] ?: "en"
+            appLanguageCode = prefs[KEY_APP_LANGUAGE] ?: "en",
+            isSimpleMode = prefs[KEY_SIMPLE_MODE] ?: true,
+            autoScanOnStartup = prefs[KEY_AUTO_SCAN_STARTUP] ?: true
         )
     }
 
@@ -213,6 +223,8 @@ class VeloraSettingsRepository(
         private val KEY_LAST_POSITION_MS = longPreferencesKey("last_position_ms")
         private val KEY_CORRUPTION_COUNT = intPreferencesKey("corruption_count")
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language_code")
+        private val KEY_SIMPLE_MODE = booleanPreferencesKey("is_simple_mode")
+        private val KEY_AUTO_SCAN_STARTUP = booleanPreferencesKey("auto_scan_startup")
 
         fun backupCorruptFileIfPresent(targetFile: File): File? {
             return try {
