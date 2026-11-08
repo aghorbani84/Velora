@@ -11,9 +11,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release version tag (e.g. v2.1.0)'
+        description: 'Release version tag (e.g. v2.2.0)'
         required: false
-        default: 'v2.1.0'
+        default: 'v2.2.0'
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build, Sign & Publish VELORA v2.1.0 APK Release
+    name: Build, Sign & Publish VELORA APK Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -63,6 +63,7 @@ jobs:
       - name: Resolve Release Version & Tag
         id: meta
         run: |
+          GRADLE_VER=$(grep 'versionName = ' app/build.gradle.kts | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version_tag }}" ]; then
             TAG_NAME="${{ inputs.version_tag }}"
             IS_PRERELEASE="${{ inputs.prerelease }}"
@@ -70,7 +71,7 @@ jobs:
             TAG_NAME="${GITHUB_REF#refs/tags/}"
             IS_PRERELEASE="false"
           else
-            TAG_NAME="v2.1.0"
+            TAG_NAME="v${GRADLE_VER:-2.2.0}"
             IS_PRERELEASE="false"
           fi
           VERSION_CLEAN="${TAG_NAME#v}"
@@ -149,12 +150,15 @@ jobs:
             echo ""
             echo "**VELORA ${TAG}** is an intelligent, privacy-first multimedia platform engineered with **Kotlin**, **Jetpack Compose (Material 3 Dark Saffron & Champagne Gold)**, **Media3 ExoPlayer**, a **10-Band Cascaded Peaking Biquad DSP Equalizer**, **Studio DSP Rack (Preamp, Sub-Bass Boost, 3D Stereo Width, A-B Loop, Smart Sleep Timer)**, **Live World & Persian Radio Tuner**, and **Sandboxed Declarative Plugins**."
             echo ""
-            echo "### 🚀 What's New in ${TAG}"
-            echo "- **Live World & Persian Radio Tuner**: 14 built-in stations across Persian & East, Audiophile Hi-Fi (FLAC/320k), Night Drive & Synthwave, Chill & Lo-Fi, and Classical & Jazz + custom stream URL support."
-            echo "- **Studio DSP Rack**: Preamp Gain (\`-12 dB .. +12 dB\`), Sub-Bass Boost (\`0% .. 100%\`), 3D Mid-Side Stereo Width Expander (\`0% .. 100%\`), and Crossfade."
-            echo "- **Smart Sleep Timer & A-B Repeat Loop**: Countdown sleep timer with smooth 15-second volume fade-out + precision \`Set A\` / \`Set B\` looping."
-            echo "- **Custom \`.LRC\` / \`.SRT\` Importer, Swipe Mini-Player & Picture-in-Picture (\`PiP\`)**."
-            echo "- **Honor X7d / Android 14 Startup Stability**: Defensive initialization when running offline without Firebase credentials and safe background service lifecycle."
+            echo "### 🚀 What's New in ${TAG} (v2.2.0)"
+            echo "- **Precision Seek & Exact Time Input**: Millisecond-accurate positioning, typed mm:ss/milliseconds dialog, and instant +/- step buttons."
+            echo "- **In-App ID3 / Room Tag Editor**: Modify Song Title, Artist, and Album offline with instant database persistence."
+            echo "- **Audio Signal Pipeline Transparency Panel**: Real-time visual monitoring of the signal path (Source PCM -> Preamp -> 10-Band Biquad -> Sub-Bass -> 3D Stereo -> Limiter -> Hardware DAC)."
+            echo "- **Hardware Audio Route Detection**: Live indicator and automatic DSP profile recommendation for USB DAC, Bluetooth LDAC/AptX, 3.5mm Jack, and Built-in Speakers."
+            echo "- **Smart Search Music Filter**: Toggle between scanning all device audio recordings vs only valid music tracks (with valid tags & duration)."
+            echo "- **Play Next (پخش بعدی)**: Queue priority insertion to play any chosen track right after the currently active song."
+            echo "- **Battery Saver Mode & Background Playback**: Optimized rendering, disabled heavy visualizers on battery saver, and seamless audio/video background playback."
+            echo "- **Live World & Persian Radio Tuner**: 14 high-quality streams + custom URL support."
             echo ""
             echo "### 📥 Direct APK Downloads (دانلود مستقیم نسخه نصبی اندروید)"
             echo ""
@@ -205,6 +209,7 @@ jobs:
               --clobber
           else
             gh release create "$TAG" \
+              --target "${GITHUB_SHA}" \
               "dist/VELORA-v${VERSION}-release-signed.apk" \
               "dist/VELORA-v${VERSION}-universal-debug.apk" \
               "dist/SHA256SUMS.txt" \

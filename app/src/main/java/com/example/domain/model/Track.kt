@@ -24,6 +24,32 @@ data class Track(
     val durationFormatted: String
         get() = formatDurationMs(durationMs)
 
+    fun isLikelyValidSong(): Boolean {
+        if (mediaType == MediaType.VIDEO) return true
+        if (durationMs < 35_000L) return false
+
+        val titleLower = title.lowercase()
+        val uriLower = uri.lowercase()
+
+        val isChatAudio = titleLower.startsWith("aud-") || titleLower.startsWith("ptt-") ||
+            listOf("whatsapp", "/ptt/", "/opus/").any { uriLower.contains(it) }
+        if (isChatAudio) return false
+
+        val isRecording = listOf("rec_", "rec-", "recording", "voice ", "voice_", "call_").any {
+            titleLower.startsWith(it)
+        } || listOf("call_rec", "sound_recorder", "voicenotes").any {
+            uriLower.contains(it)
+        }
+        if (isRecording) return false
+
+        val isSystemSound = listOf("/notifications/", "/ringtones/", "/alarms/", "/ui/").any {
+            uriLower.contains(it)
+        }
+        if (isSystemSound) return false
+
+        return title.isNotBlank()
+    }
+
     companion object {
         fun formatDurationMs(ms: Long): String {
             val clamped = ms.coerceAtLeast(0L)

@@ -33,7 +33,7 @@ object BundledMediaSynthesizer {
             mediaStoreId = 900_001L,
             title = "Obsidian Pulse (62Hz + 1kHz + 8kHz Reference)",
             artist = "Fazora Acoustic Lab",
-            album = "Phi Reference Masters",
+            album = "Velora Studio Masters",
             durationSeconds = 12,
             frequenciesHz = listOf(62.5, 125.0, 500.0, 1000.0, 4000.0, 8000.0),
             modRateHz = 1.618
@@ -42,9 +42,9 @@ object BundledMediaSynthesizer {
             fileName = "fazora_golden_harmonic.wav",
             id = "studio_master_2",
             mediaStoreId = 900_002L,
-            title = "Golden Ratio Overtone Suite",
+            title = "Velora Harmonic Acoustic Suite",
             artist = "Fazora Acoustic Lab",
-            album = "Phi Reference Masters",
+            album = "Velora Studio Masters",
             durationSeconds = 15,
             frequenciesHz = listOf(110.0, 178.0, 288.0, 466.0, 754.0, 1220.0),
             modRateHz = 0.618

@@ -94,6 +94,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.R
 import com.example.domain.engine.PlaybackStatus
+import com.example.domain.model.AdaptiveAudioMode
+import com.example.domain.model.AudioRouteType
 import com.example.domain.model.PhiDesignMetrics
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.Track
@@ -1174,6 +1176,7 @@ fun SearchScreen(
     onAddTrackToPlaylist: (Long, String) -> Unit,
     onToggleFavorite: (Track) -> Unit = {},
     onExecuteCopilotCommand: (String) -> Unit = {},
+    onToggleOnlyValidMusic: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val semanticPresets = remember {
@@ -1249,6 +1252,39 @@ fun SearchScreen(
                             .testTag("search_query_input")
                     )
                     Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val onlyValid = uiState.settings.onlyValidMusicInSearch
+                        Button(
+                            onClick = { onToggleOnlyValidMusic(true) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (onlyValid) FazoraGold else FazoraCarbonElevated,
+                                contentColor = if (onlyValid) FazoraObsidian else FazoraIvory
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .minimumInteractiveComponentSize()
+                                .testTag("filter_valid_music_btn")
+                        ) {
+                            Text(if (isPersian) "🎵 فقط آهنگ‌های معتبر" else "🎵 Valid Music Only")
+                        }
+                        Button(
+                            onClick = { onToggleOnlyValidMusic(false) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!onlyValid) FazoraGold else FazoraCarbonElevated,
+                                contentColor = if (!onlyValid) FazoraObsidian else FazoraIvory
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .minimumInteractiveComponentSize()
+                                .testTag("filter_all_audio_btn")
+                        ) {
+                            Text(if (isPersian) "📱 تمام صداهای گوشی" else "📱 All Device Audio")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
                         items(semanticPresets, key = { it.first }) { (queryToken, label) ->
                             val isSelected = uiState.searchQuery.equals(queryToken, ignoreCase = true)
@@ -1270,8 +1306,21 @@ fun SearchScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    val countLabel = if (uiState.settings.onlyValidMusicInSearch) {
+                        if (isPersian) {
+                            "${uiState.searchResults.size} آهنگ معتبر یافت شد (بدون ویس و صداهای ضبط‌شده)"
+                        } else {
+                            "${uiState.searchResults.size} valid songs found (ignoring short voice notes)"
+                        }
+                    } else {
+                        if (isPersian) {
+                            "${uiState.searchResults.size} فایل صوتی و ضبط یافت شد"
+                        } else {
+                            "${uiState.searchResults.size} total audio tracks & recordings found"
+                        }
+                    }
                     Text(
-                        text = "${uiState.searchResults.size} matching tracks (Prefix • Substring • Levenshtein Fuzzy • Semantic)",
+                        text = countLabel,
                         style = MaterialTheme.typography.labelMedium,
                         color = FazoraSteel
                     )
@@ -1360,6 +1409,10 @@ fun SettingsScreen(
     onToggleSimpleMode: (Boolean) -> Unit = {},
     onToggleAutoScanOnStartup: (Boolean) -> Unit = {},
     onAutoScanMedia: () -> Unit = {},
+    onToggleOnlyValidMusic: (Boolean) -> Unit = {},
+    onToggleBackgroundVideoAudio: (Boolean) -> Unit = {},
+    onToggleLowBatteryMode: (Boolean) -> Unit = {},
+    onSetAdaptiveAudioMode: (AdaptiveAudioMode) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val settings = uiState.settings
@@ -1378,6 +1431,220 @@ fun SettingsScreen(
             .background(FazoraObsidian)
             .testTag("settings_screen")
     ) {
+        item {
+            Surface(
+                color = FazoraCarbon,
+                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                    .testTag("adaptive_audio_card")
+            ) {
+                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
+                    Text(
+                        text = if (isPersian) "موتور صوتی تطبیقی و خروجی سخت‌افزاری" else "ADAPTIVE AUDIO ENGINE",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = FazoraGold
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Text(
+                        text = if (isPersian) "شناسایی مسیر صوتی و تنظیم خودکار Biquad" else "Hardware Route & Auto-EQ Profile",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = FazoraIvory
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    val route = uiState.audioRoute
+                    val routeIcon = when (route.type) {
+                        AudioRouteType.BLUETOOTH -> "📶"
+                        AudioRouteType.WIRED_HEADPHONES -> "🎧"
+                        AudioRouteType.USB_DAC -> "🎛️"
+                        AudioRouteType.SPEAKER -> "🔊"
+                        AudioRouteType.UNKNOWN -> "🎵"
+                    }
+                    Surface(
+                        color = FazoraCarbonElevated,
+                        shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(PhiTokens.Space13)
+                        ) {
+                            Text(text = routeIcon, style = MaterialTheme.typography.headlineMedium)
+                            Spacer(modifier = Modifier.width(PhiTokens.Space13))
+                            Column {
+                                Text(
+                                    text = if (isPersian) "خروجی فعال: ${route.deviceName}" else "Active Output: ${route.deviceName}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = FazoraIvory
+                                )
+                                Text(
+                                    text = if (isPersian) "پروفایل پیشنهادی ولورا: ${route.recommendedProfile}"
+                                    else "Recommended Profile: ${route.recommendedProfile}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = FazoraGold
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Text(
+                        text = if (isPersian) "حالت پردازش صوتی:" else "Audio Processing Mode:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = FazoraIvory
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AdaptiveAudioMode.entries.forEach { mode ->
+                            val isSelected = settings.adaptiveAudioMode == mode
+                            OutlinedButton(
+                                onClick = { onSetAdaptiveAudioMode(mode) },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
+                                    contentColor = if (isSelected) FazoraObsidian else FazoraIvory
+                                ),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("mode_${mode.name}")
+                            ) {
+                                Text(
+                                    text = if (isPersian) mode.labelFa else mode.labelEn,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Surface(
+                color = FazoraCarbon,
+                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                    .testTag("battery_and_background_card")
+            ) {
+                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
+                    Text(
+                        text = if (isPersian) "باتری و پخش پس‌زمینه" else "BATTERY & BACKGROUND PLAYBACK",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = FazoraGold
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Text(
+                        text = if (isPersian) "پخش در پس‌زمینه و کاهش مصرف شارژ" else "Background Audio & Power Saver",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = FazoraIvory
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isPersian) "پخش صدای ویدیو در پس‌زمینه" else "Background Video Audio",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = FazoraIvory
+                            )
+                            Text(
+                                text = if (isPersian)
+                                    "با خاموش شدن صفحه یا رفتن به برنامه‌های دیگر، پخش صدای ویدیو ادامه می‌یابد."
+                                else
+                                    "Video audio keeps playing smoothly when screen turns off or app is minimized.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FazoraSteel
+                            )
+                        }
+                        androidx.compose.material3.Switch(
+                            checked = settings.backgroundVideoAudioEnabled,
+                            onCheckedChange = { onToggleBackgroundVideoAudio(it) }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isPersian) "حالت بهینه‌سازی و کاهش مصرف باتری" else "Battery Saver Mode",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = FazoraIvory
+                            )
+                            Text(
+                                text = if (isPersian)
+                                    "کاهش نرخ پردازش طیف و آنالایزر برای حفظ شارژ باتری و حداقل مصرف پردازنده."
+                                else
+                                    "Throttles visualizer computations to extend battery life and reduce CPU usage.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FazoraSteel
+                            )
+                        }
+                        androidx.compose.material3.Switch(
+                            checked = settings.lowBatteryModeEnabled,
+                            onCheckedChange = { onToggleLowBatteryMode(it) }
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Surface(
+                color = FazoraCarbon,
+                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                    .testTag("smart_filter_card")
+            ) {
+                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
+                    Text(
+                        text = if (isPersian) "فیلتر هوشمند کتابخانه و جست‌وجو" else "SMART LIBRARY & SEARCH FILTER",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = FazoraGold
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isPersian) "فقط آهنگ‌های معتبر" else "Valid Music Only",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = FazoraIvory
+                            )
+                            Text(
+                                text = if (isPersian)
+                                    "نادیده گرفتن ویس‌های واتساپ/تلگرام، ضبط مکالمه و فایل‌های زیر ۳۵ ثانیه."
+                                else
+                                    "Filters out voice notes, call recordings, and audio files under 35 seconds.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = FazoraSteel
+                            )
+                        }
+                        androidx.compose.material3.Switch(
+                            checked = settings.onlyValidMusicInSearch,
+                            onCheckedChange = { onToggleOnlyValidMusic(it) }
+                        )
+                    }
+                }
+            }
+        }
+
         item {
             Surface(
                 color = FazoraCarbon,
@@ -1818,13 +2085,13 @@ fun SettingsScreen(
             ) {
                 Column(modifier = Modifier.padding(PhiTokens.Space21)) {
                     Text(
-                        text = "PHI (φ = 1.618) & WCAG 2.1 AA TELEMETRY",
+                        text = "VELORA DESIGN SYSTEM & WCAG 2.1 AA TELEMETRY",
                         style = MaterialTheme.typography.labelLarge,
                         color = FazoraGold
                     )
                     Spacer(modifier = Modifier.height(PhiTokens.Space8))
                     Text(
-                        text = "Fibonacci Spacing: 8dp / 13dp / 21dp / 34dp / 55dp • Split: 61.8% / 38.2% • Min Touch Target: 48dp",
+                        text = "Adaptive Spacing: 8dp / 13dp / 21dp / 34dp / 55dp • Responsive Grid • Min Touch Target: 48dp",
                         style = MaterialTheme.typography.bodyMedium,
                         color = FazoraIvory
                     )

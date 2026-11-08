@@ -216,6 +216,13 @@ class MediaOrchestrator(
         persistQueueState(updated, playerEngine.playbackState.value.positionMs)
     }
 
+    override fun playNextInQueue(track: Track) {
+        val updated = queueFlow.value.playNext(track)
+        queueFlow.value = updated
+        postBanner("Playing next: '${track.title}'")
+        persistQueueState(updated, playerEngine.playbackState.value.positionMs)
+    }
+
     override fun removeTrackFromQueue(trackId: String) {
         val updated = queueFlow.value.removeTrack(trackId)
         queueFlow.value = updated

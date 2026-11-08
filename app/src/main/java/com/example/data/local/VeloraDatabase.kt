@@ -40,6 +40,9 @@ interface TrackDao {
     @Query("UPDATE tracks SET isFavorite = :isFavorite WHERE id = :trackId")
     suspend fun updateFavoriteStatus(trackId: String, isFavorite: Boolean)
 
+    @Query("UPDATE tracks SET title = :title, artist = :artist, album = :album WHERE id = :trackId")
+    suspend fun updateTrackMetadata(trackId: String, title: String, artist: String, album: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertTracks(tracks: List<TrackEntity>)
 

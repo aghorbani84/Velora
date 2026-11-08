@@ -21,9 +21,32 @@ data class Playlist(
 enum class VideoAspectMode(val label: String) {
     FIT("Fit (Original)"),
     FILL("Fill (Crop)"),
-    GOLDEN_PHI("Phi 1.618:1"),
+    GOLDEN_PHI("Cinematic (21:9)"),
     SIXTEEN_NINE("16:9 Wide")
 }
+
+enum class AdaptiveAudioMode(val labelEn: String, val labelFa: String) {
+    ORIGINAL("Original", "صدای اصلی (بدون دستکاری)"),
+    HI_FI("Hi-Fi Pure", "های‌فای خالص (شفافیت بالا)"),
+    ENHANCED("Enhanced DSP", "تقویت‌شده (اکولایزر و باس)"),
+    ADAPTIVE_AI("Adaptive AI", "تطبیقی هوشمند (بر اساس هدفون/اسپیکر)")
+}
+
+enum class AudioRouteType(val labelEn: String, val labelFa: String) {
+    BLUETOOTH("Bluetooth A2DP", "هدفون/اسپیکر بلوتوث"),
+    WIRED_HEADPHONES("Wired Headphones", "هدفون سیمی ۳.۵mm"),
+    USB_DAC("USB DAC / Interface", "دک یا کارت صدای USB"),
+    SPEAKER("Built-in Speaker", "بلندگوی دستگاه"),
+    UNKNOWN("Audio Output", "خروجی صدا")
+}
+
+data class AudioRouteInfo(
+    val type: AudioRouteType = AudioRouteType.SPEAKER,
+    val deviceName: String = "Internal Speaker",
+    val sampleRateHz: Int = 48000,
+    val isHiRes: Boolean = false,
+    val recommendedProfile: String = "Speaker Dynamic Tuning"
+)
 
 data class SubtitleTrackInfo(
     val id: String,
@@ -68,7 +91,11 @@ data class AppSettings(
     val corruptionFallbackCount: Int = 0,
     val appLanguageCode: String = "en",
     val isSimpleMode: Boolean = true,
-    val autoScanOnStartup: Boolean = true
+    val autoScanOnStartup: Boolean = true,
+    val onlyValidMusicInSearch: Boolean = true,
+    val backgroundVideoAudioEnabled: Boolean = true,
+    val lowBatteryModeEnabled: Boolean = false,
+    val adaptiveAudioMode: AdaptiveAudioMode = AdaptiveAudioMode.ADAPTIVE_AI
 )
 
 data class ScanProgress(

@@ -112,6 +112,22 @@ class VeloraSettingsRepository(
         dataStore.edit { it[KEY_AUTO_SCAN_STARTUP] = enabled }
     }
 
+    suspend fun updateOnlyValidMusic(enabled: Boolean) {
+        dataStore.edit { it[KEY_ONLY_VALID_MUSIC] = enabled }
+    }
+
+    suspend fun updateBackgroundVideoAudio(enabled: Boolean) {
+        dataStore.edit { it[KEY_BG_VIDEO_AUDIO] = enabled }
+    }
+
+    suspend fun updateLowBatteryMode(enabled: Boolean) {
+        dataStore.edit { it[KEY_LOW_BATTERY_MODE] = enabled }
+    }
+
+    suspend fun updateAdaptiveAudioMode(mode: com.example.domain.model.AdaptiveAudioMode) {
+        dataStore.edit { it[KEY_ADAPTIVE_AUDIO] = mode.name }
+    }
+
     suspend fun addAllowedFolder(folderUriOrPath: String): Boolean {
         if (!PhiDesignMetrics.isSafeMediaFolder(folderUriOrPath)) {
             Log.w(TAG, "Rejected unsafe media folder path: $folderUriOrPath")
@@ -202,7 +218,13 @@ class VeloraSettingsRepository(
             corruptionFallbackCount = prefs[KEY_CORRUPTION_COUNT] ?: 0,
             appLanguageCode = prefs[KEY_APP_LANGUAGE] ?: "en",
             isSimpleMode = prefs[KEY_SIMPLE_MODE] ?: true,
-            autoScanOnStartup = prefs[KEY_AUTO_SCAN_STARTUP] ?: true
+            autoScanOnStartup = prefs[KEY_AUTO_SCAN_STARTUP] ?: true,
+            onlyValidMusicInSearch = prefs[KEY_ONLY_VALID_MUSIC] ?: true,
+            backgroundVideoAudioEnabled = prefs[KEY_BG_VIDEO_AUDIO] ?: true,
+            lowBatteryModeEnabled = prefs[KEY_LOW_BATTERY_MODE] ?: false,
+            adaptiveAudioMode = prefs[KEY_ADAPTIVE_AUDIO]?.let {
+                runCatching { com.example.domain.model.AdaptiveAudioMode.valueOf(it) }.getOrNull()
+            } ?: com.example.domain.model.AdaptiveAudioMode.ADAPTIVE_AI
         )
     }
 
@@ -225,6 +247,10 @@ class VeloraSettingsRepository(
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language_code")
         private val KEY_SIMPLE_MODE = booleanPreferencesKey("is_simple_mode")
         private val KEY_AUTO_SCAN_STARTUP = booleanPreferencesKey("auto_scan_startup")
+        private val KEY_ONLY_VALID_MUSIC = booleanPreferencesKey("only_valid_music")
+        private val KEY_BG_VIDEO_AUDIO = booleanPreferencesKey("bg_video_audio")
+        private val KEY_LOW_BATTERY_MODE = booleanPreferencesKey("low_battery_mode")
+        private val KEY_ADAPTIVE_AUDIO = stringPreferencesKey("adaptive_audio_mode")
 
         fun backupCorruptFileIfPresent(targetFile: File): File? {
             return try {

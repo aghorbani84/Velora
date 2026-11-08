@@ -93,6 +93,7 @@ class Media3PlayerEngine(
             val player = ExoPlayer.Builder(context, renderersFactory)
                 .setAudioAttributes(audioAttributes, true)
                 .setHandleAudioBecomingNoisy(true)
+                .setWakeMode(C.WAKE_MODE_LOCAL)
                 .build()
 
             player.addListener(object : Player.Listener {

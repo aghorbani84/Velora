@@ -238,6 +238,7 @@ fun TrackRowItem(
     onAddToQueue: () -> Unit,
     onAddToPlaylist: (Long) -> Unit,
     onToggleFavorite: () -> Unit = {},
+    onPlayNext: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showPlaylistMenu by remember { mutableStateOf(false) }
@@ -348,6 +349,15 @@ fun TrackRowItem(
                     onDismissRequest = { showPlaylistMenu = false },
                     modifier = Modifier.background(FazoraCarbonElevated)
                 ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text("Play Next (پخش بعدی)", color = FazoraGold, style = MaterialTheme.typography.bodyMedium)
+                        },
+                        onClick = {
+                            onPlayNext()
+                            showPlaylistMenu = false
+                        }
+                    )
                     if (playlists.isEmpty()) {
                         DropdownMenuItem(
                             text = {

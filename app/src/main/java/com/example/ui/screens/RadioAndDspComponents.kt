@@ -464,6 +464,31 @@ fun StudioDspRackPanel(
                 }
             }
 
+            Surface(
+                color = FazoraCarbonElevated,
+                shape = RoundedCornerShape(PhiTokens.CornerRadius8),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius8))
+                    .testTag("audio_pipeline_transparency_panel")
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    Text(
+                        text = if (isPersian) "مسیر شفاف پردازش سیگنال (Audio Pipeline):"
+                        else "SIGNAL PIPELINE TRANSPARENCY:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = FazoraGold
+                    )
+                    Text(
+                        text = "PCM Decode ➔ Preamp (${String.format(Locale.US, "%+.1fdB", dspState.preampGainDb)}) " +
+                            "➔ 10-Band Biquad IIR ➔ Sub-Bass (${dspState.bassBoostPercent}%) " +
+                            "➔ M/S 3D (${dspState.stereoWidthPercent}%) ➔ Limiter ➔ Hardware DAC",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = FazoraSteel
+                    )
+                }
+            }
+
             // 1. Preamp Gain Slider (-12 dB to +12 dB)
             Column {
                 Row(

@@ -56,6 +56,7 @@ val veloraAppModule = module {
     single<IMediaOrchestrator> { get<MediaOrchestrator>() }
 
     single { VeloraFirebaseRepository(androidContext()) }
+    single { com.example.data.audio.VeloraAudioDeviceManager(androidContext()) }
 
     viewModel {
         VeloraViewModel(
@@ -63,6 +64,7 @@ val veloraAppModule = module {
             settingsRepository = get(),
             playerEngine = get(),
             firebaseRepository = get(),
+            audioDeviceManager = get(),
             mediaOrchestrator = get()
         )
     }

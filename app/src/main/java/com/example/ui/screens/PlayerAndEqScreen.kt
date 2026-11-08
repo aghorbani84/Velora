@@ -68,6 +68,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
+import com.example.domain.model.AudioRouteType
 import com.example.domain.model.EqPreset
 import com.example.domain.model.EqSpecification
 import com.example.domain.model.PlaybackQueue
@@ -128,6 +129,7 @@ fun PlayerAndEqScreen(
     onSetSleepTimerMinutes: (Int) -> Unit = {},
     onImportCustomLrcOrSrt: (String) -> Unit = {},
     onToggleSimpleMode: (Boolean) -> Unit = {},
+    onEditTrackMetadata: (String, String, String, String) -> Unit = { _, _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val engine = uiState.engineState
@@ -141,6 +143,14 @@ fun PlayerAndEqScreen(
 
     var showSavePresetDialog by remember { mutableStateOf(false) }
     var customPresetName by remember { mutableStateOf("") }
+
+    var showExactSeekDialog by remember { mutableStateOf(false) }
+    var exactSeekInput by remember { mutableStateOf("") }
+
+    var showTagEditorDialog by remember { mutableStateOf(false) }
+    var editTitleInput by remember { mutableStateOf("") }
+    var editArtistInput by remember { mutableStateOf("") }
+    var editAlbumInput by remember { mutableStateOf("") }
 
     val durationMs = engine.durationMs.coerceAtLeast(activeTrack?.durationMs ?: 0L)
     val effectivePositionMs = if (isDraggingTimeline) {
@@ -248,6 +258,35 @@ fun PlayerAndEqScreen(
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = FazoraSteel
                             )
+                            Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                            val route = uiState.audioRoute
+                            val routeIcon = when (route.type) {
+                                AudioRouteType.BLUETOOTH -> "📶"
+                                AudioRouteType.WIRED_HEADPHONES -> "🎧"
+                                AudioRouteType.USB_DAC -> "🎛️"
+                                AudioRouteType.SPEAKER -> "🔊"
+                                AudioRouteType.UNKNOWN -> "🎵"
+                            }
+                            Surface(
+                                color = FazoraCarbonElevated,
+                                shape = RoundedCornerShape(PhiTokens.CornerRadius8),
+                                modifier = Modifier.border(
+                                    1.dp,
+                                    FazoraCarbonBorder,
+                                    RoundedCornerShape(PhiTokens.CornerRadius8)
+                                )
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "$routeIcon ${route.deviceName} • ${uiState.settings.adaptiveAudioMode.labelEn}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = FazoraGold
+                                    )
+                                }
+                            }
                         }
                         if (activeTrack != null) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -277,6 +316,21 @@ fun PlayerAndEqScreen(
                                         imageVector = Icons.Default.BookmarkAdd,
                                         contentDescription = "Add Time-Machine Bookmark",
                                         tint = VeloraChampagneGold
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        editTitleInput = activeTrack.title
+                                        editArtistInput = activeTrack.artist
+                                        editAlbumInput = activeTrack.album
+                                        showTagEditorDialog = true
+                                    },
+                                    modifier = Modifier.testTag("player_edit_tags_button")
+                                ) {
+                                    Text(
+                                        text = if (isPersian) "تگ" else "Tags",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = FazoraGold
                                     )
                                 }
                             }
@@ -384,13 +438,19 @@ fun PlayerAndEqScreen(
 
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = Track.formatDurationMs(effectivePositionMs),
+                            text = "${Track.formatDurationMs(effectivePositionMs)} (${effectivePositionMs}ms)",
                             style = MaterialTheme.typography.labelLarge,
-                            color = FazoraIvory,
-                            modifier = Modifier.testTag("player_position_text")
+                            color = FazoraGold,
+                            modifier = Modifier
+                                .clickable {
+                                    exactSeekInput = effectivePositionMs.toString()
+                                    showExactSeekDialog = true
+                                }
+                                .testTag("player_position_text")
                         )
                         Text(
                             text = Track.formatDurationMs(durationMs),
@@ -903,6 +963,116 @@ fun PlayerAndEqScreen(
             dismissButton = {
                 TextButton(onClick = { showSavePresetDialog = false }) {
                     Text("Cancel", color = FazoraSteel)
+                }
+            }
+        )
+    }
+
+    if (showExactSeekDialog) {
+        AlertDialog(
+            onDismissRequest = { showExactSeekDialog = false },
+            containerColor = FazoraCarbonElevated,
+            title = {
+                Text(
+                    text = if (isPersian) "پرش دقیق به زمان (میلی‌ثانیه یا دقیقه:ثانیه)" else "Precision Exact Seek (ms or mm:ss)",
+                    color = FazoraIvory
+                )
+            },
+            text = {
+                OutlinedTextField(
+                    value = exactSeekInput,
+                    onValueChange = { exactSeekInput = it },
+                    label = { Text("e.g. 42500 or 01:25") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("exact_seek_input")
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmed = exactSeekInput.trim()
+                        val parsedMs = if (trimmed.contains(":")) {
+                            val parts = trimmed.split(":")
+                            val mins = parts.getOrNull(0)?.toLongOrNull() ?: 0L
+                            val secs = parts.getOrNull(1)?.toLongOrNull() ?: 0L
+                            (mins * 60_000L) + (secs * 1000L)
+                        } else {
+                            trimmed.toLongOrNull() ?: effectivePositionMs
+                        }
+                        onSeekTo(PlaybackQueue.clampSeekPosition(parsedMs, durationMs))
+                        showExactSeekDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = FazoraGold, contentColor = FazoraObsidian),
+                    modifier = Modifier.testTag("confirm_exact_seek_button")
+                ) {
+                    Text(if (isPersian) "پرش" else "Seek")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExactSeekDialog = false }) {
+                    Text(if (isPersian) "انصراف" else "Cancel", color = FazoraSteel)
+                }
+            }
+        )
+    }
+
+    if (showTagEditorDialog && activeTrack != null) {
+        AlertDialog(
+            onDismissRequest = { showTagEditorDialog = false },
+            containerColor = FazoraCarbonElevated,
+            title = {
+                Text(
+                    text = if (isPersian) "ویرایش متادیتای آهنگ" else "Edit Track Metadata Tags",
+                    color = FazoraIvory
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                    OutlinedTextField(
+                        value = editTitleInput,
+                        onValueChange = { editTitleInput = it },
+                        label = { Text(if (isPersian) "عنوان آهنگ" else "Track Title") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("tag_edit_title_input")
+                    )
+                    OutlinedTextField(
+                        value = editArtistInput,
+                        onValueChange = { editArtistInput = it },
+                        label = { Text(if (isPersian) "نام هنرمند" else "Artist") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("tag_edit_artist_input")
+                    )
+                    OutlinedTextField(
+                        value = editAlbumInput,
+                        onValueChange = { editAlbumInput = it },
+                        label = { Text(if (isPersian) "آلبوم" else "Album") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("tag_edit_album_input")
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onEditTrackMetadata(
+                            activeTrack.id,
+                            editTitleInput.ifBlank { activeTrack.title },
+                            editArtistInput.ifBlank { activeTrack.artist },
+                            editAlbumInput.ifBlank { activeTrack.album }
+                        )
+                        showTagEditorDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = FazoraGold, contentColor = FazoraObsidian),
+                    modifier = Modifier.testTag("confirm_save_tags_button")
+                ) {
+                    Text(if (isPersian) "ذخیره تگ" else "Save Tags")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTagEditorDialog = false }) {
+                    Text(if (isPersian) "انصراف" else "Cancel", color = FazoraSteel)
                 }
             }
         )

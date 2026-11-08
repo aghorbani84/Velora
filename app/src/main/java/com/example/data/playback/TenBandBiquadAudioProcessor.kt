@@ -67,6 +67,14 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
     private val _visualizerSnapshot = MutableStateFlow(AudioVisualizerSnapshot())
     val visualizerSnapshot: StateFlow<AudioVisualizerSnapshot> = _visualizerSnapshot.asStateFlow()
 
+    @Volatile
+    private var isLowBatteryMode: Boolean = false
+    private var telemetryThrottleCounter: Int = 0
+
+    fun setLowBatteryMode(enabled: Boolean) {
+        isLowBatteryMode = enabled
+    }
+
     fun setEnabled(enabled: Boolean) {
         eqEnabled = enabled
     }
@@ -219,6 +227,12 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
         broadbandEnergySum: Double,
         maxPeakAbs: Double
     ) {
+        if (isLowBatteryMode) {
+            telemetryThrottleCounter++
+            if (telemetryThrottleCounter % 8 != 0) {
+                return
+            }
+        }
         val sampleRate = if (inputAudioFormat.sampleRate > 0) inputAudioFormat.sampleRate else 44100
         val totalSamples = (frameCount * channels).coerceAtLeast(1)
         val rms = sqrt(broadbandEnergySum / totalSamples)

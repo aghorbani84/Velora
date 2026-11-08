@@ -100,6 +100,22 @@ data class PlaybackQueue(
         )
     }
 
+    fun playNext(track: Track, random: Random = Random.Default): PlaybackQueue {
+        if (tracks.isEmpty()) return setQueue(listOf(track), 0, random)
+        val filtered = tracks.filterNot { it.id == track.id }
+        val insertPos = (currentIndex + 1).coerceIn(0, filtered.size)
+        val updatedTracks = filtered.toMutableList().apply { add(insertPos, track) }
+        val updatedOrder = if (mode == QueueMode.SHUFFLE) {
+            buildShuffledOrder(updatedTracks.size, currentIndex, random)
+        } else {
+            updatedTracks.indices.toList()
+        }
+        return copy(
+            tracks = updatedTracks,
+            shuffledOrder = updatedOrder
+        )
+    }
+
     fun removeTrack(trackId: String, random: Random = Random.Default): PlaybackQueue {
         val removeIdx = tracks.indexOfFirst { it.id == trackId }
         if (removeIdx < 0) return this

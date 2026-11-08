@@ -147,9 +147,9 @@ object VeloraLyricsAndSubtitleEngine {
             ),
             SyncedLyricLine(
                 timestampMs = step,
-                text = "Golden ratio harmonic resonance in ${track.album}",
-                translationFa = "طنین هارمونیک نسبت طلایی در آلبوم ${track.album}",
-                translationJa = "黄金比ハーモニック・レゾナンス (${track.album})"
+                text = "Studio acoustic resonance in ${track.album}",
+                translationFa = "طنین آکوستیک دقیق در آلبوم ${track.album}",
+                translationJa = "スタジオ・アコースティック (${track.album})"
             ),
             SyncedLyricLine(
                 timestampMs = step * 2,

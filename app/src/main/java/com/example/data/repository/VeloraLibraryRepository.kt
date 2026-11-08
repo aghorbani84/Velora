@@ -29,7 +29,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class VeloraLibraryRepository(
-    private val context: Context,
+    val context: Context,
     private val trackDao: TrackDao,
     private val playlistDao: PlaylistDao,
     private val eqPresetDao: EqPresetDao,
@@ -139,6 +139,11 @@ class VeloraLibraryRepository(
     suspend fun removeFolderTracks(folderPath: String) = withContext(Dispatchers.IO) {
         trackDao.deleteTracksByFolder(folderPath)
     }
+
+    suspend fun updateTrackMetadata(trackId: String, title: String, artist: String, album: String) =
+        withContext(Dispatchers.IO) {
+            trackDao.updateTrackMetadata(trackId, title.trim(), artist.trim(), album.trim())
+        }
 
     suspend fun createPlaylist(name: String, initialTrackIds: List<String> = emptyList()): Long =
         withContext(Dispatchers.IO) {

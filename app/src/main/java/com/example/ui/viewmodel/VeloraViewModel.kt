@@ -47,6 +47,10 @@ import com.example.orchestrator.resumeFromHistory
 import com.example.orchestrator.setEqBandGain
 import com.example.orchestrator.setEqEnabled
 import com.example.orchestrator.toggleDeclarativePlugin
+import com.example.data.audio.VeloraAudioDeviceManager
+import com.example.domain.model.AdaptiveAudioMode
+import com.example.domain.model.AudioRouteInfo
+import com.example.domain.model.AudioRouteType
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -73,6 +77,7 @@ data class VeloraUiState(
     val declarativePlugins: List<DeclarativePluginManifest> = VeloraPluginRegistry.DEFAULT_DECLARATIVE_PLUGINS,
     val radioStations: List<RadioStation> = VeloraRadioCatalog.BUILT_IN_STATIONS,
     val studioDspState: StudioDspState = StudioDspState(),
+    val audioRoute: AudioRouteInfo = AudioRouteInfo(),
     val sortOrder: TrackSortOrder = TrackSortOrder.TITLE_ASC,
     val filterMode: TrackFilterMode = TrackFilterMode.ALL,
     val artistsMap: Map<String, List<Track>> = emptyMap(),
@@ -95,10 +100,11 @@ data class VeloraUiState(
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class VeloraViewModel(
-    private val repository: VeloraLibraryRepository,
-    private val settingsRepository: VeloraSettingsRepository,
+    val repository: VeloraLibraryRepository,
+    val settingsRepository: VeloraSettingsRepository,
     val playerEngine: PlayerEngine,
     val firebaseRepository: VeloraFirebaseRepository,
+    val audioDeviceManager: VeloraAudioDeviceManager = VeloraAudioDeviceManager(repository.context),
     val mediaOrchestrator: IMediaOrchestrator = MediaOrchestrator(repository, settingsRepository, playerEngine)
 ) : ViewModel() {
 
@@ -140,6 +146,7 @@ class VeloraViewModel(
         customRadioStationsFlow,
         studioDspStateFlow,
         customLyricsOverrideFlow,
+        audioDeviceManager.activeRoute,
         transform = ::assembleVeloraUiState
     ).stateIn(
         scope = viewModelScope,
@@ -157,6 +164,26 @@ class VeloraViewModel(
                 val endMs = dsp.loopEndMs ?: Long.MAX_VALUE
                 if (dsp.isAbLoopActive && engine.positionMs >= endMs) {
                     mediaOrchestrator.seekTo(dsp.loopStartMs ?: 0L)
+                }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.settingsFlow.collect { s ->
+                (playerEngine as? Media3PlayerEngine)?.biquadProcessor?.setLowBatteryMode(s.lowBatteryModeEnabled)
+            }
+        }
+        viewModelScope.launch {
+            audioDeviceManager.activeRoute.collect { route ->
+                val s = settingsRepository.getSettingsOnce()
+                if (s.adaptiveAudioMode == AdaptiveAudioMode.ADAPTIVE_AI) {
+                    when (route.type) {
+                        AudioRouteType.BLUETOOTH -> mediaOrchestrator.applyEqPreset(EqPreset.BASS_BOOST)
+                        AudioRouteType.WIRED_HEADPHONES, AudioRouteType.USB_DAC -> {
+                            mediaOrchestrator.applyEqPreset(EqPreset.FLAT)
+                        }
+                        AudioRouteType.SPEAKER -> mediaOrchestrator.applyEqPreset(EqPreset.VOCAL)
+                        AudioRouteType.UNKNOWN -> {}
+                    }
                 }
             }
         }
@@ -182,18 +209,6 @@ class VeloraViewModel(
                 if (uiState.value.settings.appLanguageCode == "fa") "به حالت ساده و خلوت تغییر یافت" else "Switched to Simple Mode"
             } else {
                 if (uiState.value.settings.appLanguageCode == "fa") "به حالت استودیوی پیشرفته تغییر یافت" else "Switched to Studio Advanced Mode"
-            }
-            mediaOrchestrator.postBanner(msg)
-        }
-    }
-
-    fun setAutoScanOnStartup(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsRepository.updateAutoScanOnStartup(enabled)
-            val msg = if (enabled) {
-                if (uiState.value.settings.appLanguageCode == "fa") "اسکن خودکار هنگام ورود فعال شد" else "Auto-scan on launch enabled"
-            } else {
-                if (uiState.value.settings.appLanguageCode == "fa") "اسکن خودکار هنگام ورود غیرفعال شد" else "Auto-scan on launch disabled"
             }
             mediaOrchestrator.postBanner(msg)
         }
@@ -497,6 +512,85 @@ fun VeloraViewModel.addTimeMachineBookmark(label: String = "Studio Marker") {
     mediaOrchestrator.addTimeMachineBookmark(label)
 }
 
+fun VeloraViewModel.setAutoScanOnStartup(enabled: Boolean) {
+    viewModelScope.launch {
+        settingsRepository.updateAutoScanOnStartup(enabled)
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val msg = if (enabled) {
+            if (isFa) "اسکن خودکار هنگام ورود فعال شد" else "Auto-scan on launch enabled"
+        } else {
+            if (isFa) "اسکن خودکار هنگام ورود غیرفعال شد" else "Auto-scan on launch disabled"
+        }
+        mediaOrchestrator.postBanner(msg)
+    }
+}
+
+fun VeloraViewModel.setOnlyValidMusicInSearch(enabled: Boolean) {
+    viewModelScope.launch {
+        settingsRepository.updateOnlyValidMusic(enabled)
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val msg = if (enabled) {
+            if (isFa) "فیلتر فعال: فقط آهنگ‌های دارای مشخصات معتبر" else "Filter: Valid Music Only"
+        } else {
+            if (isFa) "فیلتر غیرفعال: تمام فایل‌های صوتی و ضبط‌ها" else "Filter: All Audio & Recordings"
+        }
+        mediaOrchestrator.postBanner(msg)
+    }
+}
+
+fun VeloraViewModel.setBackgroundVideoAudio(enabled: Boolean) {
+    viewModelScope.launch {
+        settingsRepository.updateBackgroundVideoAudio(enabled)
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val msg = if (enabled) {
+            if (isFa) "پخش صدای ویدیو در پس‌زمینه فعال شد" else "Background video audio enabled"
+        } else {
+            if (isFa) "پخش صدای ویدیو در پس‌زمینه غیرفعال شد" else "Background video audio disabled"
+        }
+        mediaOrchestrator.postBanner(msg)
+    }
+}
+
+fun VeloraViewModel.setLowBatteryMode(enabled: Boolean) {
+    viewModelScope.launch {
+        settingsRepository.updateLowBatteryMode(enabled)
+        (playerEngine as? Media3PlayerEngine)?.biquadProcessor?.setLowBatteryMode(enabled)
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val msg = if (enabled) {
+            if (isFa) "حالت بهینه‌سازی باتری فعال شد (کاهش بار پردازشی)" else "Battery Saver Mode enabled"
+        } else {
+            if (isFa) "حالت بهینه‌سازی باتری خاموش شد" else "Battery Saver Mode disabled"
+        }
+        mediaOrchestrator.postBanner(msg)
+    }
+}
+
+fun VeloraViewModel.setAdaptiveAudioMode(mode: AdaptiveAudioMode) {
+    viewModelScope.launch {
+        settingsRepository.updateAdaptiveAudioMode(mode)
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val msg = if (isFa) {
+            "حالت صوتی به ${mode.labelFa} تغییر یافت"
+        } else {
+            "Audio mode switched to ${mode.labelEn}"
+        }
+        mediaOrchestrator.postBanner(msg)
+    }
+}
+
+fun VeloraViewModel.updateTrackMetadata(trackId: String, title: String, artist: String, album: String) {
+    viewModelScope.launch {
+        repository.updateTrackMetadata(trackId, title, artist, album)
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val msg = if (isFa) "تگ‌های متادیتا ذخیره شدند" else "Track metadata tags saved"
+        mediaOrchestrator.postBanner(msg)
+    }
+}
+
+fun VeloraViewModel.playNextInQueue(track: Track) {
+    mediaOrchestrator.playNextInQueue(track)
+}
+
 fun VeloraViewModel.toggleDeclarativePlugin(pluginId: String) {
     mediaOrchestrator.toggleDeclarativePlugin(pluginId)
 }
@@ -598,6 +692,7 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
     val studioDsp = (values.getOrNull(15) as? StudioDspState) ?: StudioDspState()
     @Suppress("UNCHECKED_CAST")
     val customLyrics = values.getOrNull(16) as? List<SyncedLyricLine>
+    val audioRoute = (values.getOrNull(17) as? AudioRouteInfo) ?: AudioRouteInfo()
 
     val filteredTracks = when (filterMode) {
         TrackFilterMode.ALL -> rawTracks
@@ -611,11 +706,15 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         TrackSortOrder.RECENTLY_ADDED -> filteredTracks.sortedByDescending { it.addedTimestampMs }
     }
 
-    val audioTracks = sortedTracks.filter { it.mediaType == MediaType.AUDIO }
+    val audioTracks = if (settings.onlyValidMusicInSearch) {
+        sortedTracks.filter { it.mediaType == MediaType.AUDIO && it.isLikelyValidSong() }
+    } else {
+        sortedTracks.filter { it.mediaType == MediaType.AUDIO }
+    }
     val videoTracks = sortedTracks.filter { it.mediaType == MediaType.VIDEO }
     val favoriteTracks = rawTracks.filter { it.isFavorite }
     val artistsMap = rawTracks
-        .filter { it.mediaType == MediaType.AUDIO }
+        .filter { it.mediaType == MediaType.AUDIO && (!settings.onlyValidMusicInSearch || it.isLikelyValidSong()) }
         .groupBy { it.artist }
         .toSortedMap(String.CASE_INSENSITIVE_ORDER)
 
@@ -625,10 +724,15 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         allTracks = rawTracks,
         history = playbackHistory
     )
-    val combinedSearchResults = if (searchQuery.isBlank()) {
+    val rawSearchResults = if (searchQuery.isBlank()) {
         dbSearchResults
     } else {
         (omniMatches.map { it.track } + dbSearchResults).distinctBy { it.id }
+    }
+    val combinedSearchResults = if (settings.onlyValidMusicInSearch) {
+        rawSearchResults.filter { it.isLikelyValidSong() }
+    } else {
+        rawSearchResults
     }
 
     return VeloraUiState(
@@ -644,6 +748,7 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         declarativePlugins = orchestrator.declarativePlugins,
         radioStations = customRadios + VeloraRadioCatalog.BUILT_IN_STATIONS,
         studioDspState = studioDsp,
+        audioRoute = audioRoute,
         sortOrder = sortOrder,
         filterMode = filterMode,
         artistsMap = artistsMap,

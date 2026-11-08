@@ -132,6 +132,7 @@ interface IMediaOrchestrator {
     fun postBanner(message: String?)
     fun playTrackPool(tracks: List<Track>, shuffle: Boolean = false, bannerMessage: String? = null)
     fun addTrackToQueue(track: Track)
+    fun playNextInQueue(track: Track)
     fun removeTrackFromQueue(trackId: String)
     fun selectQueueTrack(track: Track)
     fun toggleShuffle()

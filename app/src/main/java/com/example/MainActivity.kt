@@ -115,13 +115,19 @@ import com.example.ui.viewmodel.playNetworkStream
 import com.example.ui.viewmodel.playSmartPlaylist
 import com.example.ui.viewmodel.setAbLoopPointA
 import com.example.ui.viewmodel.setAbLoopPointB
+import com.example.ui.viewmodel.setAdaptiveAudioMode
+import com.example.ui.viewmodel.setAutoScanOnStartup
+import com.example.ui.viewmodel.setBackgroundVideoAudio
 import com.example.ui.viewmodel.setBassBoostPercent
 import com.example.ui.viewmodel.setCrossfadeSeconds
+import com.example.ui.viewmodel.setLowBatteryMode
+import com.example.ui.viewmodel.setOnlyValidMusicInSearch
 import com.example.ui.viewmodel.setPreampGainDb
 import com.example.ui.viewmodel.setSleepTimerMinutes
 import com.example.ui.viewmodel.setStereoWidthPercent
 import com.example.ui.viewmodel.toggleDeclarativePlugin
 import com.example.ui.viewmodel.tuneRadioStation
+import com.example.ui.viewmodel.updateTrackMetadata
 import org.koin.androidx.compose.koinViewModel
 
 enum class VeloraDestination(
@@ -545,7 +551,8 @@ fun VeloraRootApp(
                             onAddTrackToQueue = { viewModel.addTrackToQueue(it) },
                             onAddTrackToPlaylist = { pid, tid -> viewModel.addTrackToPlaylist(pid, tid) },
                             onToggleFavorite = { viewModel.toggleFavorite(it) },
-                            onExecuteCopilotCommand = { cmd -> viewModel.executeCopilotCommand(cmd) }
+                            onExecuteCopilotCommand = { cmd -> viewModel.executeCopilotCommand(cmd) },
+                            onToggleOnlyValidMusic = { viewModel.setOnlyValidMusicInSearch(it) }
                         )
 
                         VeloraDestination.PLAYER -> PlayerAndEqScreen(
@@ -580,7 +587,10 @@ fun VeloraRootApp(
                             onClearLoop = { viewModel.clearAbLoop() },
                             onSetSleepTimerMinutes = { viewModel.setSleepTimerMinutes(it) },
                             onImportCustomLrcOrSrt = { viewModel.importCustomLyricsOrSrt(it) },
-                            onToggleSimpleMode = { viewModel.setSimpleMode(it) }
+                            onToggleSimpleMode = { viewModel.setSimpleMode(it) },
+                            onEditTrackMetadata = { id, title, artist, album ->
+                                viewModel.updateTrackMetadata(id, title, artist, album)
+                            }
                         )
 
                         VeloraDestination.SETTINGS -> SettingsScreen(
@@ -593,7 +603,11 @@ fun VeloraRootApp(
                             onExportBackupJson = { viewModel.exportOfflineBackupJson(context.filesDir) },
                             onToggleSimpleMode = { viewModel.setSimpleMode(it) },
                             onToggleAutoScanOnStartup = { viewModel.setAutoScanOnStartup(it) },
-                            onAutoScanMedia = { viewModel.autoScanDeviceMedia() }
+                            onAutoScanMedia = { viewModel.autoScanDeviceMedia() },
+                            onToggleOnlyValidMusic = { viewModel.setOnlyValidMusicInSearch(it) },
+                            onToggleBackgroundVideoAudio = { viewModel.setBackgroundVideoAudio(it) },
+                            onToggleLowBatteryMode = { viewModel.setLowBatteryMode(it) },
+                            onSetAdaptiveAudioMode = { viewModel.setAdaptiveAudioMode(it) }
                         )
                     }
                 }
