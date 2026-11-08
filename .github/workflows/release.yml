@@ -106,13 +106,19 @@ jobs:
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
-          # Prepare release signing keystore
+          # Prepare release signing keystore with guaranteed persistent certificate
           if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
             echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
             echo "STORE_PASSWORD=${STORE_PASSWORD_SECRET}" >> "$GITHUB_ENV"
             echo "KEY_PASSWORD=${KEY_PASSWORD_SECRET}" >> "$GITHUB_ENV"
+          elif [ -f my-upload-key.jks.base64 ]; then
+            base64 -d my-upload-key.jks.base64 > my-upload-key.jks
+            echo "STORE_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
+          elif [ -f my-upload-key.jks ]; then
+            echo "STORE_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
+            echo "KEY_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
           else
-            rm -f my-upload-key.jks
             keytool -genkeypair -v \
               -keystore my-upload-key.jks \
               -storepass velora_release_key \
