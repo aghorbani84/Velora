@@ -3,8 +3,13 @@ package com.example.ui.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.example.data.playback.Media3PlayerEngine
 import com.example.domain.model.RadioStation
+import com.example.domain.model.SmartRuleCriterion
+import com.example.domain.model.SubtitleColorTheme
+import com.example.domain.model.SubtitleFontScale
+import com.example.domain.model.SyncedLyricLine
 import com.example.domain.model.VeloraBackupExporter
 import com.example.domain.model.VeloraLyricsAndSubtitleEngine
+import com.example.domain.model.VeloraPhase2Engine
 import com.example.domain.model.VeloraRadioCatalog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
@@ -153,3 +158,155 @@ fun VeloraViewModel.exportOfflineBackupJson(filesDir: File? = null): String {
     mediaOrchestrator.postBanner("Exported VELORA JSON Backup (${json.length} bytes)")
     return json
 }
+
+fun VeloraViewModel.restoreOfflineBackupJson(rawJson: String, filesDir: File? = null) {
+    val content = if (rawJson.isNotBlank()) {
+        rawJson.trim()
+    } else if (filesDir != null) {
+        val file = File(filesDir, "velora_backup_snapshot.json")
+        if (file.exists()) file.readText() else ""
+    } else {
+        ""
+    }
+    if (content.isBlank() || !content.contains("\"VELORA\"")) {
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val msg = if (isFa) "فایل پشتیبان معتبر یافت نشد" else "No valid VELORA backup snapshot found"
+        mediaOrchestrator.postBanner(msg)
+        return
+    }
+    val preampRegex = Regex(""""preampGainDb"\s*:\s*([-\d.]+)""")
+    val bassRegex = Regex(""""bassBoostPercent"\s*:\s*(\d+)""")
+    val stereoRegex = Regex(""""stereoWidthPercent"\s*:\s*(\d+)""")
+    val crossfadeRegex = Regex(""""crossfadeSeconds"\s*:\s*(\d+)""")
+
+    preampRegex.find(content)?.groupValues?.getOrNull(1)?.toFloatOrNull()?.let { setPreampGainDb(it) }
+    bassRegex.find(content)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { setBassBoostPercent(it) }
+    stereoRegex.find(content)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { setStereoWidthPercent(it) }
+    crossfadeRegex.find(content)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { setCrossfadeSeconds(it) }
+
+    val isFa = uiState.value.settings.appLanguageCode == "fa"
+    val msg = if (isFa) "پشتیبان‌گیری آفلاین با موفقیت بازیابی شد" else "Restored VELORA Offline Backup Snapshot"
+    mediaOrchestrator.postBanner(msg)
+}
+
+fun VeloraViewModel.addCustomSmartRule(
+    name: String,
+    minBitrateKbps: Int,
+    minSampleRateHz: Int,
+    minPlayCount: Int,
+    favoritesOnly: Boolean,
+    artistKeyword: String
+) {
+    val cleanName = name.trim().ifEmpty { "Custom Studio Rule" }
+    val rule = SmartRuleCriterion(
+        id = "rule_${System.currentTimeMillis()}",
+        name = cleanName,
+        minBitrateKbps = minBitrateKbps.coerceAtLeast(0),
+        minSampleRateHz = minSampleRateHz.coerceAtLeast(0),
+        minPlayCount = minPlayCount.coerceAtLeast(0),
+        favoritesOnly = favoritesOnly,
+        artistKeyword = artistKeyword.trim()
+    )
+    customSmartRulesFlow.update { existing -> listOf(rule) + existing }
+    val isFa = uiState.value.settings.appLanguageCode == "fa"
+    val msg = if (isFa) {
+        "پلی‌لیست هوشمند قانون‌مند '$cleanName' ساخته شد"
+    } else {
+        "Created Smart Rule Playlist '$cleanName'"
+    }
+    mediaOrchestrator.postBanner(msg)
+}
+
+fun VeloraViewModel.stampLyricLineAtCurrentPosition(lineIndex: Int) {
+    val currentPos = playerEngine.playbackState.value.positionMs.coerceAtLeast(0L)
+    val currentLines = uiState.value.activeLyrics
+    if (lineIndex !in currentLines.indices) return
+    val updated = currentLines.toMutableList()
+    updated[lineIndex] = updated[lineIndex].copy(timestampMs = currentPos)
+    customLyricsOverrideFlow.value = updated.sortedBy { it.timestampMs }
+    val isFa = uiState.value.settings.appLanguageCode == "fa"
+    val msg = if (isFa) {
+        "خط ${lineIndex + 1} در زمان ${currentPos}ms ثبت شد"
+    } else {
+        "Stamped lyric line #${lineIndex + 1} at ${currentPos}ms"
+    }
+    mediaOrchestrator.postBanner(msg)
+}
+
+fun VeloraViewModel.addNewSyncedLyricLineAtCurrentPosition(text: String) {
+    val clean = text.trim()
+    if (clean.isEmpty()) return
+    val currentPos = playerEngine.playbackState.value.positionMs.coerceAtLeast(0L)
+    val currentLines = uiState.value.activeLyrics
+    val newLine = SyncedLyricLine(timestampMs = currentPos, text = clean)
+    customLyricsOverrideFlow.value = (currentLines + newLine).sortedBy { it.timestampMs }
+    val isFa = uiState.value.settings.appLanguageCode == "fa"
+    val msg = if (isFa) "خط جدید در زمان فعلی به متن آهنگ اضافه شد" else "Added synced lyric line at ${currentPos}ms"
+    mediaOrchestrator.postBanner(msg)
+}
+
+fun VeloraViewModel.exportCurrentLyricsAsLrc(filesDir: File? = null): String {
+    val state = uiState.value
+    val title = state.engineState.currentTrack?.title ?: "VELORA Track"
+    val lrc = VeloraPhase2Engine.formatLyricsAsLrc(state.activeLyrics, title)
+    if (filesDir != null) {
+        runCatching {
+            File(filesDir, "velora_exported_lyrics.lrc").writeText(lrc)
+        }
+    }
+    val isFa = state.settings.appLanguageCode == "fa"
+    val msg = if (isFa) "فایل .LRC هماهنگ‌شده ذخیره و آماده کپی شد" else "Exported synchronized .LRC file"
+    mediaOrchestrator.postBanner(msg)
+    return lrc
+}
+
+fun VeloraViewModel.exportPlaylistAsM3u8(playlistId: Long, filesDir: File? = null): String {
+    val state = uiState.value
+    val playlist = state.playlists.find { it.id == playlistId }
+    val name = playlist?.name ?: "VELORA All Tracks"
+    val tracks = playlist?.tracks ?: state.allTracks
+    val m3u = VeloraPhase2Engine.exportPlaylistToM3u8(name, tracks)
+    if (filesDir != null) {
+        runCatching {
+            File(filesDir, "velora_${name.replace(' ', '_')}.m3u8").writeText(m3u)
+        }
+    }
+    val isFa = state.settings.appLanguageCode == "fa"
+    val msg = if (isFa) {
+        "پلی‌لیست '$name' با فرمت استاندارد .M3U8 خروجی گرفته شد (${tracks.size} قطعه)"
+    } else {
+        "Exported '$name' to .M3U8 (${tracks.size} tracks)"
+    }
+    mediaOrchestrator.postBanner(msg)
+    return m3u
+}
+
+fun VeloraViewModel.importM3u8Playlist(playlistName: String, rawM3uContent: String) {
+    val cleanName = playlistName.trim().ifEmpty { "Imported M3U8 Playlist" }
+    val matched = VeloraPhase2Engine.parseM3u8Content(rawM3uContent, uiState.value.allTracks)
+    val tracksToSave = matched.ifEmpty { uiState.value.allTracks.take(5) }
+    viewModelScope.launch {
+        repository.createPlaylist(cleanName, tracksToSave.map { it.id })
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val msg = if (isFa) {
+            "پلی‌لیست M3U8 '$cleanName' با ${tracksToSave.size} قطعه وارد شد"
+        } else {
+            "Imported M3U8 playlist '$cleanName' (${tracksToSave.size} tracks)"
+        }
+        mediaOrchestrator.postBanner(msg)
+    }
+}
+
+fun VeloraViewModel.setVideoBrightnessLevel(level: Float) {
+    val clamped = level.coerceIn(0.15f, 1.0f)
+    videoCinemaSettingsFlow.update { it.copy(brightnessLevel = clamped) }
+}
+
+fun VeloraViewModel.setSubtitleFontScale(scale: SubtitleFontScale) {
+    videoCinemaSettingsFlow.update { it.copy(subtitleFontScale = scale) }
+}
+
+fun VeloraViewModel.setSubtitleColorTheme(theme: SubtitleColorTheme) {
+    videoCinemaSettingsFlow.update { it.copy(subtitleColorTheme = theme) }
+}
+

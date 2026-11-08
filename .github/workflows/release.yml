@@ -11,9 +11,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release version tag (e.g. v2.2.0)'
+        description: 'Release version tag (e.g. v2.3.0)'
         required: false
-        default: 'v2.2.0'
+        default: 'v2.3.0'
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -71,7 +71,7 @@ jobs:
             TAG_NAME="${GITHUB_REF#refs/tags/}"
             IS_PRERELEASE="false"
           else
-            TAG_NAME="v${GRADLE_VER:-2.2.0}"
+            TAG_NAME="v${GRADLE_VER:-2.3.0}"
             IS_PRERELEASE="false"
           fi
           VERSION_CLEAN="${TAG_NAME#v}"
@@ -150,15 +150,13 @@ jobs:
             echo ""
             echo "**VELORA ${TAG}** is an intelligent, privacy-first multimedia platform engineered with **Kotlin**, **Jetpack Compose (Material 3 Dark Saffron & Champagne Gold)**, **Media3 ExoPlayer**, a **10-Band Cascaded Peaking Biquad DSP Equalizer**, **Studio DSP Rack (Preamp, Sub-Bass Boost, 3D Stereo Width, A-B Loop, Smart Sleep Timer)**, **Live World & Persian Radio Tuner**, and **Sandboxed Declarative Plugins**."
             echo ""
-            echo "### 🚀 What's New in ${TAG} (v2.2.0)"
-            echo "- **Precision Seek & Exact Time Input**: Millisecond-accurate positioning, typed mm:ss/milliseconds dialog, and instant +/- step buttons."
-            echo "- **In-App ID3 / Room Tag Editor**: Modify Song Title, Artist, and Album offline with instant database persistence."
-            echo "- **Audio Signal Pipeline Transparency Panel**: Real-time visual monitoring of the signal path (Source PCM -> Preamp -> 10-Band Biquad -> Sub-Bass -> 3D Stereo -> Limiter -> Hardware DAC)."
-            echo "- **Hardware Audio Route Detection**: Live indicator and automatic DSP profile recommendation for USB DAC, Bluetooth LDAC/AptX, 3.5mm Jack, and Built-in Speakers."
-            echo "- **Smart Search Music Filter**: Toggle between scanning all device audio recordings vs only valid music tracks (with valid tags & duration)."
-            echo "- **Play Next (پخش بعدی)**: Queue priority insertion to play any chosen track right after the currently active song."
-            echo "- **Battery Saver Mode & Background Playback**: Optimized rendering, disabled heavy visualizers on battery saver, and seamless audio/video background playback."
-            echo "- **Live World & Persian Radio Tuner**: 14 high-quality streams + custom URL support."
+            echo "### 🚀 What's New in ${TAG} (v2.3.0 — Phase 2 Complete)"
+            echo "- **Local Listening Stats & Studio Recap**: Live dashboard of total listen minutes, total plays, Hi-Res masters count, top artists, and most-played tracks."
+            echo "- **Rule-Based Smart Playlists Builder**: Create dynamic smart playlists filtered by minimum bitrate (kbps), sample rate (Hz), play count, favorites, and artist/title keywords."
+            echo "- **In-App Synced .LRC Timestamp Studio**: Stamp real-time playback timestamps onto lyric lines, add new verses on the fly, and export standard \`.LRC\` files."
+            echo "- **Cinema Video Swipe Gestures & Styled Subtitles**: Vertical swipe on left for screen brightness, right for volume, custom subtitle font scaling & color contrast themes, and scene bookmarking."
+            echo "- **Standard .M3U / .M3U8 Import & Export + JSON Snapshot Restore**: Full playlist portability and one-tap offline backup/restore."
+            echo "- **Precision Seek, Offline Tag Editor & Signal Pipeline Transparency**."
             echo ""
             echo "### 📥 Direct APK Downloads (دانلود مستقیم نسخه نصبی اندروید)"
             echo ""

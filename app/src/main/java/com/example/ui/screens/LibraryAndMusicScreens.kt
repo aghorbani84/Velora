@@ -96,6 +96,10 @@ fun LibraryScreen(
     onPlayNetworkStream: (String, String) -> Unit = { _, _ -> },
     onResumeHistory: (PlaybackHistoryEntry) -> Unit = {},
     onClearHistory: () -> Unit = {},
+    onAddCustomSmartRule: (String, Int, Int, Int, Boolean, String) -> Unit = { _, _, _, _, _, _ -> },
+    onExportM3u8: (Long) -> String = { "" },
+    onImportM3u8: (String, String) -> Unit = { _, _ -> },
+    onPlayNext: (Track) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showCreateFolderDialog by remember { mutableStateOf(false) }
@@ -107,6 +111,9 @@ fun LibraryScreen(
     var showNetworkStreamDialog by remember { mutableStateOf(false) }
     var streamUrlInput by remember { mutableStateOf("") }
     var streamTitleInput by remember { mutableStateOf("") }
+
+    var showSmartRuleDialog by remember { mutableStateOf(false) }
+    var showM3uManagerDialog by remember { mutableStateOf(false) }
 
     val permissionsToRequest = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -288,6 +295,15 @@ fun LibraryScreen(
             }
         }
 
+        item {
+            ListeningStatsRecapCard(
+                stats = uiState.listeningStats,
+                isPersian = uiState.settings.appLanguageCode == "fa",
+                onOpenRuleBuilder = { showSmartRuleDialog = true },
+                onOpenM3uManager = { showM3uManagerDialog = true }
+            )
+        }
+
         if (uiState.smartPlaylists.isNotEmpty()) {
             item {
                 SmartPlaylistsSection(
@@ -450,10 +466,29 @@ fun LibraryScreen(
                 playlists = uiState.playlists,
                 onPlay = { onPlayTrack(track) },
                 onAddToQueue = { onAddTrackToQueue(track) },
+                onPlayNext = { onPlayNext(track) },
                 onAddToPlaylist = { playlistId -> onAddTrackToPlaylist(playlistId, track.id) },
                 onToggleFavorite = { onToggleFavorite(track) }
             )
         }
+    }
+
+    if (showSmartRuleDialog) {
+        SmartRuleBuilderDialog(
+            isPersian = uiState.settings.appLanguageCode == "fa",
+            onDismiss = { showSmartRuleDialog = false },
+            onCreateRule = onAddCustomSmartRule
+        )
+    }
+
+    if (showM3uManagerDialog) {
+        M3u8ManagerDialog(
+            playlists = uiState.playlists,
+            isPersian = uiState.settings.appLanguageCode == "fa",
+            onDismiss = { showM3uManagerDialog = false },
+            onExportM3u8 = onExportM3u8,
+            onImportM3u8 = onImportM3u8
+        )
     }
 
     if (showNetworkStreamDialog) {

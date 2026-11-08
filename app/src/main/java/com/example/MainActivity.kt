@@ -104,15 +104,22 @@ import com.example.ui.theme.VeloraTheme
 import com.example.ui.theme.PhiTokens
 import com.example.ui.viewmodel.VeloraViewModel
 import com.example.ui.viewmodel.addCustomRadioStation
+import com.example.ui.viewmodel.addCustomSmartRule
+import com.example.ui.viewmodel.addNewSyncedLyricLineAtCurrentPosition
 import com.example.ui.viewmodel.addRadioStationToQueue
 import com.example.ui.viewmodel.addTimeMachineBookmark
 import com.example.ui.viewmodel.adjustLyricsOffset
 import com.example.ui.viewmodel.clearAbLoop
 import com.example.ui.viewmodel.executeCopilotCommand
+import com.example.ui.viewmodel.exportCurrentLyricsAsLrc
 import com.example.ui.viewmodel.exportOfflineBackupJson
+import com.example.ui.viewmodel.exportPlaylistAsM3u8
 import com.example.ui.viewmodel.importCustomLyricsOrSrt
+import com.example.ui.viewmodel.importM3u8Playlist
 import com.example.ui.viewmodel.playNetworkStream
+import com.example.ui.viewmodel.playNextInQueue
 import com.example.ui.viewmodel.playSmartPlaylist
+import com.example.ui.viewmodel.restoreOfflineBackupJson
 import com.example.ui.viewmodel.setAbLoopPointA
 import com.example.ui.viewmodel.setAbLoopPointB
 import com.example.ui.viewmodel.setAdaptiveAudioMode
@@ -125,6 +132,10 @@ import com.example.ui.viewmodel.setOnlyValidMusicInSearch
 import com.example.ui.viewmodel.setPreampGainDb
 import com.example.ui.viewmodel.setSleepTimerMinutes
 import com.example.ui.viewmodel.setStereoWidthPercent
+import com.example.ui.viewmodel.setSubtitleColorTheme
+import com.example.ui.viewmodel.setSubtitleFontScale
+import com.example.ui.viewmodel.setVideoBrightnessLevel
+import com.example.ui.viewmodel.stampLyricLineAtCurrentPosition
 import com.example.ui.viewmodel.toggleDeclarativePlugin
 import com.example.ui.viewmodel.tuneRadioStation
 import com.example.ui.viewmodel.updateTrackMetadata
@@ -481,7 +492,17 @@ fun VeloraRootApp(
                             },
                             onPlayNetworkStream = { url, title ->
                                 viewModel.playNetworkStream(url, title)
-                            }
+                            },
+                            onAddCustomSmartRule = { name, br, sr, plays, favs, kw ->
+                                viewModel.addCustomSmartRule(name, br, sr, plays, favs, kw)
+                            },
+                            onExportM3u8 = { pid ->
+                                viewModel.exportPlaylistAsM3u8(pid, context.filesDir)
+                            },
+                            onImportM3u8 = { name, content ->
+                                viewModel.importM3u8Playlist(name, content)
+                            },
+                            onPlayNext = { viewModel.playNextInQueue(it) }
                         )
 
                         VeloraDestination.MUSIC -> MusicScreen(
@@ -541,7 +562,12 @@ fun VeloraRootApp(
                                     activity?.enterPictureInPictureMode(params)
                                 }
                             },
-                            onAutoScanMedia = { viewModel.autoScanDeviceMedia() }
+                            onAutoScanMedia = { viewModel.autoScanDeviceMedia() },
+                            onSetVolume = { viewModel.setVolume(it) },
+                            onSetVideoBrightness = { viewModel.setVideoBrightnessLevel(it) },
+                            onSetSubtitleFontScale = { viewModel.setSubtitleFontScale(it) },
+                            onSetSubtitleColorTheme = { viewModel.setSubtitleColorTheme(it) },
+                            onAddVideoBookmark = { viewModel.addTimeMachineBookmark("Cinema Scene") }
                         )
 
                         VeloraDestination.SEARCH -> SearchScreen(
@@ -590,7 +616,10 @@ fun VeloraRootApp(
                             onToggleSimpleMode = { viewModel.setSimpleMode(it) },
                             onEditTrackMetadata = { id, title, artist, album ->
                                 viewModel.updateTrackMetadata(id, title, artist, album)
-                            }
+                            },
+                            onStampLyricLine = { viewModel.stampLyricLineAtCurrentPosition(it) },
+                            onAddNewLyricLineAtPos = { viewModel.addNewSyncedLyricLineAtCurrentPosition(it) },
+                            onExportLrc = { viewModel.exportCurrentLyricsAsLrc(context.filesDir) }
                         )
 
                         VeloraDestination.SETTINGS -> SettingsScreen(
@@ -601,6 +630,7 @@ fun VeloraRootApp(
                             onSetLanguageCode = { viewModel.setAppLanguageCode(it) },
                             onTogglePlugin = { viewModel.toggleDeclarativePlugin(it) },
                             onExportBackupJson = { viewModel.exportOfflineBackupJson(context.filesDir) },
+                            onRestoreBackupJson = { viewModel.restoreOfflineBackupJson(it, context.filesDir) },
                             onToggleSimpleMode = { viewModel.setSimpleMode(it) },
                             onToggleAutoScanOnStartup = { viewModel.setAutoScanOnStartup(it) },
                             onAutoScanMedia = { viewModel.autoScanDeviceMedia() },

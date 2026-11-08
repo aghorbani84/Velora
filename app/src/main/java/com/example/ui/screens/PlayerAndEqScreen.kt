@@ -130,6 +130,9 @@ fun PlayerAndEqScreen(
     onImportCustomLrcOrSrt: (String) -> Unit = {},
     onToggleSimpleMode: (Boolean) -> Unit = {},
     onEditTrackMetadata: (String, String, String, String) -> Unit = { _, _, _, _ -> },
+    onStampLyricLine: (Int) -> Unit = {},
+    onAddNewLyricLineAtPos: (String) -> Unit = {},
+    onExportLrc: () -> String = { "" },
     modifier: Modifier = Modifier
 ) {
     val engine = uiState.engineState
@@ -866,7 +869,10 @@ fun PlayerAndEqScreen(
                     isPersian = uiState.settings.appLanguageCode == "fa",
                     onAdjustOffset = onAdjustLyricsOffset,
                     onSeekTo = onSeekTo,
-                    onAddBookmark = onAddBookmark
+                    onAddBookmark = onAddBookmark,
+                    onStampLyricLine = onStampLyricLine,
+                    onAddNewLyricLineAtPos = onAddNewLyricLineAtPos,
+                    onExportLrc = onExportLrc
                 )
             }
         }
@@ -1088,9 +1094,25 @@ private fun SynchronizedLyricsAndBookmarksCard(
     isPersian: Boolean,
     onAdjustOffset: (Long) -> Unit,
     onSeekTo: (Long) -> Unit,
-    onAddBookmark: () -> Unit
+    onAddBookmark: () -> Unit,
+    onStampLyricLine: (Int) -> Unit = {},
+    onAddNewLyricLineAtPos: (String) -> Unit = {},
+    onExportLrc: () -> String = { "" }
 ) {
     val activeIdx = VeloraLyricsAndSubtitleEngine.findActiveLineIndex(lyrics, positionMs, lyricsOffsetMs)
+    var showLrcStudioDialog by remember { mutableStateOf(false) }
+
+    if (showLrcStudioDialog) {
+        InteractiveLrcTimestampStudioDialog(
+            lyrics = lyrics,
+            currentPositionMs = positionMs,
+            isPersian = isPersian,
+            onDismiss = { showLrcStudioDialog = false },
+            onStampLine = onStampLyricLine,
+            onAddNewLineAtPos = onAddNewLyricLineAtPos,
+            onExportLrc = onExportLrc
+        )
+    }
 
     Surface(
         color = FazoraCarbon,
@@ -1119,8 +1141,22 @@ private fun SynchronizedLyricsAndBookmarksCard(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Button(
+                        onClick = { showLrcStudioDialog = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FazoraGold,
+                            contentColor = FazoraObsidian
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("open_lrc_timestamp_studio_button")
+                    ) {
+                        Text(if (isPersian) "⏱️ ساخت LRC" else "⏱️ LRC Studio")
+                    }
                     OutlinedButton(
                         onClick = { onAdjustOffset(-250L) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         modifier = Modifier
                             .minimumInteractiveComponentSize()
                             .testTag("lyrics_offset_minus_button")
@@ -1129,6 +1165,7 @@ private fun SynchronizedLyricsAndBookmarksCard(
                     }
                     OutlinedButton(
                         onClick = { onAdjustOffset(250L) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                         modifier = Modifier
                             .minimumInteractiveComponentSize()
                             .testTag("lyrics_offset_plus_button")

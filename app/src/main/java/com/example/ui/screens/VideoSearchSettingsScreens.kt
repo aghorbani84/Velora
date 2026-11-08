@@ -26,6 +26,7 @@ import android.content.Intent
 import android.view.LayoutInflater
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -33,6 +34,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -98,6 +100,8 @@ import com.example.domain.model.AdaptiveAudioMode
 import com.example.domain.model.AudioRouteType
 import com.example.domain.model.PhiDesignMetrics
 import com.example.domain.model.PlaybackQueue
+import com.example.domain.model.SubtitleColorTheme
+import com.example.domain.model.SubtitleFontScale
 import com.example.domain.model.Track
 import com.example.domain.model.VideoAspectMode
 import com.example.ui.components.SpectrumAnalyzerCanvas
@@ -137,6 +141,11 @@ fun VideoPlayerScreen(
     onToggleFavorite: (Track) -> Unit = {},
     onEnterPip: () -> Unit = {},
     onAutoScanMedia: () -> Unit = {},
+    onSetVolume: (Float) -> Unit = {},
+    onSetVideoBrightness: (Float) -> Unit = {},
+    onSetSubtitleFontScale: (SubtitleFontScale) -> Unit = {},
+    onSetSubtitleColorTheme: (SubtitleColorTheme) -> Unit = {},
+    onAddVideoBookmark: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -555,9 +564,9 @@ fun VideoPlayerScreen(
                     if (engine.subtitleTracks.isEmpty()) {
                         Text(
                             text = if (isPersian)
-                                "این ویدیو فاقد زیرنویس توکار است."
+                                "این ویدیو فاقد زیرنویس توکار است (زیرنویس هماهنگ‌شده LRC/SRT فعال است)."
                             else
-                                "No embedded subtitles found in current video stream.",
+                                "No embedded tracks; synchronized LRC/SRT overlay is active.",
                             style = MaterialTheme.typography.bodySmall,
                             color = FazoraSteel,
                             modifier = Modifier.padding(top = 8.dp)
@@ -587,6 +596,15 @@ fun VideoPlayerScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                    VideoSubtitleStylePickerSection(
+                        cinemaSettings = uiState.videoCinemaSettings,
+                        isPersian = isPersian,
+                        onSelectFontScale = onSetSubtitleFontScale,
+                        onSelectColorTheme = onSetSubtitleColorTheme
+                    )
                 }
             },
             confirmButton = {
@@ -701,6 +719,26 @@ fun VideoPlayerScreen(
                                     }
                                 )
                             }
+                            .pointerInput(uiState.videoCinemaSettings.brightnessLevel, engine.volume) {
+                                var dragStartX = 0f
+                                detectVerticalDragGestures(
+                                    onDragStart = { offset -> dragStartX = offset.x },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        val delta = (-dragAmount / size.height.coerceAtLeast(1)).coerceIn(-0.15f, 0.15f)
+                                        if (dragStartX < size.width / 2f) {
+                                            val newBri = (uiState.videoCinemaSettings.brightnessLevel + delta)
+                                                .coerceIn(0.15f, 1.0f)
+                                            onSetVideoBrightness(newBri)
+                                            seekNotice = "☀️ ${(newBri * 100).toInt()}%"
+                                        } else {
+                                            val newVol = (engine.volume + delta).coerceIn(0f, 1f)
+                                            onSetVolume(newVol)
+                                            seekNotice = "🔊 ${(newVol * 100).toInt()}%"
+                                        }
+                                    }
+                                )
+                            }
                             .testTag("video_surface_container")
                     ) {
                         if (exoPlayer != null) {
@@ -736,6 +774,26 @@ fun VideoPlayerScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .testTag("media3_player_view")
+                            )
+                        }
+
+                        val dimAlpha = (1f - uiState.videoCinemaSettings.brightnessLevel).coerceIn(0f, 0.75f)
+                        if (dimAlpha > 0.02f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = dimAlpha))
+                            )
+                        }
+
+                        if (engine.subtitlesEnabled) {
+                            VideoSubtitleOverlay(
+                                lyrics = uiState.activeLyrics,
+                                positionMs = currentPosMs,
+                                offsetMs = uiState.lyricsOffsetMs,
+                                cinemaSettings = uiState.videoCinemaSettings,
+                                isPersian = isPersian,
+                                modifier = Modifier.align(Alignment.BottomCenter)
                             )
                         }
 
@@ -1080,6 +1138,31 @@ fun VideoPlayerScreen(
                                 color = FazoraIvory
                             )
                         }
+
+                        OutlinedButton(
+                            onClick = onAddVideoBookmark,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("video_add_bookmark_button")
+                        ) {
+                            Icon(Icons.Default.BookmarkAdd, contentDescription = null, tint = FazoraGold)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (isPersian) "بوکمارک صحنه" else "Bookmark Scene", color = FazoraIvory)
+                        }
+                    }
+
+                    if (uiState.timeMachineBookmarks.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                            items(uiState.timeMachineBookmarks, key = { "vbm_${it.id}" }) { bm ->
+                                OutlinedButton(
+                                    onClick = { onSeekTo(bm.timestampMs) },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("🔖 ${bm.formattedTimestamp} • ${bm.trackTitle}", color = FazoraGold)
+                                }
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
@@ -1406,6 +1489,7 @@ fun SettingsScreen(
     onSetLanguageCode: (String) -> Unit = {},
     onTogglePlugin: (String) -> Unit = {},
     onExportBackupJson: () -> Unit = {},
+    onRestoreBackupJson: (String) -> Unit = {},
     onToggleSimpleMode: (Boolean) -> Unit = {},
     onToggleAutoScanOnStartup: (Boolean) -> Unit = {},
     onAutoScanMedia: () -> Unit = {},
@@ -1415,6 +1499,8 @@ fun SettingsScreen(
     onSetAdaptiveAudioMode: (AdaptiveAudioMode) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var showRestoreBackupDialog by remember { mutableStateOf(false) }
+    var restoreJsonInput by remember { mutableStateOf("") }
     val settings = uiState.settings
     val user = uiState.firebaseUser
     val isPersian = settings.appLanguageCode == "fa"
@@ -2052,24 +2138,42 @@ fun SettingsScreen(
                     }
 
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Button(
-                        onClick = onExportBackupJson,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = FazoraGold,
-                            contentColor = FazoraObsidian
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .minimumInteractiveComponentSize()
-                            .testTag("export_backup_json_button")
-                    ) {
-                        Text(
-                            if (settings.appLanguageCode == "fa") {
-                                "پشتیبان‌گیری آفلاین (JSON Snapshot) از پلی‌لیست‌ها و تنظیمات"
-                            } else {
-                                "Export One-Tap Offline JSON Backup Snapshot"
-                            }
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                        Button(
+                            onClick = onExportBackupJson,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = FazoraGold,
+                                contentColor = FazoraObsidian
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .minimumInteractiveComponentSize()
+                                .testTag("export_backup_json_button")
+                        ) {
+                            Text(
+                                if (settings.appLanguageCode == "fa") {
+                                    "💾 ذخیره پشتیبان (Export JSON)"
+                                } else {
+                                    "💾 Export JSON Backup"
+                                }
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = { showRestoreBackupDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .minimumInteractiveComponentSize()
+                                .testTag("restore_backup_json_button")
+                        ) {
+                            Text(
+                                if (settings.appLanguageCode == "fa") {
+                                    "♻️ بازیابی پشتیبان (Restore)"
+                                } else {
+                                    "♻️ Restore Snapshot"
+                                },
+                                color = FazoraIvory
+                            )
+                        }
                     }
                 }
             }
@@ -2103,6 +2207,56 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+
+    if (showRestoreBackupDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestoreBackupDialog = false },
+            containerColor = FazoraCarbonElevated,
+            title = {
+                Text(
+                    text = if (isPersian) "بازیابی پشتیبان آفلاین (Restore JSON)" else "Restore Offline JSON Backup",
+                    color = FazoraIvory
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                    Text(
+                        text = if (isPersian) {
+                            "برای بازیابی از آخرین فایل ذخیره‌شده در حافظه برنامه دکمه تایید را بزنید، یا متن JSON را در کادر زیر وارد کنید:"
+                        } else {
+                            "Leave blank to restore from the latest local snapshot file, or paste a JSON backup below:"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FazoraSteel
+                    )
+                    OutlinedTextField(
+                        value = restoreJsonInput,
+                        onValueChange = { restoreJsonInput = it },
+                        label = { Text("Optional JSON Backup Payload") },
+                        minLines = 3,
+                        maxLines = 5,
+                        modifier = Modifier.fillMaxWidth().testTag("restore_backup_json_input")
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onRestoreBackupJson(restoreJsonInput)
+                        showRestoreBackupDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = FazoraGold, contentColor = FazoraObsidian)
+                ) {
+                    Text(if (isPersian) "بازیابی" else "Restore Now")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestoreBackupDialog = false }) {
+                    Text(if (isPersian) "انصراف" else "Cancel", color = FazoraSteel)
+                }
+            }
+        )
     }
 }
 

@@ -51,6 +51,10 @@ import com.example.data.audio.VeloraAudioDeviceManager
 import com.example.domain.model.AdaptiveAudioMode
 import com.example.domain.model.AudioRouteInfo
 import com.example.domain.model.AudioRouteType
+import com.example.domain.model.ListeningStatsSummary
+import com.example.domain.model.SmartRuleCriterion
+import com.example.domain.model.VeloraPhase2Engine
+import com.example.domain.model.VideoCinemaSettings
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -70,6 +74,9 @@ data class VeloraUiState(
     val videoTracks: List<Track> = emptyList(),
     val favoriteTracks: List<Track> = emptyList(),
     val smartPlaylists: List<SmartPlaylist> = emptyList(),
+    val customSmartRules: List<SmartRuleCriterion> = emptyList(),
+    val listeningStats: ListeningStatsSummary = ListeningStatsSummary(),
+    val videoCinemaSettings: VideoCinemaSettings = VideoCinemaSettings(),
     val omniSearchMatches: List<OmniSearchMatch> = emptyList(),
     val activeLyrics: List<SyncedLyricLine> = emptyList(),
     val lyricsOffsetMs: Long = 0L,
@@ -120,6 +127,8 @@ class VeloraViewModel(
     internal val customRadioStationsFlow = MutableStateFlow<List<RadioStation>>(emptyList())
     internal val studioDspStateFlow = MutableStateFlow(StudioDspState())
     internal val customLyricsOverrideFlow = MutableStateFlow<List<SyncedLyricLine>?>(null)
+    internal val customSmartRulesFlow = MutableStateFlow<List<SmartRuleCriterion>>(emptyList())
+    internal val videoCinemaSettingsFlow = MutableStateFlow(VideoCinemaSettings())
     internal var sleepTimerJob: Job? = null
 
     val playbackState: StateFlow<PlaybackState> = mediaOrchestrator.playbackState
@@ -147,6 +156,8 @@ class VeloraViewModel(
         studioDspStateFlow,
         customLyricsOverrideFlow,
         audioDeviceManager.activeRoute,
+        customSmartRulesFlow,
+        videoCinemaSettingsFlow,
         transform = ::assembleVeloraUiState
     ).stateIn(
         scope = viewModelScope,
@@ -693,6 +704,9 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
     @Suppress("UNCHECKED_CAST")
     val customLyrics = values.getOrNull(16) as? List<SyncedLyricLine>
     val audioRoute = (values.getOrNull(17) as? AudioRouteInfo) ?: AudioRouteInfo()
+    @Suppress("UNCHECKED_CAST")
+    val customSmartRules = (values.getOrNull(18) as? List<SmartRuleCriterion>).orEmpty()
+    val videoCinemaSettings = (values.getOrNull(19) as? VideoCinemaSettings) ?: VideoCinemaSettings()
 
     val filteredTracks = when (filterMode) {
         TrackFilterMode.ALL -> rawTracks
@@ -718,7 +732,11 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         .groupBy { it.artist }
         .toSortedMap(String.CASE_INSENSITIVE_ORDER)
 
-    val smartPlaylists = VeloraSmartPlaylistEngine.generateSmartPlaylists(rawTracks, playbackHistory)
+    val rulePlaylists = customSmartRules.map { rule ->
+        VeloraPhase2Engine.evaluateSmartRule(rule, rawTracks, playbackHistory)
+    }
+    val smartPlaylists = rulePlaylists + VeloraSmartPlaylistEngine.generateSmartPlaylists(rawTracks, playbackHistory)
+    val listeningStats = VeloraPhase2Engine.computeListeningStats(rawTracks, playbackHistory)
     val omniMatches = VeloraOmniSearchEngine.searchWithSemanticAndFuzzyRanking(
         query = searchQuery,
         allTracks = rawTracks,
@@ -741,6 +759,9 @@ private fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         videoTracks = videoTracks,
         favoriteTracks = favoriteTracks,
         smartPlaylists = smartPlaylists,
+        customSmartRules = customSmartRules,
+        listeningStats = listeningStats,
+        videoCinemaSettings = videoCinemaSettings,
         omniSearchMatches = omniMatches,
         activeLyrics = customLyrics ?: orchestrator.activeLyrics,
         lyricsOffsetMs = orchestrator.lyricsOffsetMs,
