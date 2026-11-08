@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Release Pipeline Signing Fail-Fast & R8 Verification (`.github/workflows/release.yml`, `app/proguard-rules.pro`):** Changed missing release signing secrets (`RELEASE_KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_PASSWORD`) from a non-fatal `::warning::` to an immediate `::error::` + `exit 1` fail-fast gate before `assembleRelease`, rotated compromised upload key material, and verified R8 release minification (`assembleRelease`).
+
+---
+
 ## [2.3.0] - 2026-11-08
 
 ### Added

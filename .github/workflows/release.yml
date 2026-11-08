@@ -119,7 +119,8 @@ jobs:
           KEY_PASSWORD=${KEY_PASSWORD_SECRET}
           EOF
           else
-            echo "::warning::Release signing secrets (RELEASE_KEYSTORE_BASE64, STORE_PASSWORD, KEY_PASSWORD) are not configured in GitHub Actions Secrets."
+            echo "::error::Release signing secrets missing (RELEASE_KEYSTORE_BASE64, STORE_PASSWORD, KEY_PASSWORD) — add them in Settings → Secrets and variables → Actions, then re-run."
+            exit 1
           fi
 
       - name: Run Detekt & Unit Verification Suite
