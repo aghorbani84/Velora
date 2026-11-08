@@ -1,21 +1,49 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ==============================================================================
+# VELORA — Production R8 / ProGuard Configuration (WP-4 Release Hardening)
+# ==============================================================================
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+-keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod,*Annotation*
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# 1. AndroidX Media3 ExoPlayer & MediaSessionService
+-keep class androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+-keep class com.example.data.playback.VeloraPlaybackService { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# 2. AndroidX Room SQLite v3 Entities, DAOs & Database
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao class * { *; }
+-keep class com.example.data.local.** { *; }
+
+# 3. Koin Dependency Injection & ViewModels
+-keep class org.koin.** { *; }
+-dontwarn org.koin.**
+-keep class * extends androidx.lifecycle.ViewModel {
+    <init>(...);
+}
+
+# 4. Firebase Firestore, Auth & Google Identity (Credential Manager)
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+-keep class com.example.data.firebase.** { *; }
+-keepclassmembers class com.example.data.firebase.** {
+    <init>();
+    public <methods>;
+    public <fields>;
+}
+
+# 5. Jetpack DataStore Preferences & Kotlinx Coroutines
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
+    <fields>;
+}
+-dontwarn kotlinx.coroutines.**
+
+# 6. Domain Models & Declarative Plugin Manifests
+-keep class com.example.domain.model.** { *; }
+-keep class com.example.orchestrator.** { *; }
+
+# 7. Coil Image Loader
+-dontwarn coil.**
+-dontwarn okhttp3.**
+-dontwarn okio.**

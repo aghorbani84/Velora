@@ -6,6 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [2.3.0] - 2026-11-08
+
+### Added
+- **Single Version Source of Truth (`VERSION` & `gradle.properties`):** Unified `versionName = "2.3.0"` (`versionCode = 6`) across `app/build.gradle.kts`, `.github/workflows/release.yml`, `README.md`, and `CHANGELOG.md`.
+- **ADR-0002 (`docs/decisions/0002-application-identity-and-namespace-retention-adr.md`):** Documented architectural decision to retain `applicationId = "com.aistudio.fazora.audiosync"` for zero-data-loss in-place APK upgrades and Firebase `google-services.json` compatibility.
+- **Dynamic Material 3 Color Palette Engine (`ThemePaletteMode`):** Support for Dark Saffron Signature, Android 12+ Material You Dynamic System Palette, and High-Contrast AAA Gold (`VeloraTheme`).
+- **Precision Playback Gesture Engine (`VeloraGestureEngine`):** Double-tap left/right to seek `-10s` / `+10s`, double-tap center to toggle play/pause, and vertical swipe on left/right zones for brightness and volume control.
+- **Phase 2 Intelligence Suite (`VeloraPhase2Suite`):** Local listening statistics dashboard, rule-based smart playlist builder, in-app `.LRC` timestamp studio, `.M3U` / `.M3U8` import/export, and JSON snapshot backup/restore.
+
+### Changed
+- **UI & Navigation Modularization:** Extracted `VeloraNavGraph` (`NavGraph.kt`), `VeloraShellScreen`, `VideoPlayerScreen`, `SearchScreen`, and `SettingsScreen` out of monolithic files; reduced `MainActivity.kt` to 42 lines.
+- **Security Hardening:** Removed tracked upload keystores, added `ci-signing.properties` template, and replaced inaccurate "SSRF" terminology with **Secure Stream Validation (`HTTPS`/`HLS`/`DASH` URL sanitization)**.
+
+---
+
+## [2.2.0] - 2026-11-08
+
+### Added
+- **Studio DSP Rack & Live Radio Tuner (`VeloraRadioAndDspSuite`):** Preamp gain (`-12 dB` to `+12 dB`), Sub-Bass Boost (`0–100%`), 3D Stereo Width (`0–200%`), A-B Loop controller, Smart Sleep Timer, and curated Persian & World radio streams.
+
+---
+
+## [2.1.0] - 2026-11-07
+
+### Added
+- **In-Place APK Upgrade Compatibility:** Standardized debug and release signing configurations for seamless over-the-air updates without uninstalling.
+
+---
+
 ## [2.0.0] - 2026-11-07
 
 ### Added

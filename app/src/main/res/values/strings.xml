@@ -2,13 +2,18 @@
     <string name="app_name">VELORA</string>
     <string name="tagline">Beyond Playback.</string>
     <string name="library_header_badge">VELORA STUDIO LIBRARY</string>
+
+    <!-- Navigation Destinations -->
     <string name="nav_library">Library</string>
     <string name="nav_music">Music</string>
+    <string name="nav_radio">Radio</string>
     <string name="nav_artists">Artists</string>
     <string name="nav_video">Video</string>
     <string name="nav_search">Search</string>
     <string name="nav_player">Player &amp; EQ</string>
     <string name="nav_settings">Settings</string>
+
+    <!-- Accessibility Content Descriptions -->
     <string name="cd_play_pause">Play or pause playback</string>
     <string name="cd_next_track">Next track</string>
     <string name="cd_previous_track">Previous track</string>
@@ -20,5 +25,87 @@
     <string name="cd_open_player">Open full player and equalizer</string>
     <string name="cd_video_fullscreen">Toggle fullscreen video</string>
     <string name="cd_toggle_favorite">Toggle favorite status</string>
+    <string name="cd_add_radio_to_queue">Add radio station to queue</string>
+    <string name="cd_lock_video_controls">Lock or unlock video controls</string>
+    <string name="cd_exit_fullscreen">Exit fullscreen video</string>
+    <string name="cd_dismiss_banner">Dismiss status notification</string>
+
+    <!-- Studio DSP Rack & Mastering Controls -->
+    <string name="dsp_rack_header">STUDIO DSP RACK &amp; MASTERING CONTROLS</string>
+    <string name="dsp_reset_button">Reset DSP</string>
+    <string name="dsp_pipeline_header">SIGNAL PIPELINE TRANSPARENCY:</string>
+    <string name="dsp_pipeline_chain">PCM Decode ➔ Preamp (%1$s) ➔ 10-Band Biquad IIR ➔ Sub-Bass (%2$d%%) ➔ M/S 3D (%3$d%%) ➔ Limiter ➔ Hardware DAC</string>
+    <string name="dsp_preamp_headroom">Preamp Headroom Gain</string>
+    <string name="dsp_sub_bass_boost">Sub-Bass Boost: %1$d%%</string>
+    <string name="dsp_stereo_width">3D Stereo Width: %1$d%%</string>
+    <string name="dsp_ab_loop_status">A-B Loop (%1$s → %2$s)</string>
+    <string name="dsp_ab_set_a">Set A</string>
+    <string name="dsp_ab_set_b">Set B</string>
+    <string name="dsp_ab_clear">Clear</string>
+    <string name="dsp_sleep_timer_label">Smart Sleep Timer (%1$s)</string>
+    <string name="dsp_import_lrc_srt">Import LRC/SRT</string>
+    <string name="dsp_import_dialog_title">Import Synchronized .LRC / .SRT</string>
+    <string name="dsp_apply_cues">Apply Cues</string>
+    <string name="dsp_crossfade_off">Crossfade: Off</string>
+    <string name="dsp_crossfade_seconds">CF: %1$ds</string>
+
+    <!-- Equalizer & Spectrum Visualizer -->
+    <string name="eq_ten_band_title">10-Band Parametric Biquad Equalizer</string>
+    <string name="eq_enabled_label">Equalizer Active</string>
+    <string name="eq_bypassed_label">Equalizer Bypassed (Bit-Transparent)</string>
+    <string name="eq_save_preset">Save Custom Preset</string>
+    <string name="eq_preset_flat">Flat Reference</string>
+    <string name="eq_preset_bass_boost">Sub-Bass Boost</string>
+    <string name="eq_preset_vocal">Vocal Presence</string>
+    <string name="eq_preset_treble">Treble Air</string>
+    <string name="eq_visualizer_bars">10-Band Goertzel RTA</string>
+    <string name="eq_visualizer_waveform">64-Point Oscilloscope</string>
+
+    <!-- Player & Queue -->
+    <string name="player_now_playing">Now Playing</string>
+    <string name="player_queue_header">Playback Queue</string>
+    <string name="player_exact_seek_label">Exact Millisecond Seek</string>
+    <string name="player_lyrics_header">Synchronized Lyrics &amp; Subtitle Studio</string>
+    <string name="player_add_bookmark">Add Time-Machine Bookmark</string>
+    <string name="player_gesture_hint">Double-tap left/right to seek ±10s • Swipe vertically for Brightness &amp; Volume</string>
+
+    <!-- Library, Music & Smart Playlists -->
+    <string name="library_scan_device">Auto-Scan Device Media</string>
+    <string name="library_smart_playlists">Intelligent Mixes &amp; Rule-Based Playlists</string>
+    <string name="library_listening_stats">Local Listening Statistics</string>
+    <string name="library_favorites">Favorite Collection</string>
+    <string name="library_recent_history">Recent Playback History</string>
+    <string name="library_clear_history">Clear History</string>
+    <string name="library_create_playlist">Create Playlist</string>
+
+    <!-- Video Cinema Player -->
+    <string name="video_cinema_header">Velora Cinema</string>
+    <string name="video_playback_speed">Playback Speed</string>
+    <string name="video_aspect_ratio">Aspect Ratio &amp; Framing</string>
+    <string name="video_subtitles_on">Subtitles: ON</string>
+    <string name="video_subtitles_off">Subtitles: OFF</string>
+    <string name="video_bookmark_scene">Bookmark Scene</string>
+    <string name="video_pick_file">Pick Video</string>
+    <string name="video_pick_gallery">From Gallery</string>
+    <string name="video_autoscan">Auto-Scan Device Videos</string>
+
+    <!-- OmniSearch & Media Copilot -->
+    <string name="search_placeholder">Search songs, artists, albums, or ask Copilot…</string>
+    <string name="search_copilot_header">VELORA Media Copilot</string>
+    <string name="search_valid_music_only">Valid Music Only (Hide Short Voice Notes)</string>
+
+    <!-- Settings & Security -->
+    <string name="settings_theme_palette">Material 3 Color Palette Mode</string>
+    <string name="settings_palette_saffron">Dark Saffron &amp; Champagne Gold</string>
+    <string name="settings_palette_dynamic">Material You Dynamic System Palette</string>
+    <string name="settings_palette_high_contrast">High-Contrast AAA Gold</string>
+    <string name="settings_language_label">Interface Language</string>
+    <string name="settings_simple_mode">Simple Mode</string>
+    <string name="settings_studio_mode">Studio Advanced Mode</string>
+    <string name="settings_backup_restore">Offline Backup, Restore &amp; M3U Portability</string>
+    <string name="settings_cloud_sync">Zero-Trust Cloud Sync (Google Sign-In)</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_confirm">OK</string>
+
     <string name="default_web_client_id" translatable="false">999217457240-lglt7s3ustd2iac30qlkcjtg83t4mgau.apps.googleusercontent.com</string>
 </resources>

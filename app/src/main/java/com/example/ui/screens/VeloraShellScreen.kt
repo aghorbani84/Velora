@@ -115,13 +115,10 @@ fun VeloraShellScreen(
 
     val permissionsToRequest = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
-                Manifest.permission.READ_MEDIA_AUDIO,
-                Manifest.permission.READ_MEDIA_VIDEO,
+            com.example.ui.permissions.PermissionController.requiredMediaPermissions() +
                 Manifest.permission.POST_NOTIFICATIONS
-            )
         } else {
-            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+            com.example.ui.permissions.PermissionController.requiredMediaPermissions()
         }
     }
 

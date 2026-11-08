@@ -53,9 +53,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.R
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.RadioCategory
 import com.example.domain.model.RadioStation
@@ -451,7 +453,7 @@ fun StudioDspRackPanel(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = if (isPersian) "رک پردازش استودیویی (Preamp • Bass • 3D • تایمر خواب)" else "STUDIO DSP RACK & MASTERING CONTROLS",
+                    text = stringResource(R.string.dsp_rack_header),
                     style = MaterialTheme.typography.titleMedium,
                     color = VeloraChampagneGold
                 )
@@ -460,7 +462,7 @@ fun StudioDspRackPanel(
                     onSetBassBoost(0)
                     onSetStereoWidth(0)
                 }) {
-                    Text(if (isPersian) "ریست DSP" else "Reset DSP", color = FazoraGold)
+                    Text(stringResource(R.string.dsp_reset_button), color = FazoraGold)
                 }
             }
 
@@ -474,15 +476,17 @@ fun StudioDspRackPanel(
             ) {
                 Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
                     Text(
-                        text = if (isPersian) "مسیر شفاف پردازش سیگنال (Audio Pipeline):"
-                        else "SIGNAL PIPELINE TRANSPARENCY:",
+                        text = stringResource(R.string.dsp_pipeline_header),
                         style = MaterialTheme.typography.labelSmall,
                         color = FazoraGold
                     )
                     Text(
-                        text = "PCM Decode ➔ Preamp (${String.format(Locale.US, "%+.1fdB", dspState.preampGainDb)}) " +
-                            "➔ 10-Band Biquad IIR ➔ Sub-Bass (${dspState.bassBoostPercent}%) " +
-                            "➔ M/S 3D (${dspState.stereoWidthPercent}%) ➔ Limiter ➔ Hardware DAC",
+                        text = stringResource(
+                            R.string.dsp_pipeline_chain,
+                            String.format(Locale.US, "%+.1fdB", dspState.preampGainDb),
+                            dspState.bassBoostPercent,
+                            dspState.stereoWidthPercent
+                        ),
                         style = MaterialTheme.typography.labelSmall,
                         color = FazoraSteel
                     )
@@ -496,7 +500,7 @@ fun StudioDspRackPanel(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = if (isPersian) "پیش‌تقویت‌کننده (Preamp Gain)" else "Preamp Headroom Gain",
+                        text = stringResource(R.string.dsp_preamp_headroom),
                         style = MaterialTheme.typography.labelLarge,
                         color = FazoraIvory
                     )
@@ -526,7 +530,7 @@ fun StudioDspRackPanel(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Sub-Bass Boost: ${dspState.bassBoostPercent}%",
+                        text = stringResource(R.string.dsp_sub_bass_boost, dspState.bassBoostPercent),
                         style = MaterialTheme.typography.labelMedium,
                         color = FazoraIvory
                     )
@@ -543,7 +547,7 @@ fun StudioDspRackPanel(
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "3D Stereo Width: ${dspState.stereoWidthPercent}%",
+                        text = stringResource(R.string.dsp_stereo_width, dspState.stereoWidthPercent),
                         style = MaterialTheme.typography.labelMedium,
                         color = FazoraIvory
                     )
@@ -574,7 +578,7 @@ fun StudioDspRackPanel(
                     val aLabel = dspState.loopStartMs?.let { "${it / 1000}s" } ?: "--"
                     val bLabel = dspState.loopEndMs?.let { "${it / 1000}s" } ?: "--"
                     Text(
-                        text = "A-B Loop ($aLabel → $bLabel)",
+                        text = stringResource(R.string.dsp_ab_loop_status, aLabel, bLabel),
                         style = MaterialTheme.typography.labelMedium,
                         color = if (dspState.isAbLoopActive) FazoraGoldBright else FazoraIvory
                     )
@@ -585,18 +589,18 @@ fun StudioDspRackPanel(
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier.testTag("ab_loop_set_a")
                     ) {
-                        Text("Set A", color = FazoraGold)
+                        Text(stringResource(R.string.dsp_ab_set_a), color = FazoraGold)
                     }
                     OutlinedButton(
                         onClick = onSetLoopPointB,
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier.testTag("ab_loop_set_b")
                     ) {
-                        Text("Set B", color = FazoraGold)
+                        Text(stringResource(R.string.dsp_ab_set_b), color = FazoraGold)
                     }
                     if (dspState.loopStartMs != null || dspState.loopEndMs != null) {
                         TextButton(onClick = onClearLoop) {
-                            Text("Clear", color = FazoraSteel)
+                            Text(stringResource(R.string.dsp_ab_clear), color = FazoraSteel)
                         }
                     }
                 }

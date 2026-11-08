@@ -2,7 +2,7 @@ name: VELORA Android CI
 
 on:
   push:
-    branches: [ "main", "master", "develop", "kotlin-rewrite", "phase-*", "feature/*" ]
+    branches: [ "main", "master", "develop", "kotlin-rewrite", "phase-*", "feature/*", "feat/*" ]
   pull_request:
     branches: [ "main", "master", "develop", "kotlin-rewrite" ]
   workflow_dispatch:
@@ -15,9 +15,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-verify:
-    name: Static Analysis, Unit Tests & APK Build
+  secrets-and-hygiene-scan:
+    name: Secrets & Keystore Hygiene Gate
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Zero Committed Upload Keystores or Raw API Keys
+        run: |
+          if [ -f "my-upload-key.jks" ] || [ -f "my-upload-key.jks.base64" ]; then
+            echo "::error::Upload keystore detected in repository tree!"
+            exit 1
+          fi
+          if grep -rnE "AIza[0-9A-Za-z_-]{35}" app/src/ ; then
+            echo "::error::Hardcoded API key detected in source code!"
+            exit 1
+          fi
+          echo "Secrets & keystore hygiene check passed."
+
+  build-and-verify:
+    name: Detekt, Lint, Unit Suites & APK Verification
+    runs-on: ubuntu-latest
+    needs: secrets-and-hygiene-scan
 
     steps:
       - name: Checkout repository
@@ -66,21 +86,22 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Run Detekt, Unit Tests & Assemble Debug APK
-        run: ./gradlew detekt :app:testDebugUnitTest --tests com.example.ExampleUnitTest assembleDebug --parallel
+      - name: Run Detekt, Unit Test Suites & Assemble Debug APK
+        run: ./gradlew detekt :app:testDebugUnitTest --tests com.example.ExampleUnitTest --tests com.example.DspBiquadMathTest --tests com.example.DownloadValidatorSecurityTest assembleDebug --parallel
 
       - name: Package & Checksum APK
         run: |
+          VERSION=$(tr -d '[:space:]' < VERSION)
           mkdir -p build-artifacts
-          cp app/build/outputs/apk/debug/app-debug.apk build-artifacts/VELORA-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk "build-artifacts/VELORA-v${VERSION}-debug.apk"
           cd build-artifacts
-          sha256sum VELORA-debug.apk > VELORA-debug.apk.sha256
+          sha256sum "VELORA-v${VERSION}-debug.apk" > "VELORA-v${VERSION}-debug.apk.sha256"
 
       - name: Upload VELORA APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: VELORA-android-debug-apk
           path: |
-            build-artifacts/VELORA-debug.apk
-            build-artifacts/VELORA-debug.apk.sha256
+            build-artifacts/VELORA-*.apk
+            build-artifacts/VELORA-*.sha256
           if-no-files-found: error

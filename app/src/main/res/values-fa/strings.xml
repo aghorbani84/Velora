@@ -2,13 +2,18 @@
     <string name="app_name">VELORA</string>
     <string name="tagline">فراتر از پخش.</string>
     <string name="library_header_badge">کتابخانه استودیویی ولورا</string>
+
+    <!-- Navigation Destinations -->
     <string name="nav_library">کتابخانه</string>
     <string name="nav_music">موسیقی</string>
+    <string name="nav_radio">رادیو</string>
     <string name="nav_artists">هنرمندان</string>
     <string name="nav_video">ویدیو</string>
     <string name="nav_search">جستجو</string>
     <string name="nav_player">پخش و اکولایزر</string>
     <string name="nav_settings">تنظیمات</string>
+
+    <!-- Accessibility Content Descriptions -->
     <string name="cd_play_pause">پخش یا توقف موقت</string>
     <string name="cd_next_track">قطعه بعدی</string>
     <string name="cd_previous_track">قطعه قبلی</string>
@@ -20,4 +25,85 @@
     <string name="cd_open_player">باز کردن پخش‌کننده و اکولایزر</string>
     <string name="cd_video_fullscreen">تغییر حالت تمام‌صفحه ویدیو</string>
     <string name="cd_toggle_favorite">تغییر وضعیت علاقه‌مندی</string>
+    <string name="cd_add_radio_to_queue">افزودن ایستگاه رادیویی به صف پخش</string>
+    <string name="cd_lock_video_controls">قفل یا باز کردن کنترل‌های ویدیو</string>
+    <string name="cd_exit_fullscreen">خروج از حالت تمام‌صفحه</string>
+    <string name="cd_dismiss_banner">بستن پیام وضعیت</string>
+
+    <!-- Studio DSP Rack & Mastering Controls -->
+    <string name="dsp_rack_header">رک پردازش استودیویی (Preamp • Bass • 3D • تایمر خواب)</string>
+    <string name="dsp_reset_button">ریست DSP</string>
+    <string name="dsp_pipeline_header">مسیر شفاف پردازش سیگنال (Audio Pipeline):</string>
+    <string name="dsp_pipeline_chain">رمزگشایی PCM ➔ پیش‌تقویت (%1$s) ➔ فیلتر ۱۰ باندی Biquad ➔ تقویت بیس (%2$d%%) ➔ وسعت سه‌بعدی (%3$d%%) ➔ لیمیتر ➔ مبدل DAC</string>
+    <string name="dsp_preamp_headroom">پیش‌تقویت‌کننده (Preamp Gain)</string>
+    <string name="dsp_sub_bass_boost">تقویت بیس پایین: %1$d%%</string>
+    <string name="dsp_stereo_width">وسعت استریوی سه‌بعدی: %1$d%%</string>
+    <string name="dsp_ab_loop_status">حلقه تکرار A-B (%1$s ← %2$s)</string>
+    <string name="dsp_ab_set_a">ثبت A</string>
+    <string name="dsp_ab_set_b">ثبت B</string>
+    <string name="dsp_ab_clear">پاک‌سازی</string>
+    <string name="dsp_sleep_timer_label">تایمر خواب هوشمند (%1$s)</string>
+    <string name="dsp_import_lrc_srt">وارد کردن LRC/SRT</string>
+    <string name="dsp_import_dialog_title">وارد کردن متن ترانه (.LRC) یا زیرنویس (.SRT)</string>
+    <string name="dsp_apply_cues">اعمال و همگام‌سازی</string>
+    <string name="dsp_crossfade_off">ادغام تدریجی: خاموش</string>
+    <string name="dsp_crossfade_seconds">ادغام: %1$d ثانیه</string>
+
+    <!-- Equalizer & Spectrum Visualizer -->
+    <string name="eq_ten_band_title">اکولایزر پارامتریک ۱۰ باندی Biquad</string>
+    <string name="eq_enabled_label">اکولایزر فعال</string>
+    <string name="eq_bypassed_label">عبور مستقیم بدون تغییر (Bit-Transparent)</string>
+    <string name="eq_save_preset">ذخیره پیش‌تنظیم سفارشی</string>
+    <string name="eq_preset_flat">مرجع خطی (Flat)</string>
+    <string name="eq_preset_bass_boost">تقویت کوبش بیس</string>
+    <string name="eq_preset_vocal">وضوح صدای خواننده</string>
+    <string name="eq_preset_treble">شفافیت فرکانس‌های بالا</string>
+    <string name="eq_visualizer_bars">طیف‌سنج ۱۰ باندی Goertzel</string>
+    <string name="eq_visualizer_waveform">نوسان‌نگار ۶۴ نقطه‌ای</string>
+
+    <!-- Player & Queue -->
+    <string name="player_now_playing">در حال پخش</string>
+    <string name="player_queue_header">صف پخش</string>
+    <string name="player_exact_seek_label">پرش دقیق میلی‌ثانیه‌ای</string>
+    <string name="player_lyrics_header">استودیوی متن ترانه و زیرنویس همگام</string>
+    <string name="player_add_bookmark">ثبت نشانک ماشین زمان</string>
+    <string name="player_gesture_hint">دو بار لمس چپ/راست برای پرش ±۱۰ ثانیه • کشیدن عمودی برای روشنایی و صدا</string>
+
+    <!-- Library, Music & Smart Playlists -->
+    <string name="library_scan_device">اسکن خودکار رسانه‌های دستگاه</string>
+    <string name="library_smart_playlists">میکس‌های هوشمند و لیست‌های پخش قانون‌مند</string>
+    <string name="library_listening_stats">آمار محلی شنیداری</string>
+    <string name="library_favorites">مجموعه علاقه‌مندی‌ها</string>
+    <string name="library_recent_history">تاریخچه پخش اخیر</string>
+    <string name="library_clear_history">پاک‌سازی تاریخچه</string>
+    <string name="library_create_playlist">ساخت لیست پخش</string>
+
+    <!-- Video Cinema Player -->
+    <string name="video_cinema_header">سینمای ولورا</string>
+    <string name="video_playback_speed">سرعت پخش ویدیو</string>
+    <string name="video_aspect_ratio">نسبت ابعاد و کادربندی تصویر</string>
+    <string name="video_subtitles_on">زیرنویس: روشن</string>
+    <string name="video_subtitles_off">زیرنویس: خاموش</string>
+    <string name="video_bookmark_scene">نشانک‌گذاری صحنه</string>
+    <string name="video_pick_file">انتخاب فایل ویدیو</string>
+    <string name="video_pick_gallery">انتخاب از گالری</string>
+    <string name="video_autoscan">اسکن خودکار ویدیوهای حافظه</string>
+
+    <!-- OmniSearch & Media Copilot -->
+    <string name="search_placeholder">جستجوی آهنگ، هنرمند، آلبوم یا دستور به دستیار…</string>
+    <string name="search_copilot_header">دستیار هوشمند رسانه ولورا</string>
+    <string name="search_valid_music_only">فقط موسیقی‌های معتبر (مخفی‌سازی صداهای کوتاه)</string>
+
+    <!-- Settings & Security -->
+    <string name="settings_theme_palette">حالت پالت رنگ Material 3</string>
+    <string name="settings_palette_saffron">زعفرانی تیره و طلایی شامپاینی</string>
+    <string name="settings_palette_dynamic">پالت پویای سیستم (Material You)</string>
+    <string name="settings_palette_high_contrast">کنتراست بالای طلایی (AAA)</string>
+    <string name="settings_language_label">زبان رابط کاربری</string>
+    <string name="settings_simple_mode">حالت ساده و خلوت</string>
+    <string name="settings_studio_mode">حالت استودیوی پیشرفته</string>
+    <string name="settings_backup_restore">پشتیبان‌گیری آفلاین، بازیابی و خروجی M3U</string>
+    <string name="settings_cloud_sync">همگام‌سازی ابری امن (ورود با گوگل)</string>
+    <string name="common_cancel">انصراف</string>
+    <string name="common_confirm">تایید</string>
 </resources>

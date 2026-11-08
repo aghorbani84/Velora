@@ -153,6 +153,32 @@ object VeloraDownloadValidator {
         return BTIH_MAGNET_REGEX.matches(trimmed)
     }
 
+    fun isValidStreamOrManifestUrl(url: String): Boolean {
+        return VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl(url)
+    }
+
+    /**
+     * Inspects an HLS (.m3u8) or MPEG-DASH (.mpd) manifest payload and rejects manifests
+     * that embed non-allowlisted URI schemes (`file://`, `javascript:`) or private/loopback segment URLs.
+     */
+    fun isSafeAdaptiveManifestPayload(manifestText: String): Boolean {
+        if (manifestText.isBlank()) return false
+        for (rawLine in manifestText.lineSequence()) {
+            val line = rawLine.trim()
+            if (line.isEmpty() || line.startsWith("#")) continue
+            val lower = line.lowercase(Locale.ROOT)
+            if (lower.contains("file://") || lower.contains("javascript:") || lower.contains("../")) {
+                return false
+            }
+            if (lower.startsWith("http://") || lower.startsWith("https://")) {
+                if (!VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl(line)) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
     fun isSafeDownloadTargetFileName(relativePath: String): Boolean {
         val trimmed = relativePath.trim()
         if (trimmed.isEmpty()) return false

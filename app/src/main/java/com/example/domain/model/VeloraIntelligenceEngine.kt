@@ -73,18 +73,44 @@ object VeloraCompatibilityMatrix {
         }
     }
 
+    private val RFC1918_172_REGEX = Regex("""^172\.(1[6-9]|2\d|3[0-1])\..*""")
+    private val UNSAFE_URL_TOKENS = listOf(" ", "javascript:", "file://", "data:")
+    private val BLOCKED_IPV4_PREFIXES = listOf("127.", "0.", "10.", "192.168.", "169.254.")
+    private val BLOCKED_IPV6_PREFIXES = listOf("fc", "fd", "fe8", "fe9", "fea", "feb")
+    private val BLOCKED_IPV6_EXACT = setOf("::1", "::", "0:0:0:0:0:0:0:1")
+    private val BLOCKED_QUERY_TOKENS = listOf("127.0.0.1", "localhost", "169.254.", "::1", "file:")
+
     fun isValidAuthorizedStreamUrl(url: String): Boolean {
-        val trimmed = url.trim()
-        if (trimmed.length < 10) return false
-        val lower = trimmed.lowercase(Locale.ROOT)
-        return (lower.startsWith("https://") || lower.startsWith("http://")) &&
-            !lower.contains(" ") &&
-            !lower.contains("javascript:") &&
-            !lower.contains("file://") &&
-            !lower.contains("://127.") &&
-            !lower.contains("://localhost") &&
-            !lower.contains("://0.0.0.0") &&
-            !lower.contains("://169.254.")
+        val lower = url.trim().lowercase(Locale.ROOT)
+        if (lower.length < 10) return false
+        val isHttpScheme = lower.startsWith("https://") || lower.startsWith("http://")
+        if (!isHttpScheme || UNSAFE_URL_TOKENS.any { lower.contains(it) }) return false
+
+        val withoutScheme = lower.substringAfter("://")
+        val authority = withoutScheme.substringBefore('/').substringBefore('?').substringBefore('#')
+        val host = if (authority.startsWith("[")) {
+            authority.substringBefore(']') + "]"
+        } else {
+            authority.substringBefore(':')
+        }
+        if (host.isEmpty() || isIdnHomographOrPrivateHost(host)) return false
+
+        val queryPart = withoutScheme.substringAfter('?', "")
+        return BLOCKED_QUERY_TOKENS.none { queryPart.contains(it) }
+    }
+
+    private fun isIdnHomographOrPrivateHost(host: String): Boolean {
+        if (host.any { it.code > 127 } || host.startsWith("xn--") || host.contains(".xn--")) {
+            return true
+        }
+        if (host.startsWith("[")) {
+            val ipv6 = host.removePrefix("[").removeSuffix("]")
+            return ipv6 in BLOCKED_IPV6_EXACT || BLOCKED_IPV6_PREFIXES.any { ipv6.startsWith(it) }
+        }
+        val isLocalhost = host == "localhost" || host.endsWith(".localhost")
+        return isLocalhost ||
+            BLOCKED_IPV4_PREFIXES.any { host.startsWith(it) } ||
+            RFC1918_172_REGEX.matches(host)
     }
 }
 
@@ -510,6 +536,23 @@ data class DeclarativePluginManifest(
 )
 
 object VeloraPluginRegistry {
+    val ALLOWED_CAPABILITIES = setOf(
+        "theme.palette.saffron",
+        "wcag.contrast.guard",
+        "lyrics.sync.lrc",
+        "subtitle.rtl.persian",
+        "dsp.biquad.10band",
+        "visualizer.goertzel.rta",
+        "recommendations.local",
+        "privacy.zero_telemetry"
+    )
+
+    fun isPluginAllowedInSandbox(manifest: DeclarativePluginManifest): Boolean {
+        if (!manifest.verifiedSignature) return false
+        if (manifest.id.isBlank() || manifest.capabilities.isEmpty()) return false
+        return manifest.capabilities.all { it in ALLOWED_CAPABILITIES }
+    }
+
     val DEFAULT_DECLARATIVE_PLUGINS = listOf(
         DeclarativePluginManifest(
             id = "velora.plugin.saffron.cinema",
