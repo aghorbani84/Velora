@@ -98,11 +98,13 @@ import com.example.R
 import com.example.domain.engine.PlaybackStatus
 import com.example.domain.model.AdaptiveAudioMode
 import com.example.domain.model.AudioRouteType
+import com.example.domain.model.GestureActionType
 import com.example.domain.model.PhiDesignMetrics
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.SubtitleColorTheme
 import com.example.domain.model.SubtitleFontScale
 import com.example.domain.model.Track
+import com.example.domain.model.VeloraGestureEngine
 import com.example.domain.model.VideoAspectMode
 import com.example.ui.components.SpectrumAnalyzerCanvas
 import com.example.ui.components.TrackRowItem
@@ -313,27 +315,70 @@ fun VideoPlayerScreen(
                     )
                 }
 
+                val fullscreenDimAlpha = (1f - uiState.videoCinemaSettings.brightnessLevel).coerceIn(0f, 0.75f)
+                if (fullscreenDimAlpha > 0.02f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = fullscreenDimAlpha))
+                    )
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(controlsLocked) {
+                        .pointerInput(controlsLocked, engine.positionMs, durationMs) {
                             detectTapGestures(
                                 onDoubleTap = { offset ->
                                     if (!controlsLocked) {
                                         interactionNonce++
-                                        val isRight = offset.x > size.width / 2
-                                        if (isRight) {
-                                            onSeekTo(engine.positionMs + 10_000L)
-                                            seekNotice = "+10s"
-                                        } else {
-                                            onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
-                                            seekNotice = "-10s"
+                                        val res = VeloraGestureEngine.resolveDoubleTapGesture(
+                                            tapX = offset.x,
+                                            surfaceWidth = size.width.toFloat(),
+                                            currentPositionMs = engine.positionMs,
+                                            durationMs = durationMs
+                                        )
+                                        when (res.action) {
+                                            GestureActionType.SEEK_BACKWARD,
+                                            GestureActionType.SEEK_FORWARD -> {
+                                                onSeekTo(res.targetPositionMs)
+                                                seekNotice = res.hudLabel
+                                            }
+                                            else -> {
+                                                onTogglePlayPause()
+                                                seekNotice = res.hudLabel
+                                            }
                                         }
                                     }
                                 },
                                 onTap = {
                                     controlsVisible = !controlsVisible
                                     interactionNonce++
+                                }
+                            )
+                        }
+                        .pointerInput(controlsLocked, uiState.videoCinemaSettings.brightnessLevel, engine.volume) {
+                            var dragStartX = 0f
+                            detectVerticalDragGestures(
+                                onDragStart = { offset -> dragStartX = offset.x },
+                                onVerticalDrag = { change, dragAmount ->
+                                    if (!controlsLocked) {
+                                        change.consume()
+                                        val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
+                                            startX = dragStartX,
+                                            surfaceWidth = size.width.toFloat(),
+                                            surfaceHeight = size.height.toFloat(),
+                                            dragDeltaY = dragAmount,
+                                            currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
+                                            currentVolume = engine.volume
+                                        )
+                                        if (swipe.action == GestureActionType.ADJUST_BRIGHTNESS) {
+                                            onSetVideoBrightness(swipe.newValue)
+                                        } else {
+                                            onSetVolume(swipe.newValue)
+                                        }
+                                        seekNotice = swipe.hudLabel
+                                    }
                                 }
                             )
                         }
@@ -700,17 +745,26 @@ fun VideoPlayerScreen(
                             .aspectRatio(aspectRatioFloat)
                             .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
                             .background(Color.Black)
-                            .pointerInput(Unit) {
+                            .pointerInput(engine.positionMs, durationMs) {
                                 detectTapGestures(
                                     onDoubleTap = { offset ->
                                         interactionNonce++
-                                        val isRight = offset.x > size.width / 2
-                                        if (isRight) {
-                                            onSeekTo(engine.positionMs + 10_000L)
-                                            seekNotice = "+10s"
-                                        } else {
-                                            onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
-                                            seekNotice = "-10s"
+                                        val res = VeloraGestureEngine.resolveDoubleTapGesture(
+                                            tapX = offset.x,
+                                            surfaceWidth = size.width.toFloat(),
+                                            currentPositionMs = engine.positionMs,
+                                            durationMs = durationMs
+                                        )
+                                        when (res.action) {
+                                            GestureActionType.SEEK_BACKWARD,
+                                            GestureActionType.SEEK_FORWARD -> {
+                                                onSeekTo(res.targetPositionMs)
+                                                seekNotice = res.hudLabel
+                                            }
+                                            else -> {
+                                                onTogglePlayPause()
+                                                seekNotice = res.hudLabel
+                                            }
                                         }
                                     },
                                     onTap = {
@@ -725,17 +779,20 @@ fun VideoPlayerScreen(
                                     onDragStart = { offset -> dragStartX = offset.x },
                                     onVerticalDrag = { change, dragAmount ->
                                         change.consume()
-                                        val delta = (-dragAmount / size.height.coerceAtLeast(1)).coerceIn(-0.15f, 0.15f)
-                                        if (dragStartX < size.width / 2f) {
-                                            val newBri = (uiState.videoCinemaSettings.brightnessLevel + delta)
-                                                .coerceIn(0.15f, 1.0f)
-                                            onSetVideoBrightness(newBri)
-                                            seekNotice = "☀️ ${(newBri * 100).toInt()}%"
+                                        val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
+                                            startX = dragStartX,
+                                            surfaceWidth = size.width.toFloat(),
+                                            surfaceHeight = size.height.toFloat(),
+                                            dragDeltaY = dragAmount,
+                                            currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
+                                            currentVolume = engine.volume
+                                        )
+                                        if (swipe.action == GestureActionType.ADJUST_BRIGHTNESS) {
+                                            onSetVideoBrightness(swipe.newValue)
                                         } else {
-                                            val newVol = (engine.volume + delta).coerceIn(0f, 1f)
-                                            onSetVolume(newVol)
-                                            seekNotice = "🔊 ${(newVol * 100).toInt()}%"
+                                            onSetVolume(swipe.newValue)
                                         }
+                                        seekNotice = swipe.hudLabel
                                     }
                                 )
                             }
@@ -1497,6 +1554,7 @@ fun SettingsScreen(
     onToggleBackgroundVideoAudio: (Boolean) -> Unit = {},
     onToggleLowBatteryMode: (Boolean) -> Unit = {},
     onSetAdaptiveAudioMode: (AdaptiveAudioMode) -> Unit = {},
+    onSetThemePaletteMode: (com.example.domain.model.ThemePaletteMode) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showRestoreBackupDialog by remember { mutableStateOf(false) }
@@ -1726,6 +1784,97 @@ fun SettingsScreen(
                             checked = settings.onlyValidMusicInSearch,
                             onCheckedChange = { onToggleOnlyValidMusic(it) }
                         )
+                    }
+                }
+            }
+        }
+
+        item {
+            Surface(
+                color = FazoraCarbon,
+                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                    .testTag("dynamic_color_theme_card")
+            ) {
+                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
+                    Text(
+                        text = if (isPersian) "تم و پالت رنگی پویا بر اساس دستگاه" else "DYNAMIC MATERIAL 3 COLOR THEME",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = FazoraGold
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Text(
+                        text = if (isPersian) "رنگ‌های هوشمند، پویا و متوازن ریاضی" else "High-Contrast Harmonized Palettes",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = FazoraIvory
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    Text(
+                        text = if (isPersian)
+                            "تولید خودکار پالت رنگی متناسب با تم گوشی با تضمین کنتراست ریاضی WCAG 2.1 AA."
+                        else
+                            "Generates balanced Material You color schemes extracted from device settings, " +
+                                "mathematically calibrated to guarantee WCAG 2.1 AA contrast ratio (>= 4.5:1).",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = FazoraSteel
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        com.example.domain.model.ThemePaletteMode.entries.forEach { mode ->
+                            val isSelected = settings.themePaletteMode == mode
+                            Surface(
+                                color = if (isSelected) FazoraCarbonElevated else FazoraCarbon,
+                                shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) FazoraGold else FazoraCarbonBorder,
+                                        shape = RoundedCornerShape(PhiTokens.CornerRadius13)
+                                    )
+                                    .clickable { onSetThemePaletteMode(mode) }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (isPersian) mode.labelFa else mode.labelEn,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = if (isSelected) FazoraGold else FazoraIvory
+                                        )
+                                        Text(
+                                            text = when (mode) {
+                                                com.example.domain.model.ThemePaletteMode.SYSTEM_DYNAMIC ->
+                                                    if (isPersian) "استخراج هوشمند از والپیپر گوشی (اندروید ۱۲+)"
+                                                    else "Extracts accent tones dynamically from device wallpaper"
+                                                com.example.domain.model.ThemePaletteMode.VELORA_SAFFRON ->
+                                                    if (isPersian) "پالت اصلی استودیویی با طلای زعفرانی و شامپاینی"
+                                                    else "Classic audiophile signature saffron & champagne gold"
+                                                com.example.domain.model.ThemePaletteMode.HIGH_CONTRAST_MONOCHROME ->
+                                                    if (isPersian) "مشکی و سفید مطلق بدون اتلاف باتری اولد"
+                                                    else "Pure monochrome black & white for maximum accessibility"
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = FazoraSteel
+                                        )
+                                    }
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = { onSetThemePaletteMode(mode) },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = FazoraGold,
+                                            unselectedColor = FazoraSteel
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

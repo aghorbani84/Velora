@@ -202,3 +202,108 @@ object VeloraPhase2Engine {
         return matchedTracks.distinctBy { it.id }
     }
 }
+
+enum class GestureActionType {
+    SEEK_BACKWARD,
+    SEEK_FORWARD,
+    TOGGLE_PLAY_PAUSE,
+    ADJUST_BRIGHTNESS,
+    ADJUST_VOLUME
+}
+
+data class GestureSeekResult(
+    val action: GestureActionType,
+    val targetPositionMs: Long,
+    val deltaSeconds: Int,
+    val hudLabel: String
+)
+
+data class GestureSwipeResult(
+    val action: GestureActionType,
+    val newValue: Float,
+    val percentInt: Int,
+    val hudLabel: String
+)
+
+object VeloraGestureEngine {
+    const val DEFAULT_SEEK_STEP_MS: Long = 10_000L
+    const val LEFT_PHI_ZONE_RATIO: Float = 0.382f
+    const val RIGHT_PHI_ZONE_RATIO: Float = 0.618f
+
+    fun resolveDoubleTapGesture(
+        tapX: Float,
+        surfaceWidth: Float,
+        currentPositionMs: Long,
+        durationMs: Long,
+        seekStepMs: Long = DEFAULT_SEEK_STEP_MS
+    ): GestureSeekResult {
+        val safeWidth = surfaceWidth.coerceAtLeast(1f)
+        val normalizedX = (tapX / safeWidth).coerceIn(0f, 1f)
+        val stepSec = (seekStepMs / 1000L).toInt()
+        val effectiveMax = if (durationMs > 0L) durationMs else Long.MAX_VALUE
+
+        return when {
+            normalizedX < LEFT_PHI_ZONE_RATIO -> {
+                val target = (currentPositionMs - seekStepMs).coerceAtLeast(0L)
+                GestureSeekResult(
+                    action = GestureActionType.SEEK_BACKWARD,
+                    targetPositionMs = target,
+                    deltaSeconds = -stepSec,
+                    hudLabel = "⏪ -${stepSec}s"
+                )
+            }
+            normalizedX > RIGHT_PHI_ZONE_RATIO -> {
+                val target = (currentPositionMs + seekStepMs).coerceAtMost(effectiveMax)
+                GestureSeekResult(
+                    action = GestureActionType.SEEK_FORWARD,
+                    targetPositionMs = target,
+                    deltaSeconds = stepSec,
+                    hudLabel = "⏩ +${stepSec}s"
+                )
+            }
+            else -> {
+                GestureSeekResult(
+                    action = GestureActionType.TOGGLE_PLAY_PAUSE,
+                    targetPositionMs = currentPositionMs,
+                    deltaSeconds = 0,
+                    hudLabel = "⏯ Play / Pause"
+                )
+            }
+        }
+    }
+
+    fun resolveVerticalSwipeGesture(
+        startX: Float,
+        surfaceWidth: Float,
+        surfaceHeight: Float,
+        dragDeltaY: Float,
+        currentBrightness: Float,
+        currentVolume: Float
+    ): GestureSwipeResult {
+        val safeWidth = surfaceWidth.coerceAtLeast(1f)
+        val safeHeight = surfaceHeight.coerceAtLeast(1f)
+        val normalizedDelta = (-dragDeltaY / safeHeight).coerceIn(-0.20f, 0.20f)
+        val isLeftZone = startX < safeWidth * 0.5f
+
+        return if (isLeftZone) {
+            val newBri = (currentBrightness + normalizedDelta).coerceIn(0.15f, 1.0f)
+            val pct = (newBri * 100f).toInt().coerceIn(15, 100)
+            GestureSwipeResult(
+                action = GestureActionType.ADJUST_BRIGHTNESS,
+                newValue = newBri,
+                percentInt = pct,
+                hudLabel = "☀️ $pct%"
+            )
+        } else {
+            val newVol = (currentVolume + normalizedDelta).coerceIn(0.0f, 1.0f)
+            val pct = (newVol * 100f).toInt().coerceIn(0, 100)
+            GestureSwipeResult(
+                action = GestureActionType.ADJUST_VOLUME,
+                newValue = newVol,
+                percentInt = pct,
+                hudLabel = "🔊 $pct%"
+            )
+        }
+    }
+}
+

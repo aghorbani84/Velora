@@ -75,6 +75,12 @@ enum class TrackFilterMode(val labelEn: String, val labelFa: String) {
     HI_RES_ONLY("Hi-Res ≥ 48kHz", "کیفیت بالا ≥ ۴۸kHz")
 }
 
+enum class ThemePaletteMode(val labelEn: String, val labelFa: String) {
+    SYSTEM_DYNAMIC("Dynamic (System M3)", "پویا بر اساس تم گوشی (M3)"),
+    VELORA_SAFFRON("Velora Saffron Gold", "طلای زعفرانی ولورا (پیش‌فرض)"),
+    HIGH_CONTRAST_MONOCHROME("OLED High Contrast", "کنتراست بی‌نهایت اولد (سیاه و سفید خالص)")
+}
+
 data class AppSettings(
     val eqEnabled: Boolean = true,
     val activeEqPresetId: String = EqPreset.FLAT.id,
@@ -95,7 +101,9 @@ data class AppSettings(
     val onlyValidMusicInSearch: Boolean = true,
     val backgroundVideoAudioEnabled: Boolean = true,
     val lowBatteryModeEnabled: Boolean = false,
-    val adaptiveAudioMode: AdaptiveAudioMode = AdaptiveAudioMode.ADAPTIVE_AI
+    val adaptiveAudioMode: AdaptiveAudioMode = AdaptiveAudioMode.ADAPTIVE_AI,
+    val dynamicColorEnabled: Boolean = true,
+    val themePaletteMode: ThemePaletteMode = ThemePaletteMode.SYSTEM_DYNAMIC
 )
 
 data class ScanProgress(
@@ -148,8 +156,18 @@ object PhiDesignMetrics {
         return (brightest + 0.05) / (darkest + 0.05)
     }
 
+    fun contrastRatio(foregroundColor: Long, backgroundColor: Long): Double {
+        val fgInt = (foregroundColor and 0xFFFFFFL).toInt()
+        val bgInt = (backgroundColor and 0xFFFFFFL).toInt()
+        return contrastRatio(fgInt, bgInt)
+    }
+
     fun meetsWcagAa(foregroundRgb: Int, backgroundRgb: Int, minRatio: Double = 4.5): Boolean {
         return contrastRatio(foregroundRgb, backgroundRgb) >= minRatio - 1e-6
+    }
+
+    fun meetsWcagAa(foregroundColor: Long, backgroundColor: Long, minRatio: Double = 4.5): Boolean {
+        return contrastRatio(foregroundColor, backgroundColor) >= minRatio - 1e-6
     }
 
     private val FORBIDDEN_EXACT_PATHS = setOf("/", "/home", "/home/", "/root", "/etc")

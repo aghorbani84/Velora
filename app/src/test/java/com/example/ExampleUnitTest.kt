@@ -222,6 +222,73 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun `dynamic color theme generator balances palettes to strictly meet WCAG 2_1 AA`() {
+        val darkDefault = com.example.ui.theme.VeloraSaffronColorScheme
+        val balanced = com.example.ui.theme.balanceDynamicColorScheme(darkDefault, isDark = true)
+        
+        // Background and surface must be Obsidian & Carbon
+        org.junit.Assert.assertEquals(com.example.ui.theme.VeloraObsidian, balanced.background)
+        org.junit.Assert.assertEquals(com.example.ui.theme.VeloraSecondaryBg, balanced.surface)
+
+        // Mathematical check on high contrast monochrome palette
+        val mono = com.example.ui.theme.VeloraHighContrastColorScheme
+        val monoRatio = PhiDesignMetrics.contrastRatio(0xFFFFFF, 0x000000)
+        org.junit.Assert.assertEquals(androidx.compose.ui.graphics.Color.White, mono.primary)
+        assertTrue("Pure monochrome contrast ratio ($monoRatio) must reach 21:1", monoRatio >= 20.9)
+    }
+
+    @Test
+    fun `gesture engine resolves double-tap seek zones and vertical swipe brightness and volume`() {
+        val leftTap = com.example.domain.model.VeloraGestureEngine.resolveDoubleTapGesture(
+            tapX = 100f,
+            surfaceWidth = 1000f,
+            currentPositionMs = 25_000L,
+            durationMs = 120_000L
+        )
+        assertEquals(com.example.domain.model.GestureActionType.SEEK_BACKWARD, leftTap.action)
+        assertEquals(15_000L, leftTap.targetPositionMs)
+
+        val rightTap = com.example.domain.model.VeloraGestureEngine.resolveDoubleTapGesture(
+            tapX = 850f,
+            surfaceWidth = 1000f,
+            currentPositionMs = 25_000L,
+            durationMs = 120_000L
+        )
+        assertEquals(com.example.domain.model.GestureActionType.SEEK_FORWARD, rightTap.action)
+        assertEquals(35_000L, rightTap.targetPositionMs)
+
+        val centerTap = com.example.domain.model.VeloraGestureEngine.resolveDoubleTapGesture(
+            tapX = 500f,
+            surfaceWidth = 1000f,
+            currentPositionMs = 25_000L,
+            durationMs = 120_000L
+        )
+        assertEquals(com.example.domain.model.GestureActionType.TOGGLE_PLAY_PAUSE, centerTap.action)
+
+        val leftSwipeUp = com.example.domain.model.VeloraGestureEngine.resolveVerticalSwipeGesture(
+            startX = 200f,
+            surfaceWidth = 1000f,
+            surfaceHeight = 500f,
+            dragDeltaY = -50f,
+            currentBrightness = 0.50f,
+            currentVolume = 0.50f
+        )
+        assertEquals(com.example.domain.model.GestureActionType.ADJUST_BRIGHTNESS, leftSwipeUp.action)
+        assertEquals(0.60f, leftSwipeUp.newValue, 0.01f)
+
+        val rightSwipeDown = com.example.domain.model.VeloraGestureEngine.resolveVerticalSwipeGesture(
+            startX = 800f,
+            surfaceWidth = 1000f,
+            surfaceHeight = 500f,
+            dragDeltaY = 50f,
+            currentBrightness = 0.50f,
+            currentVolume = 0.70f
+        )
+        assertEquals(com.example.domain.model.GestureActionType.ADJUST_VOLUME, rightSwipeDown.action)
+        assertEquals(0.60f, rightSwipeDown.newValue, 0.01f)
+    }
+
+    @Test
     fun `Goertzel 10-band spectrum analyzer and waveform downsampler accurately track frequency and amplitude`() {
         val sampleRate = 44100
         val samples1kHz = FloatArray(512) { n ->

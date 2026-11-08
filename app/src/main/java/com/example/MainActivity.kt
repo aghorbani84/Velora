@@ -102,6 +102,7 @@ import com.example.ui.theme.FazoraObsidian
 import com.example.ui.theme.FazoraSteel
 import com.example.ui.theme.VeloraTheme
 import com.example.ui.theme.PhiTokens
+import com.example.ui.viewmodel.VeloraUiState
 import com.example.ui.viewmodel.VeloraViewModel
 import com.example.ui.viewmodel.addCustomRadioStation
 import com.example.ui.viewmodel.addCustomSmartRule
@@ -136,6 +137,8 @@ import com.example.ui.viewmodel.setSubtitleColorTheme
 import com.example.ui.viewmodel.setSubtitleFontScale
 import com.example.ui.viewmodel.setVideoBrightnessLevel
 import com.example.ui.viewmodel.stampLyricLineAtCurrentPosition
+import com.example.ui.viewmodel.setThemePaletteMode
+import com.example.ui.viewmodel.setDynamicColorEnabled
 import com.example.ui.viewmodel.toggleDeclarativePlugin
 import com.example.ui.viewmodel.tuneRadioStation
 import com.example.ui.viewmodel.updateTrackMetadata
@@ -163,9 +166,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            VeloraTheme {
-                VeloraRootApp()
-            }
+            VeloraRootApp()
         }
     }
 }
@@ -178,6 +179,25 @@ fun VeloraRootApp(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isPersian = uiState.settings.appLanguageCode == "fa"
     val isSimpleMode = uiState.settings.isSimpleMode
+
+    VeloraTheme(paletteMode = uiState.settings.themePaletteMode) {
+        VeloraAppContent(
+            viewModel = viewModel,
+            uiState = uiState,
+            isPersian = isPersian,
+            isSimpleMode = isSimpleMode
+        )
+    }
+}
+
+@Composable
+private fun VeloraAppContent(
+    viewModel: VeloraViewModel,
+    uiState: VeloraUiState,
+    isPersian: Boolean,
+    isSimpleMode: Boolean
+) {
+    val context = LocalContext.current
     val homeDestination = if (isSimpleMode) VeloraDestination.MUSIC else VeloraDestination.LIBRARY
     var currentDestination by rememberSaveable { mutableStateOf(VeloraDestination.MUSIC) }
     val layoutDirection = if (isPersian) LayoutDirection.Rtl else LayoutDirection.Ltr
@@ -637,7 +657,8 @@ fun VeloraRootApp(
                             onToggleOnlyValidMusic = { viewModel.setOnlyValidMusicInSearch(it) },
                             onToggleBackgroundVideoAudio = { viewModel.setBackgroundVideoAudio(it) },
                             onToggleLowBatteryMode = { viewModel.setLowBatteryMode(it) },
-                            onSetAdaptiveAudioMode = { viewModel.setAdaptiveAudioMode(it) }
+                            onSetAdaptiveAudioMode = { viewModel.setAdaptiveAudioMode(it) },
+                            onSetThemePaletteMode = { viewModel.setThemePaletteMode(it) }
                         )
                     }
                 }

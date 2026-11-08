@@ -310,3 +310,15 @@ fun VeloraViewModel.setSubtitleColorTheme(theme: SubtitleColorTheme) {
     videoCinemaSettingsFlow.update { it.copy(subtitleColorTheme = theme) }
 }
 
+fun VeloraViewModel.setThemePaletteMode(mode: com.example.domain.model.ThemePaletteMode) {
+    viewModelScope.launch {
+        settingsRepository.updateThemePaletteMode(mode)
+    }
+}
+
+fun VeloraViewModel.setDynamicColorEnabled(enabled: Boolean) {
+    viewModelScope.launch {
+        settingsRepository.updateDynamicColorEnabled(enabled)
+    }
+}
+

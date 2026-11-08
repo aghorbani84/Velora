@@ -128,6 +128,14 @@ class VeloraSettingsRepository(
         dataStore.edit { it[KEY_ADAPTIVE_AUDIO] = mode.name }
     }
 
+    suspend fun updateThemePaletteMode(mode: com.example.domain.model.ThemePaletteMode) {
+        dataStore.edit { it[KEY_THEME_PALETTE_MODE] = mode.name }
+    }
+
+    suspend fun updateDynamicColorEnabled(enabled: Boolean) {
+        dataStore.edit { it[KEY_DYNAMIC_COLOR_ENABLED] = enabled }
+    }
+
     suspend fun addAllowedFolder(folderUriOrPath: String): Boolean {
         if (!PhiDesignMetrics.isSafeMediaFolder(folderUriOrPath)) {
             Log.w(TAG, "Rejected unsafe media folder path: $folderUriOrPath")
@@ -224,7 +232,11 @@ class VeloraSettingsRepository(
             lowBatteryModeEnabled = prefs[KEY_LOW_BATTERY_MODE] ?: false,
             adaptiveAudioMode = prefs[KEY_ADAPTIVE_AUDIO]?.let {
                 runCatching { com.example.domain.model.AdaptiveAudioMode.valueOf(it) }.getOrNull()
-            } ?: com.example.domain.model.AdaptiveAudioMode.ADAPTIVE_AI
+            } ?: com.example.domain.model.AdaptiveAudioMode.ADAPTIVE_AI,
+            dynamicColorEnabled = prefs[KEY_DYNAMIC_COLOR_ENABLED] ?: true,
+            themePaletteMode = prefs[KEY_THEME_PALETTE_MODE]?.let {
+                runCatching { com.example.domain.model.ThemePaletteMode.valueOf(it) }.getOrNull()
+            } ?: com.example.domain.model.ThemePaletteMode.SYSTEM_DYNAMIC
         )
     }
 
@@ -251,6 +263,8 @@ class VeloraSettingsRepository(
         private val KEY_BG_VIDEO_AUDIO = booleanPreferencesKey("bg_video_audio")
         private val KEY_LOW_BATTERY_MODE = booleanPreferencesKey("low_battery_mode")
         private val KEY_ADAPTIVE_AUDIO = stringPreferencesKey("adaptive_audio_mode")
+        private val KEY_DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
+        private val KEY_THEME_PALETTE_MODE = stringPreferencesKey("theme_palette_mode")
 
         fun backupCorruptFileIfPresent(targetFile: File): File? {
             return try {

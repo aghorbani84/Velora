@@ -53,7 +53,10 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +65,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -71,15 +75,18 @@ import com.example.R
 import com.example.domain.model.AudioRouteType
 import com.example.domain.model.EqPreset
 import com.example.domain.model.EqSpecification
+import com.example.domain.model.GestureActionType
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.QueueMode
 import com.example.domain.model.RepeatMode
 import com.example.domain.model.SyncedLyricLine
 import com.example.domain.model.TimeMachineBookmark
 import com.example.domain.model.Track
+import com.example.domain.model.VeloraGestureEngine
 import com.example.domain.model.VeloraLyricsAndSubtitleEngine
 import com.example.domain.model.VisualizerMode
 import com.example.ui.components.SpectrumAnalyzerCanvas
+import kotlinx.coroutines.delay
 import com.example.ui.theme.FazoraCarbon
 import com.example.ui.theme.FazoraCarbonBorder
 import com.example.ui.theme.FazoraCarbonElevated
@@ -404,14 +411,85 @@ fun PlayerAndEqScreen(
 
                     Spacer(modifier = Modifier.height(PhiTokens.Space8))
 
-                    SpectrumAnalyzerCanvas(
-                        spectrumBandsDb = engine.spectrumBandsDb,
-                        eqGainsDb = engine.eqBandGainsDb,
-                        eqEnabled = engine.eqEnabled,
-                        spectrumPeaksDb = engine.spectrumPeaksDb,
-                        waveformSamples = engine.waveformSamples,
-                        visualizerMode = engine.visualizerMode
-                    )
+                    var playerGestureHud by remember { mutableStateOf<String?>(null) }
+                    LaunchedEffect(playerGestureHud) {
+                        if (playerGestureHud != null) {
+                            delay(900L)
+                            playerGestureHud = null
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(engine.positionMs, durationMs) {
+                                detectTapGestures(
+                                    onDoubleTap = { offset ->
+                                        val res = VeloraGestureEngine.resolveDoubleTapGesture(
+                                            tapX = offset.x,
+                                            surfaceWidth = size.width.toFloat(),
+                                            currentPositionMs = engine.positionMs,
+                                            durationMs = durationMs
+                                        )
+                                        when (res.action) {
+                                            GestureActionType.SEEK_BACKWARD,
+                                            GestureActionType.SEEK_FORWARD -> {
+                                                onSeekTo(res.targetPositionMs)
+                                                playerGestureHud = res.hudLabel
+                                            }
+                                            else -> {
+                                                onTogglePlayPause()
+                                                playerGestureHud = res.hudLabel
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                            .pointerInput(engine.volume) {
+                                detectVerticalDragGestures(
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
+                                            startX = size.width.toFloat(),
+                                            surfaceWidth = size.width.toFloat(),
+                                            surfaceHeight = size.height.toFloat(),
+                                            dragDeltaY = dragAmount,
+                                            currentBrightness = 1f,
+                                            currentVolume = engine.volume
+                                        )
+                                        onVolumeChange(swipe.newValue)
+                                        playerGestureHud = swipe.hudLabel
+                                    }
+                                )
+                            }
+                            .testTag("player_gesture_surface")
+                    ) {
+                        SpectrumAnalyzerCanvas(
+                            spectrumBandsDb = engine.spectrumBandsDb,
+                            eqGainsDb = engine.eqBandGainsDb,
+                            eqEnabled = engine.eqEnabled,
+                            spectrumPeaksDb = engine.spectrumPeaksDb,
+                            waveformSamples = engine.waveformSamples,
+                            visualizerMode = engine.visualizerMode
+                        )
+
+                        if (playerGestureHud != null) {
+                            Surface(
+                                color = FazoraObsidian.copy(alpha = 0.85f),
+                                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .border(1.dp, FazoraGold, RoundedCornerShape(PhiTokens.CornerRadius21))
+                            ) {
+                                Text(
+                                    text = playerGestureHud.orEmpty(),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = FazoraGold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
