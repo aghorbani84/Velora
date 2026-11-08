@@ -24,17 +24,17 @@ complexity:
     ignoreAnnotated: ['Composable']
   LargeClass:
     active: true
-    threshold: 650
+    threshold: 500
   NestedBlockDepth:
     active: true
     threshold: 6
   TooManyFunctions:
     active: true
-    thresholdInFiles: 55
-    thresholdInClasses: 55
+    thresholdInFiles: 35
+    thresholdInClasses: 52
     thresholdInInterfaces: 25
     thresholdInObjects: 25
-    ignoreAnnotatedFunctions: ['Composable', 'Preview']
+    ignoreAnnotatedFunctions: ['Preview']
 
 coroutines:
   active: true

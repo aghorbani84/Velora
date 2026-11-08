@@ -96,7 +96,7 @@ interface IMediaOrchestrator {
 | **Smart Playlist Engine** | `VeloraSmartPlaylistEngine` | Deterministic, explainable local recommendation mixes (*Daily Saffron Mix*, *Most Played*, *Continue Listening*, *Hidden Gems & Hi-Res*, *Favorite Collection*). |
 | **Lyrics & Subtitle Studio** | `VeloraLyricsAndSubtitleEngine` + `VeloraSubtitleExporter` | Time-synchronized lyrics & subtitles with `±250ms` offset calibration, RTL/Unicode support (Persian, Arabic, Japanese, English), and `SRT` / `WebVTT` export. |
 | **Media Copilot & Graph** | `VeloraMediaCopilot` + `VeloraPersonalMediaGraph` | Natural-language deterministic command router and artist/album/format relationship graph. |
-| **Security & Stream Guard** | `VeloraDownloadValidator` + `PhiDesignMetrics` | Validates `HTTPS`/`HLS (.m3u8)`/`DASH (.mpd)` streams and authorized magnet links while blocking RFC-1918 local loopback SSRF and path traversal. |
+| **Secure Stream Validation** | `VeloraDownloadValidator` + `PhiDesignMetrics` | Secure Stream Validation (`HTTPS`/`HLS`/`DASH` URL sanitization) and authorized magnet verification with strict local path-traversal guards. |
 | **Sandboxed Plugin Engine** | `VeloraPluginRegistry` | Capability-based Tier 1 declarative plugin lifecycle with strict permission boundaries. |
 
 ---
@@ -141,15 +141,19 @@ VELORA rejects generic neon templates in favor of a calm, atmospheric **Dark Saf
 
 ---
 
-## 🌍 Platform & Format Compatibility Matrix
+## 📱 Android Architecture & Format Compatibility
 
-### Living Platform Capability Matrix (`VeloraPlatformMatrix`)
+VELORA is currently a dedicated **Android-only (`Media3 ExoPlayer` + `Jetpack Compose`)** application (`:app` module, `minSdk 26`, `targetSdk 36`). All UI screens (`app/src/main/java/com/example/ui/screens/`), navigation (`NavGraph.kt`), and state holders (`VeloraPlayerViewModel` + `MediaOrchestrator`) are strictly separated following Clean Architecture principles.
 
-| Platform Target | Playback Backend | 10-Band DSP & RTA | Offline DB & Cache | Streaming (`HLS`/`DASH`) | Sandboxed Plugins | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Android (`API 26–36`)** | AndroidX Media3 ExoPlayer + `MediaSessionService` | `TenBandBiquadAudioProcessor` + Hardware EQ | Room SQLite v3 + DataStore | Full (`HTTPS`, `.m3u8`, `.mpd`) | Tier 1 Declarative Registry | **Production Verified** |
-| **Desktop (`JVM / CMP`)** | Architecture ADR (`vlcj` / `libVLC` bridge) | Shared Domain Biquad Coefficients | Room KMP / SQLite | Full (`HTTPS`, `.m3u8`, `.mpd`) | Tier 1 Declarative Registry | **Domain Ready ([ADR-0001](docs/decisions/0001-desktop-cmp-libvlc-adr.md))** |
-| **iOS (`KMP Target`)** | `AVPlayer` / `AVAudioEngine` Contract | Shared Domain Biquad Coefficients | Room KMP / Keychain | `HLS` Native + `HTTPS` | Tier 1 Declarative Registry | **Contract Defined** |
+### Android Subsystem Verification Matrix (`VeloraPlatformMatrix`)
+
+| Android Subsystem | Implementation | Verification Scope |
+| :--- | :--- | :--- |
+| **Playback Engine (`API 26–36`)** | AndroidX Media3 ExoPlayer + `VeloraPlaybackService` (`MediaSessionService`) | Hardware & software decoding, background session controls, PiP, bilateral seek clamping |
+| **10-Band DSP & RTA** | `TenBandBiquadAudioProcessor` + Hardware 5-Band Millibel Sync | Cascaded RBJ biquad IIR filtering + Goertzel 10-band RTA & 64-point oscilloscope |
+| **Offline Database & Settings** | Room SQLite v3 (`VeloraDatabase`) + Jetpack DataStore (`VeloraSettingsRepository`) | Incremental `MediaStore`/SAF indexing, playlists, playback history, `.corrupt.bak` recovery |
+| **Secure Stream Validation** | `VeloraDownloadValidator` (`HTTPS` / `HLS .m3u8` / `DASH .mpd` URL sanitization) | Scheme allowlisting, private/loopback host rejection, and path-traversal sanitization |
+| **Sandboxed Plugins** | `VeloraPluginRegistry` (Tier 1 Declarative Registry) | Compliant with Google Play no-dynamic-code-loading (no `.dex`/`.jar`/`.so` loading) |
 
 ### Supported Media Formats (`VeloraCompatibilityMatrix`)
 
@@ -182,7 +186,7 @@ VELORA rejects generic neon templates in favor of a calm, atmospheric **Dark Saf
 
 ## 🇮🇷 معرفی و راهنمای فارسی VELORA
 
-**VELORA** (*فراتر از پخش — Beyond Playback*) یک پلتفرم چندرسانه‌ای نسل جدید، هوشمند و حریم‌خصوصی‌محور برای اندروید است که با معماری تمیز (**Clean Architecture**)، زبان **Kotlin**، رابط کاربری **Jetpack Compose (Material 3)** و هویت بصری اختصاصی **Dark Saffron & Champagne Gold (زعفرانی تیره و طلایی شامپاینی)** مهندسی شده است.
+**VELORA** (*فراتر از پخش — Beyond Playback*) یک پلتفرم چندرسانه‌ای نسل جدید، هوشمند و حریم‌خصوصی‌محور ویژه **اندروید** است که با معماری تمیز (**Clean Architecture**)، زبان **Kotlin**، رابط کاربری **Jetpack Compose (Material 3)** و موتور پخش **AndroidX Media3 ExoPlayer** با هویت بصری اختصاصی **Dark Saffron & Champagne Gold (زعفرانی تیره و طلایی شامپاینی)** مهندسی شده است.
 
 ### ✨ قابلیت‌های کلیدی
 - **هماهنگ‌کننده مرکزی رسانه (`IMediaOrchestrator` و `MediaOrchestrator`)**: مدیریت یکپارچه پخش صوت و تصویر، صف پخش، تاریخچه آفلاین Room و تنظیمات اتمیک DataStore با استفاده از `StateFlow` و تزریق وابستگی `Koin`.
@@ -192,7 +196,7 @@ VELORA rejects generic neon templates in favor of a calm, atmospheric **Dark Saf
   - **لیست‌های پخش هوشمند (`VeloraSmartPlaylistEngine`)**: تولید خودکار ۵ میکس هوشمند محلی (*Daily Saffron Mix*، *Most Played*، *Continue Listening*، *Hidden Gems & Hi-Res* و *Favorite Collection*).
   - **موتور متن ترانه و زیرنویس (`VeloraLyricsAndSubtitleEngine`)**: پشتیبانی کامل از زبان فارسی (راست‌به‌چپ)، تنظیم دقیق زمان‌بندی (`±250ms`) و خروجی استاندارد `SRT` و `WebVTT`.
   - **ماشین زمان رسانه (`Media Time Machine`)**: ثبت نشانک‌های زمانی (Bookmarks) روی لحظات دلخواه موسیقی و ویدیو.
-- **امنیت، استریم مجاز و افزونه‌های Sandboxed**: پشتیبانی از استریم‌های `HLS (.m3u8)`، `MPEG-DASH (.mpd)` و `HTTPS` با محافظت در برابر حملات SSRF و پیمایش مسیر (`VeloraDownloadValidator`) و رجیستری افزونه‌های امن Tier 1.
+- **اعتبارسنجی امن استریم و افزونه‌های Sandboxed**: پشتیبانی از استریم‌های `HLS (.m3u8)`، `MPEG-DASH (.mpd)` و `HTTPS` با پالایش و اعتبارسنجی امن نشانی‌های اینترنتی و جلوگیری از پیمایش مسیر (`VeloraDownloadValidator`) و رجیستری افزونه‌های امن Tier 1.
 
 ### 📲 دانلود و نصب
 برای دریافت آخرین فایل نصبی (`.apk`) امضاشده، به بخش **[Releases (انتشارها)](../../releases/latest)** در بالای همین مخزن مراجعه کنید و فایل **`VELORA-v2.0.0-release-signed.apk`** را دانلود و نصب نمایید.
@@ -205,5 +209,5 @@ VELORA rejects generic neon templates in favor of a calm, atmospheric **Dark Saf
 
 - **License:** Distributed under the [MIT License](LICENSE).
 - **Contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md) for architectural boundaries, Detekt rules, and PR guidelines.
-- **Security Policy:** See [SECURITY.md](SECURITY.md) for sandboxing architecture, SSRF/path-traversal guards, and vulnerability reporting.
+- **Security Policy:** See [SECURITY.md](SECURITY.md) for sandboxing architecture, Secure Stream Validation (`HTTPS`/`HLS`/`DASH` URL sanitization), path-traversal guards, and vulnerability reporting.
 - **Changelog:** See [CHANGELOG.md](CHANGELOG.md) for detailed release history.

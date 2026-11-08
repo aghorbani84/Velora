@@ -107,6 +107,6 @@
   <text x="760" y="386" fill="#F5F2EB" font-family="Inter, sans-serif" font-size="12.5" font-weight="600">• Room v3 Offline Cache &amp; History</text>
   <text x="760" y="408" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• Atomic DataStore + Corrupt Recovery</text>
   <text x="760" y="430" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• MediaStore + SAF Allowlist Scanner</text>
-  <text x="760" y="452" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• VeloraDownloadValidator (SSRF Guard)</text>
+  <text x="760" y="452" fill="#A5A29B" font-family="Inter, sans-serif" font-size="12">• VeloraDownloadValidator (Stream URL Sanitizer)</text>
   <text x="760" y="474" fill="#D9BD83" font-family="JetBrains Mono, monospace" font-size="11">• Firebase Auth + Zero-Trust Firestore</text>
 </svg>

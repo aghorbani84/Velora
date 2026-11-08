@@ -106,30 +106,20 @@ jobs:
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
-          # Prepare release signing keystore with guaranteed persistent certificate
-          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+          # Prepare release signing keystore strictly from CI secrets (zero hardcoded credentials)
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && [ -n "$STORE_PASSWORD_SECRET" ] && [ -n "$KEY_PASSWORD_SECRET" ]; then
             echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > my-upload-key.jks
+            echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> "$GITHUB_ENV"
             echo "STORE_PASSWORD=${STORE_PASSWORD_SECRET}" >> "$GITHUB_ENV"
             echo "KEY_PASSWORD=${KEY_PASSWORD_SECRET}" >> "$GITHUB_ENV"
-          elif [ -f my-upload-key.jks.base64 ]; then
-            base64 -d my-upload-key.jks.base64 > my-upload-key.jks
-            echo "STORE_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
-          elif [ -f my-upload-key.jks ]; then
-            echo "STORE_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
+            cat <<EOF > ci-signing.properties
+          KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks
+          STORE_PASSWORD=${STORE_PASSWORD_SECRET}
+          KEY_ALIAS=upload
+          KEY_PASSWORD=${KEY_PASSWORD_SECRET}
+          EOF
           else
-            keytool -genkeypair -v \
-              -keystore my-upload-key.jks \
-              -storepass velora_release_key \
-              -alias upload \
-              -keypass velora_release_key \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=VELORA Multimedia,OU=Engineering,O=VELORA,C=US"
-            echo "STORE_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
-            echo "KEY_PASSWORD=velora_release_key" >> "$GITHUB_ENV"
+            echo "::warning::Release signing secrets (RELEASE_KEYSTORE_BASE64, STORE_PASSWORD, KEY_PASSWORD) are not configured in GitHub Actions Secrets."
           fi
 
       - name: Run Detekt & Unit Verification Suite

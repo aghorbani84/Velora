@@ -19,8 +19,8 @@ Security and user privacy are foundational engineering requirements in **VELORA*
 - **Strict Media Path Allowlist (`PhiDesignMetrics.isSafeMediaFolder`):** Local scanning and user-selected folder paths are canonicalized and validated against traversal tokens (`..`, null bytes, symbolic links to restricted system roots such as `/proc`, `/sys`, `/data/data`, `/etc`).
 - **Zero Broad Storage Permissions:** Complies strictly with Google Play policies by using scoped `MediaStore` queries (`READ_MEDIA_AUDIO`, `READ_MEDIA_VIDEO` on API 33+) and the Storage Access Framework (`OpenDocumentTree`).
 
-### 2.2 Network Stream & Authorized Magnet Validation (`VeloraDownloadValidator`)
-- **SSRF Protection:** Rejects loopback (`127.0.0.1`, `localhost`, `::1`), link-local (`169.254.x.x`), and RFC-1918 private network addresses (`10.x.x.x`, `192.168.x.x`, `172.16–31.x.x`) in remote stream URLs.
+### 2.2 Secure Stream Validation (`VeloraDownloadValidator`)
+- **Secure Stream Validation (HTTPS/HLS/DASH URL sanitization):** Rejects untrusted loopback (`127.0.0.1`, `localhost`, `::1`), link-local (`169.254.x.x`), and RFC-1918 private network addresses (`10.x.x.x`, `192.168.x.x`, `172.16–31.x.x`) in remote stream URLs before passing URIs to ExoPlayer.
 - **Protocol Allowlist:** Permits only validated `https://` (and explicit user-initiated `http://` media streams) for `HLS (.m3u8)`, `MPEG-DASH (.mpd)`, and progressive media containers, plus syntactically verified 40-hex InfoHash `magnet:?xt=urn:btih:` links for authorized content.
 - **No DRM Circumvention:** VELORA never bypasses DRM or unauthorized access controls.
 

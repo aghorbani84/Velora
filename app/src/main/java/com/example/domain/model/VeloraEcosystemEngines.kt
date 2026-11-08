@@ -49,25 +49,25 @@ object VeloraPlatformMatrix {
             featureId = "streaming.hls.dash",
             featureName = "Authorized HLS (.m3u8), MPEG-DASH (.mpd) & HTTP Streaming",
             androidStatus = CapabilityStatus.SUPPORTED_AND_TESTED,
-            iosStatus = CapabilityStatus.SUPPORTED_WITH_LIMITATIONS,
-            desktopStatus = CapabilityStatus.PLANNED,
-            technicalNotes = "URL scheme & SSRF guard enforced before playback"
+            iosStatus = CapabilityStatus.UNSUPPORTED,
+            desktopStatus = CapabilityStatus.UNSUPPORTED,
+            technicalNotes = "Secure Stream Validation (HTTPS/HLS/DASH URL sanitization) enforced before playback"
         ),
         PlatformCapabilityEntry(
             featureId = "subtitles.lrc.srt.vtt",
             featureName = "Synchronized LRC, Multi-Script RTL & SRT/WebVTT Export",
             androidStatus = CapabilityStatus.SUPPORTED_AND_TESTED,
-            iosStatus = CapabilityStatus.SUPPORTED_AND_TESTED,
-            desktopStatus = CapabilityStatus.SUPPORTED_AND_TESTED,
-            technicalNotes = "Pure Kotlin common domain parser and exporter"
+            iosStatus = CapabilityStatus.UNSUPPORTED,
+            desktopStatus = CapabilityStatus.UNSUPPORTED,
+            technicalNotes = "Pure Kotlin domain parser and exporter in Android app module"
         ),
         PlatformCapabilityEntry(
             featureId = "plugins.declarative.tier1",
             featureName = "Tier 1 Declarative & Sandboxed Plugin Ecosystem",
             androidStatus = CapabilityStatus.SUPPORTED_AND_TESTED,
-            iosStatus = CapabilityStatus.SUPPORTED_WITH_LIMITATIONS,
-            desktopStatus = CapabilityStatus.SUPPORTED_WITH_LIMITATIONS,
-            technicalNotes = "Complies with Google Play & App Store no-dynamic-code-loading policies"
+            iosStatus = CapabilityStatus.UNSUPPORTED,
+            desktopStatus = CapabilityStatus.UNSUPPORTED,
+            technicalNotes = "Complies with Google Play no-dynamic-code-loading policies"
         )
     )
 }
