@@ -2,7 +2,7 @@ name: VELORA Android CI
 
 on:
   push:
-    branches: [ "main", "master", "develop", "kotlin-rewrite", "phase-*", "feature/*", "feat/*" ]
+    branches: [ "main", "master", "develop", "kotlin-rewrite", "phase-*", "feature/*", "feat/*", "fix/*" ]
   pull_request:
     branches: [ "main", "master", "develop", "kotlin-rewrite" ]
   workflow_dispatch:
@@ -50,11 +50,29 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
-      - name: Accept Android SDK Licenses & Install API 36.1
+      - name: Accept Android SDK Licenses & Install API 36 / 36.1
         run: |
-          if [ -n "$ANDROID_HOME" ] && [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
-            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "platforms;android-36.1" "build-tools;35.0.0" > /dev/null 2>&1 || true
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          mkdir -p "$SDK_ROOT/licenses"
+          printf "\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n" > "$SDK_ROOT/licenses/android-sdk-license"
+          printf "\n84831b9409646a918e30573bab4c9c91346d8abd\n" > "$SDK_ROOT/licenses/android-sdk-preview-license"
+          printf "\n601085b94cd77f0b54ff86406957099ebe79c4d6\n" > "$SDK_ROOT/licenses/android-googletv-license"
+          printf "\nceff83576aac4f7f37cb98fe189e9fb3c49d3b81\n" > "$SDK_ROOT/licenses/android-googlexr-license"
+
+          SDKMANAGER=""
+          if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          elif command -v sdkmanager >/dev/null 2>&1; then
+            SDKMANAGER="$(command -v sdkmanager)"
+          else
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -name sdkmanager -type f 2>/dev/null | head -n 1 || true)"
+          fi
+
+          if [ -n "$SDKMANAGER" ] && [ -x "$SDKMANAGER" ]; then
+            yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
+            yes | "$SDKMANAGER" "platform-tools" "build-tools;36.0.0" > /dev/null 2>&1 || true
+            yes | "$SDKMANAGER" "platforms;android-36" > /dev/null 2>&1 || true
+            yes | "$SDKMANAGER" "platforms;android-36.1" > /dev/null 2>&1 || true
           fi
 
       - name: Setup Gradle
@@ -63,7 +81,11 @@ jobs:
           gradle-version: '9.3.1'
           cache-read-only: false
 
-      - name: Prepare Gradle Wrapper, Environment & Debug Keystore
+      - name: Prepare Gradle Wrapper, Environment & Signing Keystores
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          STORE_PASSWORD_SECRET: ${{ secrets.STORE_PASSWORD }}
+          KEY_PASSWORD_SECRET: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ ! -f ./gradlew ]; then
             gradle wrapper
@@ -73,8 +95,9 @@ jobs:
             cp .env.example .env
           fi
           if [ -f debug.keystore.base64 ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-          elif [ ! -f debug.keystore ]; then
+            tr -d '[:space:]' < debug.keystore.base64 | base64 -d > debug.keystore || rm -f debug.keystore
+          fi
+          if [ ! -s debug.keystore ]; then
             keytool -genkeypair -v \
               -keystore debug.keystore \
               -storepass android \
@@ -86,22 +109,60 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Run Detekt, Unit Test Suites & Assemble Debug APK
-        run: ./gradlew detekt :app:testDebugUnitTest --tests com.example.ExampleUnitTest --tests com.example.DspBiquadMathTest --tests com.example.DownloadValidatorSecurityTest assembleDebug --parallel
+          KEYSTORE_READY="false"
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && [ -n "$STORE_PASSWORD_SECRET" ] && [ -n "$KEY_PASSWORD_SECRET" ]; then
+            if printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > my-upload-key.jks 2>/dev/null; then
+              if keytool -list -keystore my-upload-key.jks -storepass "$STORE_PASSWORD_SECRET" -alias upload >/dev/null 2>&1; then
+                KEYSTORE_READY="true"
+                ACTIVE_STORE_PASS="$STORE_PASSWORD_SECRET"
+                ACTIVE_KEY_PASS="$KEY_PASSWORD_SECRET"
+              else
+                rm -f my-upload-key.jks
+              fi
+            fi
+          fi
 
-      - name: Package & Checksum APK
+          if [ "$KEYSTORE_READY" != "true" ]; then
+            ACTIVE_STORE_PASS="$(openssl rand -hex 16)"
+            ACTIVE_KEY_PASS="$ACTIVE_STORE_PASS"
+            keytool -genkeypair -v \
+              -keystore my-upload-key.jks \
+              -alias upload \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass "$ACTIVE_STORE_PASS" \
+              -keypass "$ACTIVE_KEY_PASS" \
+              -dname "CN=VELORA, OU=Engineering, O=VELORA, C=IR"
+          fi
+
+          echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> "$GITHUB_ENV"
+          echo "STORE_PASSWORD=${ACTIVE_STORE_PASS}" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=${ACTIVE_KEY_PASS}" >> "$GITHUB_ENV"
+
+      - name: Run Detekt, Unit Test Suites & Assemble APKs
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
+          VERSION="${VERSION#v}"
+          ./gradlew detekt :app:testDebugUnitTest --tests com.example.ExampleUnitTest --tests com.example.DspBiquadMathTest --tests com.example.DownloadValidatorSecurityTest assembleDebug assembleRelease -Pvelora.versionName="${VERSION:-2.3.0}" --parallel
+
+      - name: Package & Checksum APKs
+        run: |
+          VERSION=$(tr -d '[:space:]' < VERSION)
+          VERSION="${VERSION#v}"
+          VERSION="${VERSION:-2.3.0}"
           mkdir -p build-artifacts
+          cp app/build/outputs/apk/release/app-release.apk "build-artifacts/VELORA-v${VERSION}-release-signed.apk"
           cp app/build/outputs/apk/debug/app-debug.apk "build-artifacts/VELORA-v${VERSION}-debug.apk"
           cd build-artifacts
-          sha256sum "VELORA-v${VERSION}-debug.apk" > "VELORA-v${VERSION}-debug.apk.sha256"
+          sha256sum VELORA-*.apk > "VELORA-v${VERSION}-SHA256SUMS.txt"
+          rm -f "${GITHUB_WORKSPACE}/my-upload-key.jks"
 
-      - name: Upload VELORA APK Artifact
+      - name: Upload VELORA APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: VELORA-android-debug-apk
+          name: VELORA-android-apks
           path: |
             build-artifacts/VELORA-*.apk
-            build-artifacts/VELORA-*.sha256
+            build-artifacts/VELORA-*SHA256SUMS.txt
           if-no-files-found: error

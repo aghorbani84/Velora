@@ -24,8 +24,18 @@ android {
     applicationId = "com.aistudio.fazora.audiosync"
     minSdk = 26
     targetSdk = 36
-    versionCode = providers.gradleProperty("velora.versionCode").getOrElse("6").toInt()
-    versionName = rootProject.file("VERSION").readText().trim()
+    val versionFile = rootProject.file("VERSION")
+    val fileVersion =
+      if (versionFile.exists()) versionFile.readText().trim().removePrefix("v") else ""
+    versionCode =
+      providers.gradleProperty("velora.versionCode").getOrElse("6").trim().toIntOrNull() ?: 6
+    versionName =
+      providers
+        .gradleProperty("velora.versionName")
+        .orElse(providers.provider { fileVersion.ifEmpty { "2.3.0" } })
+        .get()
+        .trim()
+        .removePrefix("v")
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
