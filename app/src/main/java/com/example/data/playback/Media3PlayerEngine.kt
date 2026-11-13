@@ -1,8 +1,10 @@
 package com.example.data.playback
 
 import android.content.Context
+import android.content.Intent
 import android.media.audiofx.Equalizer
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
@@ -315,12 +317,35 @@ class Media3PlayerEngine(
 
         player.setMediaItem(mediaItem, clampedStart)
         player.prepare()
+        ensurePlaybackServiceStarted()
         player.playWhenReady = true
+    }
+
+    /**
+     * Req 4 (background playback): the MediaSessionService is declared in the
+     * manifest but nothing in the app ever started it, so playback survived
+     * only while the app process lived. Starting it here hands the shared
+     * ExoPlayer to the foreground service (mediaPlayback type); Media3
+     * promotes it to foreground with the media notification while playing.
+     * Safe to call repeatedly; failures are logged, never fatal.
+     */
+    private fun ensurePlaybackServiceStarted() {
+        runCatching {
+            val intent = Intent(context, VeloraPlaybackService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }.onFailure { err ->
+            Log.w("Media3PlayerEngine", "Could not start playback service: ${err.message}")
+        }
     }
 
     override fun play() {
         val current = _playbackState.value
         if (current.status == PlaybackStatus.ERROR) return
+        ensurePlaybackServiceStarted()
         val player = exoPlayerInstance
         if (player != null) {
             if (player.playbackState == Player.STATE_IDLE && current.currentTrack != null) {

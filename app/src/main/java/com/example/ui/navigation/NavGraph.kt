@@ -222,7 +222,8 @@ fun VeloraNavGraph(
                 onSetVideoBrightness = { viewModel.setVideoBrightnessLevel(it) },
                 onSetSubtitleFontScale = { viewModel.setSubtitleFontScale(it) },
                 onSetSubtitleColorTheme = { viewModel.setSubtitleColorTheme(it) },
-                onAddVideoBookmark = { viewModel.addTimeMachineBookmark("Cinema Scene") }
+                onAddVideoBookmark = { viewModel.addTimeMachineBookmark("Cinema Scene") },
+                isSimpleMode = uiState.settings.isSimpleMode
             )
         }
 
