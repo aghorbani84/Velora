@@ -79,4 +79,59 @@ class DspBiquadMathTest {
             }
         }
     }
+
+    @Test
+    fun `softClipLimiter is strictly linear below knee threshold and asymptotically bounded at unity`() {
+        assertEquals(0.0, BiquadEqDsp.softClipLimiter(0.0), 1e-12)
+        assertEquals(0.5, BiquadEqDsp.softClipLimiter(0.5), 1e-12)
+        assertEquals(-0.85, BiquadEqDsp.softClipLimiter(-0.85), 1e-12)
+
+        val softHigh = BiquadEqDsp.softClipLimiter(2.5)
+        val softExtreme = BiquadEqDsp.softClipLimiter(10.0)
+        assertTrue("Soft limiter must smoothly compress above knee (0.85 < $softHigh <= 1.0)", softHigh > 0.85 && softHigh <= 1.0)
+        assertTrue("Soft limiter must be monotonic ($softExtreme >= $softHigh)", softExtreme >= softHigh)
+        assertEquals(-softHigh, BiquadEqDsp.softClipLimiter(-2.5), 1e-12)
+    }
+
+    @Test
+    fun `cascade magnitude response curve is 0dB for flat preset and reflects band boost and auto-preamp`() {
+        val flatCurve = BiquadEqDsp.evaluateCascadeMagnitudeResponseDb(
+            sampleRateHz = 48_000,
+            gainsDb = com.example.domain.model.EqPreset.FLAT.gainsDb,
+            pointCount = 64
+        )
+        assertEquals(64, flatCurve.size)
+        for (db in flatCurve) {
+            assertEquals(0.0f, db, 1e-4f)
+        }
+
+        val bassCurve = BiquadEqDsp.evaluateCascadeMagnitudeResponseDb(
+            sampleRateHz = 48_000,
+            gainsDb = com.example.domain.model.EqPreset.BASS_BOOST.gainsDb,
+            pointCount = 64
+        )
+        assertTrue("Sub-bass response must be boosted > +5 dB", bassCurve.first() > 5.0f)
+
+        val autoPreamp = BiquadEqDsp.computeOptimalAutoPreampDb(
+            gainsDb = com.example.domain.model.EqPreset.BASS_BOOST.gainsDb,
+            bassBoostPercent = 50
+        )
+        assertTrue("Auto-preamp must apply negative headroom compensation ($autoPreamp dB)", autoPreamp < -5.0f)
+    }
+
+    @Test
+    fun `Oklab perceptual lightness and APCA contrast validate Velora Saffron on Obsidian`() {
+        val lObsidian = com.example.domain.model.PhiDesignMetrics.perceptualOklabLightness(0x0B0B0D)
+        val lSaffron = com.example.domain.model.PhiDesignMetrics.perceptualOklabLightness(0xE5A817)
+        val lIvory = com.example.domain.model.PhiDesignMetrics.perceptualOklabLightness(0xF5F2EB)
+
+        assertTrue("Obsidian Oklab L must be dark (< 0.20)", lObsidian < 0.20)
+        assertTrue("Saffron Oklab L must be bright (> 0.70)", lSaffron > 0.70)
+        assertTrue("Ivory Oklab L must exceed Saffron L", lIvory > lSaffron)
+
+        val apcaSaffron = abs(com.example.domain.model.PhiDesignMetrics.apcaPerceptualContrastLc(0xE5A817, 0x0B0B0D))
+        val apcaIvory = abs(com.example.domain.model.PhiDesignMetrics.apcaPerceptualContrastLc(0xF5F2EB, 0x0B0B0D))
+        assertTrue("Saffron on Obsidian must exceed APCA Lc 60 ($apcaSaffron)", apcaSaffron >= 60.0)
+        assertTrue("Ivory on Obsidian must exceed APCA Lc 90 ($apcaIvory)", apcaIvory >= 90.0)
+    }
 }

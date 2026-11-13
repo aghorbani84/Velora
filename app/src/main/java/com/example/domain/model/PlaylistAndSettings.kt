@@ -170,6 +170,53 @@ object PhiDesignMetrics {
         return contrastRatio(foregroundColor, backgroundColor) >= minRatio - 1e-6
     }
 
+    /**
+     * Computes Björn Ottosson's Oklab perceptual lightness L in [0.0, 1.0] via LMS cone response
+     * cube-root non-linearity, modeling human visual cortex brightness perception.
+     */
+    fun perceptualOklabLightness(rgbHex: Int): Double {
+        val rSrgb = ((rgbHex shr 16) and 0xFF) / 255.0
+        val gSrgb = ((rgbHex shr 8) and 0xFF) / 255.0
+        val bSrgb = (rgbHex and 0xFF) / 255.0
+
+        fun linearize(c: Double): Double =
+            if (c <= 0.04045) c / 12.92 else ((c + 0.055) / 1.055).pow(2.4)
+
+        val r = linearize(rSrgb)
+        val g = linearize(gSrgb)
+        val b = linearize(bSrgb)
+
+        val l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b
+        val m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b
+        val s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
+
+        val lPrime = kotlin.math.cbrt(l.coerceAtLeast(0.0))
+        val mPrime = kotlin.math.cbrt(m.coerceAtLeast(0.0))
+        val sPrime = kotlin.math.cbrt(s.coerceAtLeast(0.0))
+
+        return (0.2104542553 * lPrime + 0.7936177850 * mPrime - 0.0040720468 * sPrime).coerceIn(0.0, 1.0)
+    }
+
+    /**
+     * Computes polarity-aware APCA (Accessible Perceptual Contrast Algorithm, WCAG 3.0) Lc value.
+     * Negative values indicate light-on-dark polarity (e.g., Saffron/Ivory on Obsidian); |Lc| >= 60
+     * satisfies body-text perceptual legibility.
+     */
+    fun apcaPerceptualContrastLc(textRgbHex: Int, bgRgbHex: Int): Double {
+        val yTxt = relativeLuminance(textRgbHex).coerceAtLeast(0.0)
+        val yBg = relativeLuminance(bgRgbHex).coerceAtLeast(0.0)
+        val sapc = if (yBg > yTxt) {
+            (yBg.pow(0.56) - yTxt.pow(0.57)) * 1.14
+        } else {
+            (yBg.pow(0.65) - yTxt.pow(0.62)) * 1.14
+        }
+        return when {
+            abs(sapc) < 0.1 -> 0.0
+            sapc > 0.0 -> (sapc - 0.027) * 100.0
+            else -> (sapc + 0.027) * 100.0
+        }
+    }
+
     private val FORBIDDEN_EXACT_PATHS = setOf("/", "/home", "/home/", "/root", "/etc")
 
     fun isSafeMediaFolder(pathOrUri: String): Boolean {

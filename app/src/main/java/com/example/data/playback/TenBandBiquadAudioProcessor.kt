@@ -60,6 +60,9 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
 
     private val smoothedSpectrum = FloatArray(EqSpecification.BAND_COUNT) { -60f }
     private val peakHoldSpectrum = FloatArray(EqSpecification.BAND_COUNT) { -60f }
+    private val reusableMonoAnalysisBuffer = FloatArray(512)
+    private var reusableFrameSamples = DoubleArray(2)
+    private var ditherState: Long = 0x5DEECE66DL
 
     private val _spectrumBandsDb = MutableStateFlow(List(EqSpecification.BAND_COUNT) { -60f })
     val spectrumBandsDb: StateFlow<List<Float>> = _spectrumBandsDb.asStateFlow()
@@ -123,6 +126,9 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
         val channels = inputAudioFormat.channelCount.coerceAtLeast(1)
         z1State = Array(EqSpecification.BAND_COUNT) { DoubleArray(channels) }
         z2State = Array(EqSpecification.BAND_COUNT) { DoubleArray(channels) }
+        if (reusableFrameSamples.size < channels) {
+            reusableFrameSamples = DoubleArray(channels)
+        }
         recomputeCoefficients()
         return outputAudioFormat
     }
@@ -148,11 +154,18 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
         val width = stereoWidthFactor
 
         val frameCount = remaining / (2 * channels)
-        val analysisWindowSize = frameCount.coerceAtMost(512)
-        val monoAnalysisBuffer = FloatArray(analysisWindowSize)
+        val analysisWindowSize = frameCount.coerceAtMost(reusableMonoAnalysisBuffer.size)
+        val monoAnalysisBuffer = if (analysisWindowSize == reusableMonoAnalysisBuffer.size) {
+            reusableMonoAnalysisBuffer
+        } else {
+            FloatArray(analysisWindowSize)
+        }
+        if (reusableFrameSamples.size < channels) {
+            reusableFrameSamples = DoubleArray(channels)
+        }
+        val frameSamples = reusableFrameSamples
         var broadbandEnergySum = 0.0
         var maxPeakAbs = 0.0
-        val frameSamples = DoubleArray(channels)
 
         for (frameIdx in 0 until frameCount) {
             var frameMonoSum = 0.0
@@ -168,8 +181,8 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
             if (applyEq && channels == 2 && width > 0.01) {
                 val mid = 0.5 * (frameSamples[0] + frameSamples[1])
                 val side = 0.5 * (frameSamples[0] - frameSamples[1]) * (1.0 + width)
-                frameSamples[0] = (mid + side).coerceIn(-1.0, 1.0)
-                frameSamples[1] = (mid - side).coerceIn(-1.0, 1.0)
+                frameSamples[0] = BiquadEqDsp.softClipLimiter(mid + side)
+                frameSamples[1] = BiquadEqDsp.softClipLimiter(mid - side)
             }
             for (ch in 0 until channels) {
                 val processedSample = frameSamples[ch]
@@ -179,7 +192,8 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
                     maxPeakAbs = absSample
                 }
                 frameMonoSum += processedSample
-                val outShort = (processedSample * 32767.0).toInt().toShort()
+                val dithered = processedSample * 32767.0 + nextTpdfDitherLsb()
+                val outShort = dithered.toInt().coerceIn(-32768, 32767).toShort()
                 internalBuffer.putShort(outShort)
             }
             if (frameIdx < analysisWindowSize) {
@@ -201,6 +215,24 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
         outputBuffer = internalBuffer
     }
 
+    /**
+     * Generates zero-mean Triangular Probability Density Function (TPDF) dither in [-0.5, +0.5] LSB
+     * using a lock-free xorshift64* generator to eliminate 16-bit quantization distortion.
+     */
+    private fun nextTpdfDitherLsb(): Double {
+        var x = ditherState
+        x = x xor (x shl 13)
+        x = x xor (x ushr 7)
+        x = x xor (x shl 17)
+        val u1 = ((x and 0xFFFFFFL).toDouble() / 16777216.0) - 0.5
+        x = x xor (x shl 13)
+        x = x xor (x ushr 7)
+        x = x xor (x shl 17)
+        ditherState = x
+        val u2 = ((x and 0xFFFFFFL).toDouble() / 16777216.0) - 0.5
+        return (u1 + u2) * 0.5
+    }
+
     private fun processChannelSample(
         rawSample: Double,
         channel: Int,
@@ -217,7 +249,7 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
                 sample = y
             }
         }
-        return sample.coerceIn(-1.0, 1.0)
+        return BiquadEqDsp.softClipLimiter(sample)
     }
 
     private fun emitTelemetrySnapshot(

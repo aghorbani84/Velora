@@ -541,29 +541,40 @@ fun SpectrumAnalyzerCanvas(
                 )
             }
 
-            // 10-Band Biquad EQ Transfer Curve Overlay
+            // 10-Band Biquad EQ Continuous Transfer Function Curve Overlay |H(e^{jw})|
             if (eqEnabled && eqGainsDb.size >= bandCount) {
+                val cascadeResponseDb = com.example.domain.model.BiquadEqDsp.evaluateCascadeMagnitudeResponseDb(
+                    sampleRateHz = 48_000,
+                    gainsDb = eqGainsDb,
+                    pointCount = 64
+                )
                 val eqPath = Path()
-                for (i in 0 until bandCount) {
-                    val gain = eqGainsDb[i].coerceIn(-12f, 12f)
-                    val x = i * slotWidth + slotWidth * 0.5f
-                    val y = midY - (gain / 12f) * (h * 0.42f)
-                    if (i == 0) {
+                val ptCount = cascadeResponseDb.size
+                for (ptIdx in 0 until ptCount) {
+                    val responseDb = cascadeResponseDb[ptIdx].coerceIn(-15f, 15f)
+                    val x = (ptIdx.toFloat() / (ptCount - 1).coerceAtLeast(1)) * (w - slotWidth) + slotWidth * 0.5f
+                    val y = (midY - (responseDb / 12f) * (h * 0.42f)).coerceIn(2f, h - 2f)
+                    if (ptIdx == 0) {
                         eqPath.moveTo(x, y)
                     } else {
                         eqPath.lineTo(x, y)
                     }
-                    drawCircle(
-                        color = FazoraGoldBright,
-                        radius = 3.dp.toPx(),
-                        center = Offset(x, y)
-                    )
                 }
                 drawPath(
                     path = eqPath,
                     color = FazoraGoldBright,
-                    style = Stroke(width = 2.dp.toPx())
+                    style = Stroke(width = 2.2.dp.toPx())
                 )
+                for (i in 0 until bandCount) {
+                    val gain = eqGainsDb[i].coerceIn(-12f, 12f)
+                    val x = i * slotWidth + slotWidth * 0.5f
+                    val y = (midY - (gain / 12f) * (h * 0.42f)).coerceIn(2f, h - 2f)
+                    drawCircle(
+                        color = FazoraGoldBright,
+                        radius = 3.2.dp.toPx(),
+                        center = Offset(x, y)
+                    )
+                }
             }
         }
 

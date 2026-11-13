@@ -286,10 +286,25 @@ object VeloraSmartPlaylistEngine {
         if (track.sampleRateHz >= 48_000 || track.bitrateKbps >= 1000) score += 12.0
 
         if (historyEntry != null) {
-            score += min(historyEntry.playCount * 8.0, 40.0)
-            score += min(historyEntry.completedCount * 6.0, 24.0)
+            val plays = historyEntry.playCount.coerceAtLeast(0)
+            val completions = historyEntry.completedCount.coerceIn(0, plays.coerceAtLeast(1))
+            score += min(plays * 8.0, 40.0)
+            score += min(completions * 6.0, 24.0)
+
+            // Wilson score lower-bound confidence (z = 1.28 for 80% confidence interval)
+            if (plays > 0) {
+                val n = plays.toDouble()
+                val p = (completions.toDouble() / n).coerceIn(0.0, 1.0)
+                val z2 = 1.6384
+                val wilsonLower = (p + z2 / (2.0 * n)) / (1.0 + z2 / n)
+                score += wilsonLower * 10.0
+            }
+
+            // Ebbinghaus forgetting-curve retention R(t) = exp(-t / S) with stability S
             val ageHours = ((nowMs - historyEntry.lastPlayedAtMs).coerceAtLeast(0L)) / 3_600_000.0
-            val recencyBonus = 20.0 / (1.0 + ageHours * 0.15)
+            val stabilityHours = 12.0 + completions * 18.0
+            val retention = kotlin.math.exp(-ageHours / stabilityHours)
+            val recencyBonus = 20.0 * retention
             score += recencyBonus
         }
         return score
