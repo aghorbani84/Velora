@@ -10,6 +10,14 @@ package com.example.domain.model
  *   the video screen ignored it entirely: every pro control was always shown.
  * - Fullscreen existed only as a Dialog: no system-bar hiding, no
  *   orientation handling anywhere in the app.
+ *
+ * UX pass (2026-11-13, feature/video-player-ux): the overlay was narrowed
+ * further. PiP used to count as Simple-visible here, but the screen never
+ * actually showed it in Simple Mode, and the redesign puts PiP, lock,
+ * speed, aspect, subtitles, audio-track and bookmarks behind ONE "more"
+ * bottom sheet that exists only in Studio mode. So the overlay now shows
+ * exactly transport + seek + fullscreen in both modes; the sheet is the
+ * single home for everything else (Studio only).
  */
 enum class VideoControlGroup {
     TRANSPORT,
@@ -21,7 +29,8 @@ enum class VideoControlGroup {
     ASPECT,
     SUBTITLES,
     AUDIO_TRACK,
-    BOOKMARK
+    BOOKMARK,
+    LOCK
 }
 
 object FullscreenPolicy {
@@ -34,17 +43,31 @@ object FullscreenPolicy {
     fun shouldLockLandscape(nativeRatio: Float): Boolean = nativeRatio > 1.0f
 
     /**
-     * Req 1: in Simple Mode only the easy controls stay visible — transport,
-     * seek, fullscreen, PiP and picking a video. Speed, aspect, subtitles,
-     * audio-track selection and bookmarks are Pro (Studio) controls.
-     * In Studio Mode everything is visible.
+     * Directly visible on the player overlay (embedded and fullscreen).
+     * Identical in Simple and Studio mode: transport, seek, fullscreen.
+     * Everything else lives behind the "more" sheet (Studio) or is hidden
+     * (Simple). PICK_VIDEO is not an overlay control at all: it is a
+     * library action below the player, shown in Studio mode only.
      */
     fun isProControlVisible(isSimpleMode: Boolean, group: VideoControlGroup): Boolean {
-        if (!isSimpleMode) return true
         return group == VideoControlGroup.TRANSPORT ||
             group == VideoControlGroup.SEEK ||
-            group == VideoControlGroup.FULLSCREEN ||
-            group == VideoControlGroup.PIP ||
-            group == VideoControlGroup.PICK_VIDEO
+            group == VideoControlGroup.FULLSCREEN
+    }
+
+    /**
+     * Lives behind the single "more" bottom sheet. The sheet exists only in
+     * Studio mode; in Simple Mode these controls are hidden entirely —
+     * nothing is removed, only organized.
+     */
+    fun isInMoreSheet(isSimpleMode: Boolean, group: VideoControlGroup): Boolean {
+        if (isSimpleMode) return false
+        return group == VideoControlGroup.PIP ||
+            group == VideoControlGroup.LOCK ||
+            group == VideoControlGroup.SPEED ||
+            group == VideoControlGroup.ASPECT ||
+            group == VideoControlGroup.SUBTITLES ||
+            group == VideoControlGroup.AUDIO_TRACK ||
+            group == VideoControlGroup.BOOKMARK
     }
 }
