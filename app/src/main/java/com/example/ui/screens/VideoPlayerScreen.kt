@@ -1,11 +1,16 @@
 package com.example.ui.screens
 
 import android.content.Intent
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import android.view.LayoutInflater
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -64,6 +69,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -90,6 +96,7 @@ import androidx.media3.ui.PlayerView
 import com.example.R
 import com.example.domain.engine.PlaybackStatus
 import com.example.domain.model.GestureActionType
+import com.example.domain.model.FullscreenPolicy
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.SubtitleColorTheme
 import com.example.domain.model.SubtitleFontScale
@@ -130,6 +137,7 @@ fun VideoPlayerScreen(
     onSetSubtitleFontScale: (SubtitleFontScale) -> Unit = {},
     onSetSubtitleColorTheme: (SubtitleColorTheme) -> Unit = {},
     onAddVideoBookmark: () -> Unit = {},
+    isSimpleMode: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -246,6 +254,32 @@ fun VideoPlayerScreen(
     }
 
     val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+
+    // Req 3 — true immersive fullscreen: hide system bars + lock landscape
+    // for landscape video while fullscreen is open; restore both on exit.
+    // The landscape decision is the tested pure rule in FullscreenPolicy.
+    val activity = context as? Activity
+    DisposableEffect(isFullscreen) {
+        if (isFullscreen) {
+            val window = activity?.window
+            val insetsController = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
+            insetsController?.hide(WindowInsetsCompat.Type.systemBars())
+            insetsController?.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            val previousOrientation = activity?.requestedOrientation
+                ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            if (FullscreenPolicy.shouldLockLandscape(nativeRatio)) {
+                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            }
+            onDispose {
+                insetsController?.show(WindowInsetsCompat.Type.systemBars())
+                activity?.requestedOrientation = previousOrientation
+            }
+        } else {
+            onDispose { }
+        }
+    }
+
 
     if (isFullscreen) {
         Dialog(
@@ -1073,192 +1107,194 @@ fun VideoPlayerScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    if (!isSimpleMode) {
+                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
-                    Text(
-                        text = if (isPersian) "سرعت پخش ویدیو" else "Playback Speed",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                        items(speedOptions) { speed ->
-                            val isSelected = kotlin.math.abs(engine.playbackSpeed - speed) < 0.01f
-                            OutlinedButton(
-                                onClick = {
-                                    interactionNonce++
-                                    onSetPlaybackSpeed(speed)
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
-                                    contentColor = if (isSelected) FazoraObsidian else FazoraIvory
-                                ),
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("video_speed_${speed}")
-                            ) {
-                                Icon(Icons.Default.Speed, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("${speed}x")
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                    Text(
-                        text = if (isPersian) "نسبت ابعاد تصویر" else "Aspect Ratio & Framing",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                        items(VideoAspectMode.entries) { mode ->
-                            val isSelected = engine.videoAspectMode == mode
-                            OutlinedButton(
-                                onClick = {
-                                    interactionNonce++
-                                    onSetAspectMode(mode)
-                                },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
-                                    contentColor = if (isSelected) FazoraObsidian else FazoraIvory
-                                ),
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("video_aspect_${mode.name}")
-                            ) {
-                                Icon(Icons.Default.AspectRatio, contentDescription = null)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(mode.label)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedButton(
-                            onClick = { showSubtitleDialog = true },
-                            modifier = Modifier
-                                .weight(1f)
-                                .minimumInteractiveComponentSize()
-                                .testTag("video_subtitles_toggle")
-                        ) {
-                            Icon(Icons.Default.Subtitles, contentDescription = null, tint = FazoraGold)
-                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(
-                                text = if (isPersian) {
-                                    if (engine.subtitlesEnabled) "زیرنویس: روشن" else "زیرنویس: خاموش"
-                                } else {
-                                    if (engine.subtitlesEnabled) "Subtitles: ON" else "Subtitles: OFF"
-                                },
-                                color = FazoraIvory
-                            )
-                        }
-
-                        OutlinedButton(
-                            onClick = { showAudioDialog = true },
-                            modifier = Modifier
-                                .weight(1f)
-                                .minimumInteractiveComponentSize()
-                                .testTag("video_audio_track_button")
-                        ) {
-                            Icon(Icons.Default.Audiotrack, contentDescription = null, tint = FazoraGold)
-                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(
-                                text = if (isPersian) {
-                                    "ترک‌های صوتی (${engine.audioTracks.size.coerceAtLeast(1)})"
-                                } else {
-                                    "Audio Tracks (${engine.audioTracks.size.coerceAtLeast(1)})"
-                                },
-                                color = FazoraIvory
-                            )
-                        }
-
-                        OutlinedButton(
-                            onClick = onAddVideoBookmark,
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("video_add_bookmark_button")
-                        ) {
-                            Icon(Icons.Default.BookmarkAdd, contentDescription = null, tint = FazoraGold)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(if (isPersian) "بوکمارک صحنه" else "Bookmark Scene", color = FazoraIvory)
-                        }
-                    }
-
-                    if (uiState.timeMachineBookmarks.isNotEmpty()) {
+                        Text(
+                            text = if (isPersian) "سرعت پخش ویدیو" else "Playback Speed",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = FazoraGold
+                        )
                         Spacer(modifier = Modifier.height(PhiTokens.Space8))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                            items(uiState.timeMachineBookmarks, key = { "vbm_${it.id}" }) { bm ->
+                            items(speedOptions) { speed ->
+                                val isSelected = kotlin.math.abs(engine.playbackSpeed - speed) < 0.01f
                                 OutlinedButton(
-                                    onClick = { onSeekTo(bm.timestampMs) },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    onClick = {
+                                        interactionNonce++
+                                        onSetPlaybackSpeed(speed)
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
+                                        contentColor = if (isSelected) FazoraObsidian else FazoraIvory
+                                    ),
+                                    modifier = Modifier
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("video_speed_${speed}")
                                 ) {
-                                    Text("🔖 ${bm.formattedTimestamp} • ${bm.trackTitle}", color = FazoraGold)
+                                    Icon(Icons.Default.Speed, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("${speed}x")
                                 }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = FazoraGold,
-                                contentColor = FazoraObsidian
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .minimumInteractiveComponentSize()
-                                .testTag("pick_video_button")
-                        ) {
-                            Icon(Icons.Default.FolderOpen, contentDescription = null)
-                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(if (isPersian) "انتخاب ویدیو" else "Pick Video")
+                        Text(
+                            text = if (isPersian) "نسبت ابعاد تصویر" else "Aspect Ratio & Framing",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = FazoraGold
+                        )
+                        Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                            items(VideoAspectMode.entries) { mode ->
+                                val isSelected = engine.videoAspectMode == mode
+                                OutlinedButton(
+                                    onClick = {
+                                        interactionNonce++
+                                        onSetAspectMode(mode)
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
+                                        contentColor = if (isSelected) FazoraObsidian else FazoraIvory
+                                    ),
+                                    modifier = Modifier
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("video_aspect_${mode.name}")
+                                ) {
+                                    Icon(Icons.Default.AspectRatio, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(mode.label)
+                                }
+                            }
                         }
+
+                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedButton(
+                                onClick = { showSubtitleDialog = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("video_subtitles_toggle")
+                            ) {
+                                Icon(Icons.Default.Subtitles, contentDescription = null, tint = FazoraGold)
+                                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                                Text(
+                                    text = if (isPersian) {
+                                        if (engine.subtitlesEnabled) "زیرنویس: روشن" else "زیرنویس: خاموش"
+                                    } else {
+                                        if (engine.subtitlesEnabled) "Subtitles: ON" else "Subtitles: OFF"
+                                    },
+                                    color = FazoraIvory
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = { showAudioDialog = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("video_audio_track_button")
+                            ) {
+                                Icon(Icons.Default.Audiotrack, contentDescription = null, tint = FazoraGold)
+                                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                                Text(
+                                    text = if (isPersian) {
+                                        "ترک‌های صوتی (${engine.audioTracks.size.coerceAtLeast(1)})"
+                                    } else {
+                                        "Audio Tracks (${engine.audioTracks.size.coerceAtLeast(1)})"
+                                    },
+                                    color = FazoraIvory
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = onAddVideoBookmark,
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("video_add_bookmark_button")
+                            ) {
+                                Icon(Icons.Default.BookmarkAdd, contentDescription = null, tint = FazoraGold)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (isPersian) "بوکمارک صحنه" else "Bookmark Scene", color = FazoraIvory)
+                            }
+                        }
+
+                        if (uiState.timeMachineBookmarks.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                                items(uiState.timeMachineBookmarks, key = { "vbm_${it.id}" }) { bm ->
+                                    OutlinedButton(
+                                        onClick = { onSeekTo(bm.timestampMs) },
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("🔖 ${bm.formattedTimestamp} • ${bm.trackTitle}", color = FazoraGold)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Button(
+                                onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = FazoraGold,
+                                    contentColor = FazoraObsidian
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("pick_video_button")
+                            ) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                                Text(if (isPersian) "انتخاب ویدیو" else "Pick Video")
+                            }
+
+                            OutlinedButton(
+                                onClick = { galleryPickerLauncher.launch("video/*") },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("gallery_video_button")
+                            ) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = FazoraGold)
+                                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                                Text(if (isPersian) "گالری فیلم" else "From Gallery", color = FazoraIvory)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(PhiTokens.Space8))
 
                         OutlinedButton(
-                            onClick = { galleryPickerLauncher.launch("video/*") },
+                            onClick = onAutoScanMedia,
                             modifier = Modifier
-                                .weight(1f)
+                                .fillMaxWidth()
                                 .minimumInteractiveComponentSize()
-                                .testTag("gallery_video_button")
+                                .testTag("autoscan_video_button")
                         ) {
-                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = FazoraGold)
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = FazoraGold)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(if (isPersian) "گالری فیلم" else "From Gallery", color = FazoraIvory)
+                            Text(
+                                text = if (isPersian) {
+                                    "🔄 جست‌وجو و اسکن خودکار ویدیوهای حافظه"
+                                } else {
+                                    "🔄 Auto-Scan Device Videos"
+                                },
+                                color = FazoraIvory
+                            )
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-
-                    OutlinedButton(
-                        onClick = onAutoScanMedia,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .minimumInteractiveComponentSize()
-                            .testTag("autoscan_video_button")
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, tint = FazoraGold)
-                        Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                        Text(
-                            text = if (isPersian) {
-                                "🔄 جست‌وجو و اسکن خودکار ویدیوهای حافظه"
-                            } else {
-                                "🔄 Auto-Scan Device Videos"
-                            },
-                            color = FazoraIvory
-                        )
                     }
                 }
             }
