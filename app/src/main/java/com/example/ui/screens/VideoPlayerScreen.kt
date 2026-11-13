@@ -424,7 +424,8 @@ private fun VideoGestureHintBanner(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (isPersian) "↕️ کشیدن عمودی در تمام‌صفحه — چپ: روشنایی، راست: صدا" else "↕️ Swipe vertically in fullscreen — left: brightness, right: volume",
+                    text = if (isPersian) "↕️ کشیدن عمودی در تمام‌صفحه — چپ: روشنایی، راست: صدا"
+                        else "↕️ Swipe vertically in fullscreen — left: brightness, right: volume",
                     style = MaterialTheme.typography.labelMedium,
                     color = FazoraSteel
                 )
@@ -458,6 +459,10 @@ private fun VideoStateOverlayCard(
     actionLabel: String,
     actionTestTag: String,
     onAction: () -> Unit,
+    // While the controls are locked the terminal-state action (Retry /
+    // Replay / Pick Video) must not be reachable; the card renders its
+    // button disabled and the unlock button in the top row stays available.
+    actionEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -493,6 +498,7 @@ private fun VideoStateOverlayCard(
             Spacer(modifier = Modifier.height(PhiTokens.Space13))
             Button(
                 onClick = onAction,
+                enabled = actionEnabled,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = FazoraGold,
                     contentColor = FazoraObsidian
@@ -769,7 +775,7 @@ fun VideoPlayerScreen(
             }
 
             if (!isCurrentTrackVideo && activeVideo != null &&
-                !isPlaybackError && !isPlaybackEnded
+                !isPlaybackError && !isPlaybackEnded && !controlsLocked
             ) {
                 Column(
                     verticalArrangement = Arrangement.Center,
@@ -860,6 +866,7 @@ fun VideoPlayerScreen(
                             videoPickerLauncher.launch(arrayOf("video/*"))
                         }
                     },
+                    actionEnabled = !controlsLocked,
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else if (isPlaybackEnded) {
@@ -878,6 +885,7 @@ fun VideoPlayerScreen(
                         onSeekTo(0L)
                         onTogglePlayPause()
                     },
+                    actionEnabled = !controlsLocked,
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else if (isEmptyVideoLibrary) {
@@ -895,6 +903,7 @@ fun VideoPlayerScreen(
                         interactionNonce++
                         videoPickerLauncher.launch(arrayOf("video/*"))
                     },
+                    actionEnabled = !controlsLocked,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
@@ -979,7 +988,7 @@ fun VideoPlayerScreen(
                         // embedded the sheet holds the full subtitle
                         // settings, but bilingual users should not need
                         // 3 taps for CC while watching fullscreen.
-                        if (isFullscreenSurface) {
+                        if (isFullscreenSurface && !controlsLocked) {
                             IconButton(
                                 onClick = {
                                     interactionNonce++
