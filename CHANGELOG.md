@@ -43,6 +43,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Interaction quality:** Added localized accessibility state descriptions to mini-player and track rows, preserving 48dp touch targets and active-track feedback.
 - **Design system:** Documented the Magic Listening Dashboard pattern and its RTL/progressive-disclosure rules.
 
+## [2.5.1] - 2026-11-14
+
+### Fixed
+- **Magic dashboard build:** Added the missing Compose size import required by the hero surface.
+
 ## [Unreleased]
 
 ### Fixed
