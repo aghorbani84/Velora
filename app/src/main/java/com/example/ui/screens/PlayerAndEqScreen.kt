@@ -279,6 +279,11 @@ fun PlayerAndEqScreen(
                             } else {
                                 route.type.labelEn
                             }
+                            val adaptiveModeLabel = if (isPersian) {
+                                uiState.settings.adaptiveAudioMode.labelFa
+                            } else {
+                                uiState.settings.adaptiveAudioMode.labelEn
+                            }
                             Surface(
                                 color = FazoraCarbonElevated,
                                 shape = RoundedCornerShape(PhiTokens.CornerRadius8),
@@ -293,7 +298,7 @@ fun PlayerAndEqScreen(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "$routeLabel • ${route.deviceName} • ${if (isPersian) uiState.settings.adaptiveAudioMode.labelFa else uiState.settings.adaptiveAudioMode.labelEn}",
+                                        text = "$routeLabel • ${route.deviceName} • $adaptiveModeLabel",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = FazoraGold
                                     )

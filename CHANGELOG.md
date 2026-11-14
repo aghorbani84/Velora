@@ -30,6 +30,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 - **Playback lifecycle:** Added idempotent engine release, scope/listener cleanup, and bounded retry with backoff for recoverable I/O playback failures.
 
+## [2.4.1] - 2026-11-14
+
+### Fixed
+- **Detekt release gate:** Wrapped the localized audio-route label expression for code-style compliance without changing its visual or accessibility behavior.
+
 ## [Unreleased]
 
 ### Fixed

@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release version tag (e.g. v2.4.0)'
+        description: 'Release version tag (e.g. v2.4.1)'
         required: false
-        default: 'v2.4.0'
+        default: 'v2.4.1'
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -104,13 +104,13 @@ jobs:
       - name: Resolve Release Version & Tag
         id: meta
         run: |
-          GRADLE_VER="2.4.0"
+          GRADLE_VER="2.4.1"
           if [ -f VERSION ]; then
             GRADLE_VER=$(tr -d '[:space:]' < VERSION)
             GRADLE_VER="${GRADLE_VER#v}"
           fi
           if [ -z "$GRADLE_VER" ]; then
-            GRADLE_VER="2.4.0"
+            GRADLE_VER="2.4.1"
           fi
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version_tag }}" ]; then
