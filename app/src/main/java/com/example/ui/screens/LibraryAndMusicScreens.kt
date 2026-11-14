@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -87,6 +89,7 @@ import com.example.ui.theme.FazoraSteel
 import com.example.ui.theme.PhiTokens
 import com.example.ui.theme.VeloraChampagneGold
 import com.example.ui.viewmodel.FazoraUiState
+import coil.compose.AsyncImage
 
 @Composable
 fun LibraryScreen(
@@ -1096,6 +1099,59 @@ fun MusicScreen(
             }
         }
 
+        if (uiState.playbackHistory.isNotEmpty()) {
+            item {
+                HomeSectionHeader(
+                    title = if (isPersian) "ادامه شنیدن" else "Continue listening",
+                    subtitle = if (isPersian) "از همان‌جایی که متوقف شدی" else "Pick up where you left off"
+                )
+            }
+            item {
+                ContinueListeningCard(
+                    entry = uiState.playbackHistory.first(),
+                    isPersian = isPersian,
+                    onPlay = { onPlayTrack(uiState.playbackHistory.first().track) }
+                )
+            }
+        }
+
+        val recentTracks = uiState.playbackHistory
+            .drop(if (uiState.playbackHistory.isNotEmpty()) 1 else 0)
+            .map { it.track }
+            .distinctBy { it.id }
+            .take(8)
+        if (recentTracks.isNotEmpty()) {
+            item {
+                HomeSectionHeader(
+                    title = if (isPersian) "اخیراً پخش‌شده" else "Recently played",
+                    subtitle = if (isPersian) "چرخش اخیر کتابخانه" else "Your latest rotation"
+                )
+            }
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13)) {
+                    items(recentTracks, key = { "recent_${it.id}" }) { track ->
+                        HomeTrackTile(track = track, isPersian = isPersian) { onPlayTrack(track) }
+                    }
+                }
+            }
+        }
+
+        if (uiState.favoriteTracks.isNotEmpty()) {
+            item {
+                HomeSectionHeader(
+                    title = if (isPersian) "انتخاب‌های محبوب" else "Your favorites",
+                    subtitle = if (isPersian) "آهنگ‌هایی که ارزش برگشتن دارند" else "Worth coming back to"
+                )
+            }
+            item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13)) {
+                    items(uiState.favoriteTracks.take(8), key = { "favorite_${it.id}" }) { track ->
+                        HomeTrackTile(track = track, isPersian = isPersian) { onPlayTrack(track) }
+                    }
+                }
+            }
+        }
+
         items(uiState.audioTracks, key = { it.id }) { track ->
             TrackRowItem(
                 track = track,
@@ -1106,6 +1162,108 @@ fun MusicScreen(
                 onAddToPlaylist = { playlistId -> onAddTrackToPlaylist(playlistId, track.id) },
                 onToggleFavorite = { onToggleFavorite(track) }
             )
+        }
+    }
+}
+
+@Composable
+private fun HomeSectionHeader(
+    title: String,
+    subtitle: String
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(title, style = MaterialTheme.typography.titleLarge, color = FazoraIvory, fontWeight = FontWeight.SemiBold)
+        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = FazoraSteel)
+    }
+}
+
+@Composable
+private fun ContinueListeningCard(
+    entry: PlaybackHistoryEntry,
+    isPersian: Boolean,
+    onPlay: () -> Unit
+) {
+    val track = entry.track
+    val progress = if (track.durationMs > 0L) {
+        (entry.lastPositionMs.toFloat() / track.durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    Surface(
+        color = FazoraCarbon,
+        shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+            .clickable(onClick = onPlay)
+            .semantics {
+                role = Role.Button
+                stateDescription = if (isPersian) "ادامه پخش ${track.title}" else "Resume ${track.title}"
+            }
+            .testTag("home_continue_listening")
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(PhiTokens.Space13)) {
+            ArtworkTile(track, 76.dp)
+            Spacer(modifier = Modifier.width(PhiTokens.Space13))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(track.title, style = MaterialTheme.typography.titleMedium, color = FazoraIvory, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(track.artist, style = MaterialTheme.typography.bodyMedium, color = FazoraSteel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                LinearProgressIndicator(progress = { progress }, color = FazoraGold, trackColor = FazoraCarbonElevated, modifier = Modifier.fillMaxWidth())
+                Text(
+                    if (isPersian) "ادامه از ${entry.lastPositionFormatted}" else "Resume at ${entry.lastPositionFormatted}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = FazoraGold
+                )
+            }
+            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = FazoraGold, modifier = Modifier.padding(start = PhiTokens.Space13))
+        }
+    }
+}
+
+@Composable
+private fun HomeTrackTile(
+    track: Track,
+    isPersian: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(148.dp)
+            .clickable(onClick = onClick)
+            .semantics {
+                role = Role.Button
+                stateDescription = if (isPersian) "پخش ${track.title}" else "Play ${track.title}"
+            }
+            .testTag("home_track_tile_${track.id}")
+    ) {
+        ArtworkTile(track, 148.dp)
+        Spacer(modifier = Modifier.height(PhiTokens.Space8))
+        Text(track.title, style = MaterialTheme.typography.titleSmall, color = FazoraIvory, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(track.artist, style = MaterialTheme.typography.bodySmall, color = FazoraSteel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun ArtworkTile(track: Track, size: androidx.compose.ui.unit.Dp) {
+    val shape = RoundedCornerShape(PhiTokens.CornerRadius13)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(size)
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(FazoraGoldMuted, FazoraCarbonElevated)))
+            .border(1.dp, FazoraCarbonBorder, shape)
+    ) {
+        if (track.artworkUri != null) {
+            AsyncImage(
+                model = track.artworkUri,
+                contentDescription = track.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(Icons.Default.Headphones, contentDescription = track.title, tint = FazoraGold, modifier = Modifier.size(size / 3))
         }
     }
 }

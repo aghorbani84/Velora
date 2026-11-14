@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Pause
@@ -65,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -77,6 +79,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.domain.model.AudioRouteType
+import com.example.domain.engine.PlaybackStatus
 import com.example.domain.model.EqPreset
 import com.example.domain.model.EqSpecification
 import com.example.domain.model.GestureActionType
@@ -105,6 +108,64 @@ import com.example.ui.theme.PhiTokens
 import com.example.ui.theme.VeloraChampagneGold
 import com.example.ui.viewmodel.FazoraUiState
 import java.util.Locale
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+
+@Composable
+private fun NowPlayingArtwork(track: Track) {
+    val shape = RoundedCornerShape(PhiTokens.CornerRadius21)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(250.dp)
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(FazoraGoldMuted, FazoraCarbonElevated, FazoraObsidian)))
+            .border(1.dp, FazoraCarbonBorder, shape)
+    ) {
+        if (track.artworkUri != null) {
+            AsyncImage(
+                model = track.artworkUri,
+                contentDescription = track.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Headphones,
+                contentDescription = track.title,
+                tint = FazoraGold,
+                modifier = Modifier.size(72.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyNowPlayingArtwork(isPersian: Boolean) {
+    Surface(
+        color = FazoraCarbonElevated,
+        shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Icon(Icons.Default.Headphones, contentDescription = null, tint = FazoraGold, modifier = Modifier.size(48.dp))
+            Spacer(modifier = Modifier.height(PhiTokens.Space8))
+            Text(
+                text = if (isPersian) "آماده برای صدای تو" else "Ready for your sound",
+                style = MaterialTheme.typography.titleMedium,
+                color = FazoraIvory
+            )
+        }
+    }
+}
 
 @Composable
 fun PlayerAndEqScreen(
@@ -151,6 +212,14 @@ fun PlayerAndEqScreen(
     val activeTrack = engine.currentTrack ?: queue.currentTrack
     val isPersian = uiState.settings.appLanguageCode == "fa"
     val isSimpleMode = uiState.settings.isSimpleMode
+    val playbackStatusLabel = when (engine.status) {
+        PlaybackStatus.BUFFERING -> if (isPersian) "در حال آماده‌سازی صدا…" else "Preparing audio…"
+        PlaybackStatus.PLAYING -> if (isPersian) "در حال پخش" else "Playing"
+        PlaybackStatus.PAUSED -> if (isPersian) "مکث" else "Paused"
+        PlaybackStatus.ENDED -> if (isPersian) "به پایان رسید" else "Ended"
+        PlaybackStatus.ERROR -> if (isPersian) "نیازمند توجه" else "Needs attention"
+        PlaybackStatus.IDLE -> if (isPersian) "آماده" else "Ready"
+    }
 
     var isDraggingTimeline by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
@@ -245,7 +314,7 @@ fun PlayerAndEqScreen(
                         )
                         Text(
                             text = if (isSimpleMode) {
-                                if (isPersian) "حالت ساده" else "Simple mode"
+                                playbackStatusLabel
                             } else if (engine.engineAvailable) {
                                 "Media3 + 10-Band Biquad DSP"
                             } else {
@@ -256,7 +325,12 @@ fun PlayerAndEqScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    if (activeTrack != null) {
+                        NowPlayingArtwork(track = activeTrack)
+                    } else {
+                        EmptyNowPlayingArtwork(isPersian = isPersian)
+                    }
+                    Spacer(modifier = Modifier.height(PhiTokens.Space21))
 
                     Row(
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -265,7 +339,7 @@ fun PlayerAndEqScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = activeTrack?.title ?: "No Track Loaded",
+                                text = activeTrack?.title ?: if (isPersian) "آهنگی انتخاب نشده" else "No track selected",
                                 style = MaterialTheme.typography.headlineLarge,
                                 color = FazoraIvory,
                                 maxLines = 2,
@@ -274,7 +348,7 @@ fun PlayerAndEqScreen(
                             Spacer(modifier = Modifier.height(PhiTokens.Space8))
                             Text(
                                 text = activeTrack?.let { "${it.artist} • ${it.album}" }
-                                    ?: "Select a track from Library or Music",
+                                    ?: if (isPersian) "یک آهنگ را از کتابخانه انتخاب کن" else "Choose a track from Home or Library",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = FazoraSteel
                             )
