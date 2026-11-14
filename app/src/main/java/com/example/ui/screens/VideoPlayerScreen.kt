@@ -7,7 +7,7 @@ import android.view.LayoutInflater
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.OptIn
+import kotlin.OptIn
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -513,6 +513,8 @@ private fun VideoStateOverlayCard(
     }
 }
 
+// NOTE: kotlin.OptIn is required here - only the Kotlin annotation is honored by the
+// compiler for ExperimentalMaterial3Api; the androidx annotation is Lint-only.
 @OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun VideoPlayerScreen(
@@ -696,217 +698,6 @@ fun VideoPlayerScreen(
             }
         } else {
             onDispose { }
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // ONE shared surface: embedded and fullscreen render the same Box —
-    // player, dim, subtitles, tap-to-play cover, HUD, spinner, state cards,
-    // and the shared controls overlay. Previously the two copies had
-    // drifted apart (subtitles only embedded, lock only fullscreen, the
-    // fullscreen seek never clamped, different play buttons).
-    // -----------------------------------------------------------------------
-
-    @Composable
-    fun PlayerSurface(isFullscreenSurface: Boolean) {
-        Box(
-            modifier = Modifier
-                .then(
-                    if (isFullscreenSurface) {
-                        Modifier.fillMaxSize()
-                    } else {
-                        Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(aspectRatioFloat)
-                    }
-                )
-                .clip(
-                    RoundedCornerShape(
-                        if (isFullscreenSurface) 0.dp else PhiTokens.CornerRadius13
-                    )
-                )
-                .background(Color.Black)
-                .videoSurfaceGestures(
-                    controlsLocked = controlsLocked,
-                    positionMs = engine.positionMs,
-                    durationMs = durationMs,
-                    brightnessLevel = uiState.videoCinemaSettings.brightnessLevel,
-                    volume = engine.volume,
-                    verticalSwipesEnabled = isFullscreenSurface,
-                    onBumpInteraction = { interactionNonce++ },
-                    onSeekTo = onSeekTo,
-                    onTogglePlayPause = onTogglePlayPause,
-                    onToggleControls = {
-                        controlsVisible = !controlsVisible
-                        interactionNonce++
-                    },
-                    onSetVideoBrightness = onSetVideoBrightness,
-                    onSetVolume = onSetVolume,
-                    onNotice = { seekNotice = it }
-                )
-                .testTag(
-                    if (isFullscreenSurface) "fullscreen_video_surface" else "video_surface_container"
-                )
-        ) {
-            Media3PlayerSurface(
-                exoPlayer = exoPlayer,
-                aspectMode = engine.videoAspectMode,
-                testTag = if (isFullscreenSurface) "fullscreen_media3_player_view" else "media3_player_view"
-            )
-
-            val dimAlpha = (1f - uiState.videoCinemaSettings.brightnessLevel).coerceIn(0f, 0.75f)
-            if (dimAlpha > 0.02f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = dimAlpha))
-                )
-            }
-
-            if (engine.subtitlesEnabled) {
-                VideoSubtitleOverlay(
-                    lyrics = uiState.activeLyrics,
-                    positionMs = currentPosMs,
-                    offsetMs = uiState.lyricsOffsetMs,
-                    cinemaSettings = uiState.videoCinemaSettings,
-                    isPersian = isPersian,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
-
-            val showPlayCover = !isCurrentTrackVideo && activeVideo != null &&
-                !isPlaybackError && !isPlaybackEnded && !controlsLocked
-            if (showPlayCover) {
-                Column(
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.85f))
-                        .padding(PhiTokens.Space13)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = FazoraGold,
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clickable { onPlayVideoTrack(activeVideo) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = activeVideo.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = FazoraIvory
-                    )
-                    Text(
-                        text = if (isPersian) "برای پخش لمس کنید" else "Tap to Play Video",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = FazoraSteel
-                    )
-                }
-            }
-
-            if (seekNotice != null) {
-                Surface(
-                    color = Color.Black.copy(alpha = 0.75f),
-                    shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .border(1.dp, FazoraGold, RoundedCornerShape(PhiTokens.CornerRadius21))
-                ) {
-                    Text(
-                        text = seekNotice.orEmpty(),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = FazoraGold,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                    )
-                }
-            }
-
-            if (engine.status == PlaybackStatus.BUFFERING) {
-                CircularProgressIndicator(
-                    color = FazoraGold,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-
-            AnimatedVisibility(
-                visible = controlsVisible,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                PlayerControlsOverlay(isFullscreenSurface)
-            }
-
-            // Terminal states render above the overlay scrim so they stay
-            // readable even after the controls auto-hide.
-            if (isPlaybackError) {
-                VideoStateOverlayCard(
-                    icon = Icons.Default.Error,
-                    title = if (isPersian) "خطا در پخش ویدیو" else "Video Playback Failed",
-                    message = engine.errorMessage
-                        ?: if (isPersian) {
-                            "پخش این ویدیو ممکن نشد. دوباره تلاش کنید."
-                        } else {
-                            "This video could not be played. Please try again."
-                        },
-                    actionLabel = if (activeVideo != null) {
-                        if (isPersian) "تلاش دوباره" else "Retry"
-                    } else {
-                        if (isPersian) "انتخاب ویدیو" else "Pick Video"
-                    },
-                    actionTestTag = "video_retry_button",
-                    onAction = {
-                        interactionNonce++
-                        if (activeVideo != null) {
-                            onPlayVideoTrack(activeVideo)
-                        } else {
-                            videoPickerLauncher.launch(arrayOf("video/*"))
-                        }
-                    },
-                    actionEnabled = !controlsLocked,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (isPlaybackEnded) {
-                VideoStateOverlayCard(
-                    icon = Icons.Default.Replay,
-                    title = if (isPersian) "پایان ویدیو" else "Video Finished",
-                    message = if (isPersian) {
-                        "از ابتدا دوباره تماشا کنید."
-                    } else {
-                        "Watch again from the start."
-                    },
-                    actionLabel = if (isPersian) "پخش دوباره" else "Replay",
-                    actionTestTag = "video_replay_button",
-                    onAction = {
-                        interactionNonce++
-                        onSeekTo(0L)
-                        onTogglePlayPause()
-                    },
-                    actionEnabled = !controlsLocked,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (isEmptyVideoLibrary) {
-                VideoStateOverlayCard(
-                    icon = Icons.Default.Movie,
-                    title = if (isPersian) "هنوز ویدیویی نیست" else "No Videos Yet",
-                    message = if (isPersian) {
-                        "یک ویدیو از حافظه انتخاب کنید تا پخش شود."
-                    } else {
-                        "Pick a video from your device to play it."
-                    },
-                    actionLabel = if (isPersian) "انتخاب ویدیو" else "Pick Video",
-                    actionTestTag = "video_empty_pick_button",
-                    onAction = {
-                        interactionNonce++
-                        videoPickerLauncher.launch(arrayOf("video/*"))
-                    },
-                    actionEnabled = !controlsLocked,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
         }
     }
 
@@ -1178,6 +969,218 @@ fun VideoPlayerScreen(
             }
         }
     }
+
+    // -----------------------------------------------------------------------
+    // ONE shared surface: embedded and fullscreen render the same Box —
+    // player, dim, subtitles, tap-to-play cover, HUD, spinner, state cards,
+    // and the shared controls overlay. Previously the two copies had
+    // drifted apart (subtitles only embedded, lock only fullscreen, the
+    // fullscreen seek never clamped, different play buttons).
+    // -----------------------------------------------------------------------
+
+    @Composable
+    fun PlayerSurface(isFullscreenSurface: Boolean) {
+        Box(
+            modifier = Modifier
+                .then(
+                    if (isFullscreenSurface) {
+                        Modifier.fillMaxSize()
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(aspectRatioFloat)
+                    }
+                )
+                .clip(
+                    RoundedCornerShape(
+                        if (isFullscreenSurface) 0.dp else PhiTokens.CornerRadius13
+                    )
+                )
+                .background(Color.Black)
+                .videoSurfaceGestures(
+                    controlsLocked = controlsLocked,
+                    positionMs = engine.positionMs,
+                    durationMs = durationMs,
+                    brightnessLevel = uiState.videoCinemaSettings.brightnessLevel,
+                    volume = engine.volume,
+                    verticalSwipesEnabled = isFullscreenSurface,
+                    onBumpInteraction = { interactionNonce++ },
+                    onSeekTo = onSeekTo,
+                    onTogglePlayPause = onTogglePlayPause,
+                    onToggleControls = {
+                        controlsVisible = !controlsVisible
+                        interactionNonce++
+                    },
+                    onSetVideoBrightness = onSetVideoBrightness,
+                    onSetVolume = onSetVolume,
+                    onNotice = { seekNotice = it }
+                )
+                .testTag(
+                    if (isFullscreenSurface) "fullscreen_video_surface" else "video_surface_container"
+                )
+        ) {
+            Media3PlayerSurface(
+                exoPlayer = exoPlayer,
+                aspectMode = engine.videoAspectMode,
+                testTag = if (isFullscreenSurface) "fullscreen_media3_player_view" else "media3_player_view"
+            )
+
+            val dimAlpha = (1f - uiState.videoCinemaSettings.brightnessLevel).coerceIn(0f, 0.75f)
+            if (dimAlpha > 0.02f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = dimAlpha))
+                )
+            }
+
+            if (engine.subtitlesEnabled) {
+                VideoSubtitleOverlay(
+                    lyrics = uiState.activeLyrics,
+                    positionMs = currentPosMs,
+                    offsetMs = uiState.lyricsOffsetMs,
+                    cinemaSettings = uiState.videoCinemaSettings,
+                    isPersian = isPersian,
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                )
+            }
+
+            val showPlayCover = !isCurrentTrackVideo && activeVideo != null &&
+                !isPlaybackError && !isPlaybackEnded && !controlsLocked
+            if (showPlayCover) {
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.85f))
+                        .padding(PhiTokens.Space13)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = FazoraGold,
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clickable { onPlayVideoTrack(activeVideo) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = activeVideo.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = FazoraIvory
+                    )
+                    Text(
+                        text = if (isPersian) "برای پخش لمس کنید" else "Tap to Play Video",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = FazoraSteel
+                    )
+                }
+            }
+
+            if (seekNotice != null) {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.75f),
+                    shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .border(1.dp, FazoraGold, RoundedCornerShape(PhiTokens.CornerRadius21))
+                ) {
+                    Text(
+                        text = seekNotice.orEmpty(),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = FazoraGold,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
+            }
+
+            if (engine.status == PlaybackStatus.BUFFERING) {
+                CircularProgressIndicator(
+                    color = FazoraGold,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = controlsVisible,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                PlayerControlsOverlay(isFullscreenSurface)
+            }
+
+            // Terminal states render above the overlay scrim so they stay
+            // readable even after the controls auto-hide.
+            if (isPlaybackError) {
+                VideoStateOverlayCard(
+                    icon = Icons.Default.Error,
+                    title = if (isPersian) "خطا در پخش ویدیو" else "Video Playback Failed",
+                    message = engine.errorMessage
+                        ?: if (isPersian) {
+                            "پخش این ویدیو ممکن نشد. دوباره تلاش کنید."
+                        } else {
+                            "This video could not be played. Please try again."
+                        },
+                    actionLabel = if (activeVideo != null) {
+                        if (isPersian) "تلاش دوباره" else "Retry"
+                    } else {
+                        if (isPersian) "انتخاب ویدیو" else "Pick Video"
+                    },
+                    actionTestTag = "video_retry_button",
+                    onAction = {
+                        interactionNonce++
+                        if (activeVideo != null) {
+                            onPlayVideoTrack(activeVideo)
+                        } else {
+                            videoPickerLauncher.launch(arrayOf("video/*"))
+                        }
+                    },
+                    actionEnabled = !controlsLocked,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else if (isPlaybackEnded) {
+                VideoStateOverlayCard(
+                    icon = Icons.Default.Replay,
+                    title = if (isPersian) "پایان ویدیو" else "Video Finished",
+                    message = if (isPersian) {
+                        "از ابتدا دوباره تماشا کنید."
+                    } else {
+                        "Watch again from the start."
+                    },
+                    actionLabel = if (isPersian) "پخش دوباره" else "Replay",
+                    actionTestTag = "video_replay_button",
+                    onAction = {
+                        interactionNonce++
+                        onSeekTo(0L)
+                        onTogglePlayPause()
+                    },
+                    actionEnabled = !controlsLocked,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else if (isEmptyVideoLibrary) {
+                VideoStateOverlayCard(
+                    icon = Icons.Default.Movie,
+                    title = if (isPersian) "هنوز ویدیویی نیست" else "No Videos Yet",
+                    message = if (isPersian) {
+                        "یک ویدیو از حافظه انتخاب کنید تا پخش شود."
+                    } else {
+                        "Pick a video from your device to play it."
+                    },
+                    actionLabel = if (isPersian) "انتخاب ویدیو" else "Pick Video",
+                    actionTestTag = "video_empty_pick_button",
+                    onAction = {
+                        interactionNonce++
+                        videoPickerLauncher.launch(arrayOf("video/*"))
+                    },
+                    actionEnabled = !controlsLocked,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+        }
+    }
+
 
     // -----------------------------------------------------------------------
     // The "more" sheet content — ONE implementation, two hosts: a
