@@ -774,9 +774,9 @@ fun VideoPlayerScreen(
                 )
             }
 
-            if (!isCurrentTrackVideo && activeVideo != null &&
+            val showPlayCover = !isCurrentTrackVideo && activeVideo != null &&
                 !isPlaybackError && !isPlaybackEnded && !controlsLocked
-            ) {
+            if (showPlayCover) {
                 Column(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
