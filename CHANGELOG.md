@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Security
 - Keep the fail-fast real-keystore requirement and certificate identity check; no ephemeral key may be used for a published APK.
 
+## [2.3.3] - 2026-11-14
+
+### Fixed
+- **Certificate digest normalization:** Normalize `keytool` and `apksigner` certificate digests to hexadecimal before comparison and emit the normalized values for auditable CI diagnostics.
+
 ## [Unreleased]
 
 ### Fixed

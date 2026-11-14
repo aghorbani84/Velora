@@ -158,7 +158,7 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           VERSION="${VERSION#v}"
-          ./gradlew detekt :app:testDebugUnitTest --tests com.example.ExampleUnitTest --tests com.example.DspBiquadMathTest --tests com.example.DownloadValidatorSecurityTest --tests com.example.FullscreenPolicyTest assembleDebug -Pvelora.versionName="${VERSION:-2.3.2}" --parallel
+          ./gradlew detekt :app:testDebugUnitTest --tests com.example.ExampleUnitTest --tests com.example.DspBiquadMathTest --tests com.example.DownloadValidatorSecurityTest --tests com.example.FullscreenPolicyTest assembleDebug -Pvelora.versionName="${VERSION:-2.3.3}" --parallel
 
       - name: Assemble Release APK (real keystore only)
         if: steps.keystore.outputs.release_ready == 'true'
@@ -168,7 +168,7 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           VERSION="${VERSION#v}"
-          ./gradlew assembleRelease -Pvelora.versionName="${VERSION:-2.3.2}" --parallel
+          ./gradlew assembleRelease -Pvelora.versionName="${VERSION:-2.3.3}" --parallel
 
       - name: Verify & Package Release APK (upload keystore only)
         if: steps.keystore.outputs.release_ready == 'true'
@@ -177,7 +177,7 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           VERSION="${VERSION#v}"
-          VERSION="${VERSION:-2.3.2}"
+          VERSION="${VERSION:-2.3.3}"
           mkdir -p build-artifacts
           APK="app/build/outputs/apk/release/app-release.apk"
           if [ ! -f "$APK" ]; then
@@ -193,8 +193,9 @@ jobs:
           "$APKSIGNER" verify --verbose "$APK"
           # Fingerprint check: the release APK must be signed by the configured
           # upload keystore — never the debug key or a throwaway key (B-VEL-03).
-          EXPECTED_FP="$(keytool -list -v -keystore "${KEYSTORE_PATH:-${GITHUB_WORKSPACE}/my-upload-key.jks}" -storepass "$STORE_PASSWORD" -alias upload 2>/dev/null | sed -n 's/.*SHA256:[[:space:]]*//Ip' | head -n 1 | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
-          ACTUAL_FP="$("$APKSIGNER" verify --print-certs "$APK" 2>&1 | sed -n 's/.*SHA-256 digest:[[:space:]]*//Ip' | head -n 1 | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED_FP="$(keytool -list -v -keystore "${KEYSTORE_PATH:-${GITHUB_WORKSPACE}/my-upload-key.jks}" -storepass "$STORE_PASSWORD" -alias upload 2>/dev/null | sed -n 's/.*SHA256:[[:space:]]*//Ip' | head -n 1 | sed 's/[^0-9A-Fa-f]//g' | tr '[:lower:]' '[:upper:]')"
+          ACTUAL_FP="$("$APKSIGNER" verify --print-certs "$APK" 2>&1 | sed -n 's/.*SHA-256 digest:[[:space:]]*//Ip' | head -n 1 | sed 's/[^0-9A-Fa-f]//g' | tr '[:lower:]' '[:upper:]')"
+          echo "Fingerprint check: expected=${EXPECTED_FP} actual=${ACTUAL_FP}"
           if [ -z "$EXPECTED_FP" ] || [ -z "$ACTUAL_FP" ] || [ "$EXPECTED_FP" != "$ACTUAL_FP" ]; then
             echo "::error::Release APK certificate fingerprint does not match the configured upload keystore; refusing debug or unexpected signing."
             exit 1
@@ -206,7 +207,7 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           VERSION="${VERSION#v}"
-          VERSION="${VERSION:-2.3.2}"
+          VERSION="${VERSION:-2.3.3}"
           mkdir -p build-artifacts
           cp app/build/outputs/apk/debug/app-debug.apk "build-artifacts/VELORA-v${VERSION}-debug.apk"
           cd build-artifacts

@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release version tag (e.g. v2.3.2)'
+        description: 'Release version tag (e.g. v2.3.3)'
         required: false
-        default: 'v2.3.2'
+        default: 'v2.3.3'
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -104,13 +104,13 @@ jobs:
       - name: Resolve Release Version & Tag
         id: meta
         run: |
-          GRADLE_VER="2.3.2"
+          GRADLE_VER="2.3.3"
           if [ -f VERSION ]; then
             GRADLE_VER=$(tr -d '[:space:]' < VERSION)
             GRADLE_VER="${GRADLE_VER#v}"
           fi
           if [ -z "$GRADLE_VER" ]; then
-            GRADLE_VER="2.3.2"
+            GRADLE_VER="2.3.3"
           fi
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version_tag }}" ]; then
@@ -252,8 +252,9 @@ jobs:
           "$APKSIGNER" verify --verbose "dist/VELORA-v${VERSION}-release-signed.apk"
           # Fingerprint check: the release APK must be signed by the configured
           # upload keystore — never the debug key or a throwaway key (B-VEL-03).
-          EXPECTED_FP="$(keytool -list -v -keystore "${KEYSTORE_PATH:-${GITHUB_WORKSPACE}/my-upload-key.jks}" -storepass "$STORE_PASSWORD" -alias upload 2>/dev/null | sed -n 's/.*SHA256:[[:space:]]*//Ip' | head -n 1 | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
-          ACTUAL_FP="$("$APKSIGNER" verify --print-certs "dist/VELORA-v${VERSION}-release-signed.apk" 2>&1 | sed -n 's/.*SHA-256 digest:[[:space:]]*//Ip' | head -n 1 | tr -d '[:space:]' | tr '[:lower:]' '[:upper:]')"
+          EXPECTED_FP="$(keytool -list -v -keystore "${KEYSTORE_PATH:-${GITHUB_WORKSPACE}/my-upload-key.jks}" -storepass "$STORE_PASSWORD" -alias upload 2>/dev/null | sed -n 's/.*SHA256:[[:space:]]*//Ip' | head -n 1 | sed 's/[^0-9A-Fa-f]//g' | tr '[:lower:]' '[:upper:]')"
+          ACTUAL_FP="$("$APKSIGNER" verify --print-certs "dist/VELORA-v${VERSION}-release-signed.apk" 2>&1 | sed -n 's/.*SHA-256 digest:[[:space:]]*//Ip' | head -n 1 | sed 's/[^0-9A-Fa-f]//g' | tr '[:lower:]' '[:upper:]')"
+          echo "Fingerprint check: expected=${EXPECTED_FP} actual=${ACTUAL_FP}"
           if [ -z "$EXPECTED_FP" ] || [ -z "$ACTUAL_FP" ] || [ "$EXPECTED_FP" != "$ACTUAL_FP" ]; then
             echo "::error::Release APK certificate fingerprint does not match the configured upload keystore; refusing debug or unexpected signing."
             exit 1
