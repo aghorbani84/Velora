@@ -20,6 +20,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 - **Certificate digest normalization:** Normalize `keytool` and `apksigner` certificate digests to hexadecimal before comparison and emit the normalized values for auditable CI diagnostics.
 
+## [2.4.0] - 2026-11-14
+
+### Changed
+- **Audio Product Design System:** Added a traceable player UI/UX specification covering playback states, responsive breakpoints, φ-based spacing, accessibility, RTL and validation gates.
+- **Player accessibility and RTL:** Localized output-route labels, improved Persian mode labels, exposed play/pause role and state semantics, and reserved navigation rail for tablet-width layouts.
+- **Realtime DSP safety:** Kept the biquad cascade linear and applied bounded output limiting only after the full chain, with finite-value protection.
+
+### Fixed
+- **Playback lifecycle:** Added idempotent engine release, scope/listener cleanup, and bounded retry with backoff for recoverable I/O playback failures.
+
 ## [Unreleased]
 
 ### Fixed

@@ -150,7 +150,8 @@ fun VeloraShellScreen(
                 .background(FazoraObsidian)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
         ) {
-            val useNavigationRail = maxWidth >= 680.dp
+            // Keep the bottom bar on expanded phones; reserve the rail for tablet-like widths.
+            val useNavigationRail = maxWidth >= 840.dp
 
             Row(modifier = Modifier.fillMaxSize()) {
                 if (useNavigationRail) {
@@ -222,7 +223,11 @@ fun VeloraShellScreen(
                                         shape = RoundedCornerShape(12.dp)
                                     ) {
                                         Text(
-                                            text = if (isSimpleMode) "SIMPLE" else "STUDIO",
+                                            text = if (isSimpleMode) {
+                                                if (isPersian) "ساده" else "SIMPLE"
+                                            } else {
+                                                if (isPersian) "استودیو" else "STUDIO"
+                                            },
                                             style = MaterialTheme.typography.labelSmall,
                                             color = if (isSimpleMode) FazoraIvory else FazoraGold,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -242,7 +247,7 @@ fun VeloraShellScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Refresh,
-                                            contentDescription = "Auto-scan media",
+                                            contentDescription = if (isPersian) "اسکن دوباره رسانه‌ها" else "Rescan media",
                                             tint = FazoraGold
                                         )
                                     }
@@ -303,7 +308,7 @@ fun VeloraShellScreen(
                                             modifier = Modifier.weight(1f)
                                         )
                                         TextButton(onClick = { viewModel.dismissBanner() }) {
-                                            Text("OK", color = FazoraGold)
+                                            Text(if (isPersian) "باشه" else "OK", color = FazoraGold)
                                         }
                                     }
                                 }

@@ -67,6 +67,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -270,12 +274,10 @@ fun PlayerAndEqScreen(
                             )
                             Spacer(modifier = Modifier.height(PhiTokens.Space8))
                             val route = uiState.audioRoute
-                            val routeIcon = when (route.type) {
-                                AudioRouteType.BLUETOOTH -> "📶"
-                                AudioRouteType.WIRED_HEADPHONES -> "🎧"
-                                AudioRouteType.USB_DAC -> "🎛️"
-                                AudioRouteType.SPEAKER -> "🔊"
-                                AudioRouteType.UNKNOWN -> "🎵"
+                            val routeLabel = if (isPersian) {
+                                route.type.labelFa
+                            } else {
+                                route.type.labelEn
                             }
                             Surface(
                                 color = FazoraCarbonElevated,
@@ -291,7 +293,7 @@ fun PlayerAndEqScreen(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "$routeIcon ${route.deviceName} • ${uiState.settings.adaptiveAudioMode.labelEn}",
+                                        text = "$routeLabel • ${route.deviceName} • ${if (isPersian) uiState.settings.adaptiveAudioMode.labelFa else uiState.settings.adaptiveAudioMode.labelEn}",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = FazoraGold
                                     )
@@ -583,6 +585,14 @@ fun PlayerAndEqScreen(
                                 .size(PhiTokens.Space55)
                                 .clip(CircleShape)
                                 .clickable { onTogglePlayPause() }
+                                .semantics {
+                                    role = Role.Button
+                                    stateDescription = if (engine.isPlaying) {
+                                        if (isPersian) "در حال پخش؛ توقف موقت" else "Playing; pause"
+                                    } else {
+                                        if (isPersian) "متوقف؛ پخش" else "Paused; play"
+                                    }
+                                }
                                 .testTag("player_play_pause_button")
                         ) {
                             Box(contentAlignment = Alignment.Center) {

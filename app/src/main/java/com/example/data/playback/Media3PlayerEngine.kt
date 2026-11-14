@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
@@ -49,8 +50,11 @@ import java.io.File
 @OptIn(UnstableApi::class)
 class Media3PlayerEngine(
     private val context: Context,
-    private val mainScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    providedScope: CoroutineScope? = null
 ) : PlayerEngine {
+
+    private val engineScope = providedScope ?: CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val ownsEngineScope = providedScope == null
 
     val biquadProcessor = TenBandBiquadAudioProcessor()
 
@@ -61,8 +65,11 @@ class Media3PlayerEngine(
     private var hardwareEqualizer: Equalizer? = null
     private var positionTickerJob: Job? = null
     private var spectrumCollectorJob: Job? = null
+    private var retryJob: Job? = null
     private var onTrackEndedCallback: (() -> Unit)? = null
     private var preMuteVolume: Float = 1.0f
+    private var retryAttempt: Int = 0
+    private var released: Boolean = false
 
     init {
         initializeExoPlayer()
@@ -118,12 +125,17 @@ class Media3PlayerEngine(
                 override fun onPlayerError(error: PlaybackException) {
                     Log.e(TAG, "ExoPlayer playback failure: ${error.errorCodeName}", error)
                     stopPositionTicker()
-                    _playbackState.update { state ->
-                        state.copy(
-                            status = PlaybackStatus.ERROR,
-                            errorMessage = "Playback failed (${error.errorCodeName}): ${error.localizedMessage ?: "Unsupported or corrupt media stream"}"
-                        )
-                    }
+                        retryOrExposeError(player, error)
+                        _playbackState.update { state ->
+                            state.copy(
+                                status = PlaybackStatus.ERROR,
+                                errorMessage = if (isRetryableIoError(error)) {
+                                    "Network playback interrupted. Retrying automatically…"
+                                } else {
+                                    "Playback failed (${error.errorCodeName}): ${error.localizedMessage ?: "Unsupported or corrupt media stream"}"
+                                }
+                            )
+                        }
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -154,7 +166,7 @@ class Media3PlayerEngine(
             }
 
             spectrumCollectorJob?.cancel()
-            spectrumCollectorJob = mainScope.launch {
+            spectrumCollectorJob = engineScope.launch {
                 biquadProcessor.visualizerSnapshot.collect { snapshot ->
                     if (_playbackState.value.isPlaying) {
                         _playbackState.update {
@@ -258,6 +270,9 @@ class Media3PlayerEngine(
     }
 
     override fun loadAndPlay(track: Track, startPositionMs: Long) {
+        if (released) return
+        retryJob?.cancel()
+        retryAttempt = 0
         if (track.uri.startsWith("/") || track.uri.startsWith("file://")) {
             val path = track.uri.removePrefix("file://")
             val file = File(path)
@@ -343,6 +358,7 @@ class Media3PlayerEngine(
     }
 
     override fun play() {
+        if (released) return
         val current = _playbackState.value
         if (current.status == PlaybackStatus.ERROR) return
         ensurePlaybackServiceStarted()
@@ -359,6 +375,8 @@ class Media3PlayerEngine(
     }
 
     override fun pause() {
+        if (released) return
+        retryJob?.cancel()
         exoPlayerInstance?.pause()
         _playbackState.update { state ->
             if (state.status == PlaybackStatus.PLAYING || state.status == PlaybackStatus.BUFFERING) {
@@ -378,6 +396,9 @@ class Media3PlayerEngine(
     }
 
     override fun stop() {
+        if (released) return
+        retryJob?.cancel()
+        retryAttempt = 0
         stopPositionTicker()
         exoPlayerInstance?.stop()
         _playbackState.update {
@@ -507,6 +528,7 @@ class Media3PlayerEngine(
     }
 
     override fun clearError() {
+        retryJob?.cancel()
         _playbackState.update {
             it.copy(
                 errorMessage = null,
@@ -546,7 +568,7 @@ class Media3PlayerEngine(
 
     private fun startPositionTicker() {
         positionTickerJob?.cancel()
-        positionTickerJob = mainScope.launch {
+        positionTickerJob = engineScope.launch {
             while (isActive) {
                 val player = exoPlayerInstance
                 if (player != null && player.isPlaying) {
@@ -563,8 +585,13 @@ class Media3PlayerEngine(
     }
 
     override fun release() {
+        if (released) return
+        released = true
         stopPositionTicker()
         spectrumCollectorJob?.cancel()
+        retryJob?.cancel()
+        retryJob = null
+        onTrackEndedCallback = null
         try {
             hardwareEqualizer?.release()
         } catch (_: Throwable) {
@@ -572,9 +599,34 @@ class Media3PlayerEngine(
         hardwareEqualizer = null
         exoPlayerInstance?.release()
         exoPlayerInstance = null
+        if (ownsEngineScope) engineScope.cancel()
+    }
+
+    private fun isRetryableIoError(error: PlaybackException): Boolean =
+        error.errorCode in 2000..2999
+
+    private fun retryOrExposeError(player: ExoPlayer, error: PlaybackException) {
+        if (!isRetryableIoError(error) || retryAttempt >= MAX_RETRY_ATTEMPTS || released) return
+        retryJob?.cancel()
+        val retryPosition = player.currentPosition.coerceAtLeast(0L)
+        val backoffMs = RETRY_BACKOFF_MS[retryAttempt]
+        retryAttempt++
+        retryJob = engineScope.launch {
+            delay(backoffMs)
+            if (released || exoPlayerInstance !== player) return@launch
+            runCatching {
+                player.prepare()
+                player.seekTo(retryPosition)
+                player.playWhenReady = true
+            }.onFailure { retryFailure ->
+                Log.w(TAG, "Automatic playback retry failed: ${retryFailure.message}")
+            }
+        }
     }
 
     companion object {
         private const val TAG = "Media3PlayerEngine"
+        private const val MAX_RETRY_ATTEMPTS = 3
+        private val RETRY_BACKOFF_MS = longArrayOf(750L, 2_000L, 5_000L)
     }
 }

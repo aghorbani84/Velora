@@ -181,11 +181,14 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
             if (applyEq && channels == 2 && width > 0.01) {
                 val mid = 0.5 * (frameSamples[0] + frameSamples[1])
                 val side = 0.5 * (frameSamples[0] - frameSamples[1]) * (1.0 + width)
-                frameSamples[0] = BiquadEqDsp.softClipLimiter(mid + side)
-                frameSamples[1] = BiquadEqDsp.softClipLimiter(mid - side)
+                frameSamples[0] = mid + side
+                frameSamples[1] = mid - side
             }
             for (ch in 0 until channels) {
-                val processedSample = frameSamples[ch]
+                // Keep the biquad cascade linear; apply the bounded output stage once
+                // after all bands so the limiter does not alter every intermediate filter.
+                val finiteSample = frameSamples[ch].takeIf { it.isFinite() } ?: 0.0
+                val processedSample = BiquadEqDsp.softClipLimiter(finiteSample)
                 broadbandEnergySum += processedSample * processedSample
                 val absSample = abs(processedSample)
                 if (absSample > maxPeakAbs) {
@@ -249,7 +252,7 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
                 sample = y
             }
         }
-        return BiquadEqDsp.softClipLimiter(sample)
+        return sample
     }
 
     private fun emitTelemetrySnapshot(
