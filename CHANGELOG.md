@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [2.3.2] - 2026-11-14
+
+### Fixed
+- **Release pipeline fingerprint verification:** Parse `keytool` and `apksigner` certificate digests consistently from stdout and stderr, preventing valid signed APKs from being rejected during publication.
+- **Release metadata consistency:** Align the canonical version and Android `versionCode` for the final `2.3.2` release.
+
+### Security
+- Keep the fail-fast real-keystore requirement and certificate identity check; no ephemeral key may be used for a published APK.
+
 ## [Unreleased]
 
 ### Fixed

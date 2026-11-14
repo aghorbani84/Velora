@@ -49,22 +49,21 @@ git push codeberg main --tags
 Codeberg has no GitHub Actions; it is a code mirror for users in Iran
 (GitLab/Bitbucket/SourceForge deny service to Iran — not used).
 
-## Do NOT do yet — v2.3.1 re-release
+## Final release — v2.3.2
 
 1. **First** generate a REAL release keystore on your own machine and add
    the three secrets — full steps in
    `~/workspace/PROJECT_HQ/projects/velora/SIGNING_SETUP.md`:
    `RELEASE_KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_PASSWORD`
    (key alias must be `upload`).
-2. Only then push tag `v2.3.1` (or run the release workflow with dispatch,
-   default tag is `v2.3.1` in the hardened file).
+2. Only then push tag `v2.3.2` (or run the release workflow with dispatch,
+   default tag is `v2.3.2` in the hardened file).
 3. Verify the new APK's signature fingerprint matches your real keystore
    before announcing it (steps in SIGNING_SETUP.md).
 
 **Why:** v2.3.0 (2026-11-12) was signed with a one-time ephemeral key whose
-private key is gone (B-VEL-03). Anyone on v2.3.0 cannot update to a real-key
-build — they will need a reinstall. Never sign a release with an ephemeral
-key again; the hardened workflow fails the run instead.
+private key is gone (B-VEL-03). The hardened workflow now refuses ephemeral
+keys and verifies the published APK certificate fingerprint before upload.
 
 ## Also still open (user-only)
 

@@ -28,7 +28,7 @@ Thank you for your interest in contributing to **VELORA**! We engineer VELORA to
 - **JDK:** 21 (Temurin recommended)
 - **Android SDK:** `compileSdk = 36` (`minorApiLevel = 1`), `minSdk = 26`, `targetSdk = 36`
 - **Build System:** Gradle 9.3.1 (Kotlin DSL)
-- **Version Source of Truth:** Root `VERSION` file (`2.3.0`) + `gradle.properties` (`velora.versionCode=6`).
+- **Version Source of Truth:** Root `VERSION` file (`2.3.2`) + `gradle.properties` (`velora.versionCode=7`).
 
 ### Automated Test Suites
 - `DspBiquadMathTest`: Property-based verification of all 10 ISO biquad bands (`31.25 Hz`–`16 kHz`), $Q = \sqrt{2}$, `0 dB` unity pass-through, and Schur-Cohn pole stability across sample rates `44.1 kHz`–`192 kHz`.
