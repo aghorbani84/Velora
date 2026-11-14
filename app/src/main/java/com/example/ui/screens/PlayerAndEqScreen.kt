@@ -239,12 +239,18 @@ fun PlayerAndEqScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "MASTER TRANSPORT • ${engine.status.name}",
+                            text = if (isPersian) "اکنون در حال پخش" else "NOW PLAYING",
                             style = MaterialTheme.typography.labelLarge,
                             color = FazoraGold
                         )
                         Text(
-                            text = if (engine.engineAvailable) "Media3 + 10-Band Biquad DSP" else "DSP Ready",
+                            text = if (isSimpleMode) {
+                                if (isPersian) "حالت ساده" else "Simple mode"
+                            } else if (engine.engineAvailable) {
+                                "Media3 + 10-Band Biquad DSP"
+                            } else {
+                                "DSP Ready"
+                            },
                             style = MaterialTheme.typography.labelMedium,
                             color = FazoraSteel
                         )
@@ -362,7 +368,7 @@ fun PlayerAndEqScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "REAL-TIME DSP VISUALIZER",
+                            text = if (isPersian) "نمایش زنده صدا" else "LIVE AUDIO",
                             style = MaterialTheme.typography.labelMedium,
                             color = FazoraGold
                         )
@@ -732,9 +738,9 @@ fun PlayerAndEqScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (isPersian) {
-                                    "🎛️ اکولایزر ۱۰ بانده و استودیو DSP"
+                                    "اکولایزر ۱۰ بانده و استودیو DSP"
                                 } else {
-                                    "🎛️ 10-Band Biquad EQ & Studio DSP"
+                                    "10-Band Biquad EQ & Studio DSP"
                                 },
                                 style = MaterialTheme.typography.titleMedium,
                                 color = FazoraGold

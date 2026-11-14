@@ -36,6 +36,12 @@ VELORA is a calm, premium audio workspace: the user should understand what is pl
 6. Queue and lyrics as progressive disclosure.
 7. Studio DSP and advanced settings below the listening path.
 
+## Magic Listening Dashboard
+
+The default Music destination is a one-glance listening dashboard, not a settings console. Its hero surface uses a restrained saffron-to-obsidian gradient, one primary action (`Start listening`), one discovery action (`Surprise me`), and three compact collection stats. Scanning is secondary and never competes with playback. The visual effect should feel premium and intentional without animation that consumes battery or hides state.
+
+In Persian/RTL, preserve the same hierarchy and action priority; translate intent rather than literal technical labels. Avoid emoji in primary controls. Use the Studio mode switch for EQ, visualizer modes, and mastering controls so Simple mode remains calm.
+
 ## Accessibility gates
 
 - Every icon-only control has a localized content description.

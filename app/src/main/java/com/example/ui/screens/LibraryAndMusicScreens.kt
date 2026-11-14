@@ -7,6 +7,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -23,8 +25,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FolderOpen
@@ -52,8 +56,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
@@ -68,6 +78,7 @@ import com.example.ui.theme.FazoraCarbon
 import com.example.ui.theme.FazoraCarbonBorder
 import com.example.ui.theme.FazoraCarbonElevated
 import com.example.ui.theme.FazoraGold
+import com.example.ui.theme.FazoraGoldBright
 import com.example.ui.theme.FazoraGoldMuted
 import com.example.ui.theme.FazoraIvory
 import com.example.ui.theme.FazoraObsidian
@@ -952,26 +963,82 @@ fun MusicScreen(
             .testTag("music_screen")
     ) {
         item {
+            val heroShape = RoundedCornerShape(PhiTokens.CornerRadius21)
             Surface(
                 color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                shape = heroShape,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
+                    .border(1.dp, FazoraCarbonBorder, heroShape)
             ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
+                Column(
+                    modifier = Modifier
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(FazoraGoldMuted, FazoraCarbon, FazoraObsidian)
+                            ),
+                            shape = heroShape
+                        )
+                        .padding(PhiTokens.Space21)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)
+                    ) {
+                        Surface(
+                            color = FazoraGold,
+                            shape = CircleShape,
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = FazoraObsidian,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                        Text(
+                            text = if (isPersian) "صدای تو، ساده و جادویی" else "YOUR SOUND, ONE TAP AWAY",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = FazoraGoldBright
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
                     Text(
-                        text = "VELORA HIGH-RESOLUTION AUDIO",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
+                        text = if (isPersian) "همین حالا گوش بده" else "Make this moment yours",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = FazoraIvory,
+                        fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(PhiTokens.Space8))
                     Text(
-                        text = "${if (isPersian) "مجموعه آهنگ‌ها" else "Music Collection"} (${uiState.audioTracks.size})",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = FazoraIvory
+                        text = if (isPersian) {
+                            "همه آهنگ‌های مورد علاقه‌ات، در یک لمس."
+                        } else {
+                            "Your collection, beautifully organized and ready to play."
+                        },
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = FazoraSteel
                     )
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                        modifier = Modifier.horizontalScroll(rememberScrollState())
+                    ) {
+                        MagicStatChip(
+                            value = uiState.audioTracks.size.toString(),
+                            label = if (isPersian) "آهنگ" else "tracks"
+                        )
+                        MagicStatChip(
+                            value = uiState.favoriteTracks.size.toString(),
+                            label = if (isPersian) "محبوب" else "favorites"
+                        )
+                        MagicStatChip(
+                            value = uiState.playlists.size.toString(),
+                            label = if (isPersian) "پلی‌لیست" else "playlists"
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(PhiTokens.Space21))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
                         modifier = Modifier.fillMaxWidth()
@@ -985,11 +1052,15 @@ fun MusicScreen(
                             modifier = Modifier
                                 .weight(PhiTokens.PRIMARY_WEIGHT)
                                 .minimumInteractiveComponentSize()
+                                .semantics {
+                                    role = Role.Button
+                                    stateDescription = if (isPersian) "پخش مجموعه" else "Play collection"
+                                }
                                 .testTag("music_play_all_button")
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(if (isPersian) "پخش همه (${uiState.audioTracks.size})" else "Play All (${uiState.audioTracks.size})")
+                            Text(if (isPersian) "شروع پخش" else "Start listening")
                         }
 
                         OutlinedButton(
@@ -1001,12 +1072,11 @@ fun MusicScreen(
                         ) {
                             Icon(Icons.Default.Shuffle, contentDescription = null, tint = FazoraGold)
                             Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(if (isPersian) "تصادفی" else "Shuffle", color = FazoraIvory)
+                            Text(if (isPersian) "کشف تصادفی" else "Surprise me", color = FazoraIvory)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
                     OutlinedButton(
                         onClick = { permissionLauncher.launch(permissionsToRequest) },
                         modifier = Modifier
@@ -1017,7 +1087,7 @@ fun MusicScreen(
                         Icon(Icons.Default.Refresh, contentDescription = null, tint = FazoraGold)
                         Spacer(modifier = Modifier.width(PhiTokens.Space8))
                         Text(
-                            if (isPersian) "🔄 جست‌وجو و اسکن خودکار آهنگ‌های حافظه" else "🔄 Auto-Scan Device Music Storage",
+                            if (isPersian) "جست‌وجو و اسکن آهنگ‌های دستگاه" else "Refresh my music library",
                             color = FazoraIvory
                         )
                     }
@@ -1034,6 +1104,36 @@ fun MusicScreen(
                 onAddToQueue = { onAddTrackToQueue(track) },
                 onAddToPlaylist = { playlistId -> onAddTrackToPlaylist(playlistId, track.id) },
                 onToggleFavorite = { onToggleFavorite(track) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MagicStatChip(
+    value: String,
+    label: String
+) {
+    Surface(
+        color = FazoraCarbonElevated,
+        shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+        modifier = Modifier.minimumInteractiveComponentSize()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+            modifier = Modifier.padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space8)
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                color = FazoraGoldBright,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = FazoraSteel
             )
         }
     }

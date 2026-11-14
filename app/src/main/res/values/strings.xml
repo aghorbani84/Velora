@@ -29,6 +29,10 @@
     <string name="cd_lock_video_controls">Lock or unlock video controls</string>
     <string name="cd_exit_fullscreen">Exit fullscreen video</string>
     <string name="cd_dismiss_banner">Dismiss status notification</string>
+    <string name="mini_player_empty_state">No track loaded; open the player</string>
+    <string name="mini_player_open_state">Open the full player</string>
+    <string name="track_active_state">Currently playing</string>
+    <string name="track_play_state">Play this track</string>
 
     <!-- Studio DSP Rack & Mastering Controls -->
     <string name="dsp_rack_header">STUDIO DSP RACK &amp; MASTERING CONTROLS</string>

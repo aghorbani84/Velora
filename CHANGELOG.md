@@ -35,6 +35,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 - **Detekt release gate:** Wrapped the localized audio-route label expression for code-style compliance without changing its visual or accessibility behavior.
 
+## [2.5.0] - 2026-11-14
+
+### Changed
+- **Magic Listening Dashboard:** Reimagined the Music home as a calm, premium one-glance dashboard with a saffron-to-obsidian hero, one-tap listening, Surprise Me discovery, compact collection stats, and a quieter library refresh action.
+- **Simple mode clarity:** Replaced technical/emoji-heavy primary labels with human, localized listening language while keeping Studio Pro controls discoverable.
+- **Interaction quality:** Added localized accessibility state descriptions to mini-player and track rows, preserving 48dp touch targets and active-track feedback.
+- **Design system:** Documented the Magic Listening Dashboard pattern and its RTL/progressive-disclosure rules.
+
 ## [Unreleased]
 
 ### Fixed

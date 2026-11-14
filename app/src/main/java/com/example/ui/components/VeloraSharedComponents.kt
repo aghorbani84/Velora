@@ -55,6 +55,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -93,6 +97,9 @@ fun MiniPlayerBar(
     } else {
         0f
     }
+    val miniPlayerStateDescription = stringResource(
+        if (track == null) R.string.mini_player_empty_state else R.string.mini_player_open_state
+    )
 
     Surface(
         color = FazoraCarbonElevated,
@@ -116,6 +123,10 @@ fun MiniPlayerBar(
                 )
             }
             .clickable { onOpenFullPlayer() }
+            .semantics {
+                role = Role.Button
+                stateDescription = miniPlayerStateDescription
+            }
             .testTag("mini_player_bar")
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -242,6 +253,9 @@ fun TrackRowItem(
     modifier: Modifier = Modifier
 ) {
     var showPlaylistMenu by remember { mutableStateOf(false) }
+    val trackStateDescription = stringResource(
+        if (isActive) R.string.track_active_state else R.string.track_play_state
+    )
 
     Surface(
         color = if (isActive) FazoraGoldMuted else FazoraCarbon,
@@ -255,6 +269,10 @@ fun TrackRowItem(
             )
             .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
             .clickable { onPlay() }
+            .semantics {
+                role = Role.Button
+                stateDescription = trackStateDescription
+            }
             .testTag("track_item_${track.id}")
     ) {
         Row(
@@ -602,4 +620,3 @@ fun SpectrumAnalyzerCanvas(
         }
     }
 }
-
