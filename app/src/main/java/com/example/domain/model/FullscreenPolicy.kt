@@ -49,6 +49,7 @@ object FullscreenPolicy {
      * (Simple). PICK_VIDEO is not an overlay control at all: it is a
      * library action below the player, shown in Studio mode only.
      */
+    @Suppress("UnusedParameter") // Intentional: overlay visibility is mode-independent by design (see KDoc); kept for symmetry with isInMoreSheet.
     fun isProControlVisible(isSimpleMode: Boolean, group: VideoControlGroup): Boolean {
         return group == VideoControlGroup.TRANSPORT ||
             group == VideoControlGroup.SEEK ||
