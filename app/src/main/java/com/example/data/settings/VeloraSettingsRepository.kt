@@ -108,6 +108,10 @@ class VeloraSettingsRepository(
         dataStore.edit { it[KEY_SIMPLE_MODE] = enabled }
     }
 
+    suspend fun updateVideoGestureHintSeen(seen: Boolean) {
+        dataStore.edit { it[KEY_VIDEO_GESTURE_HINT_SEEN] = seen }
+    }
+
     suspend fun updateAutoScanOnStartup(enabled: Boolean) {
         dataStore.edit { it[KEY_AUTO_SCAN_STARTUP] = enabled }
     }
@@ -226,6 +230,7 @@ class VeloraSettingsRepository(
             corruptionFallbackCount = prefs[KEY_CORRUPTION_COUNT] ?: 0,
             appLanguageCode = prefs[KEY_APP_LANGUAGE] ?: "en",
             isSimpleMode = prefs[KEY_SIMPLE_MODE] ?: true,
+            videoGestureHintSeen = prefs[KEY_VIDEO_GESTURE_HINT_SEEN] ?: false,
             autoScanOnStartup = prefs[KEY_AUTO_SCAN_STARTUP] ?: true,
             onlyValidMusicInSearch = prefs[KEY_ONLY_VALID_MUSIC] ?: true,
             backgroundVideoAudioEnabled = prefs[KEY_BG_VIDEO_AUDIO] ?: true,
@@ -258,6 +263,7 @@ class VeloraSettingsRepository(
         private val KEY_CORRUPTION_COUNT = intPreferencesKey("corruption_count")
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language_code")
         private val KEY_SIMPLE_MODE = booleanPreferencesKey("is_simple_mode")
+        private val KEY_VIDEO_GESTURE_HINT_SEEN = booleanPreferencesKey("video_gesture_hint_seen")
         private val KEY_AUTO_SCAN_STARTUP = booleanPreferencesKey("auto_scan_startup")
         private val KEY_ONLY_VALID_MUSIC = booleanPreferencesKey("only_valid_music")
         private val KEY_BG_VIDEO_AUDIO = booleanPreferencesKey("bg_video_audio")

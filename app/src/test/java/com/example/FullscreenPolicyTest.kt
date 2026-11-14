@@ -34,19 +34,59 @@ class FullscreenPolicyTest {
         assertTrue(visible.contains(VideoControlGroup.TRANSPORT))
         assertTrue(visible.contains(VideoControlGroup.SEEK))
         assertTrue(visible.contains(VideoControlGroup.FULLSCREEN))
-        assertTrue(visible.contains(VideoControlGroup.PIP))
-        assertTrue(visible.contains(VideoControlGroup.PICK_VIDEO))
+        // UX pass 2026-11-13: PiP moved behind the "more" sheet (Studio
+        // only). It was listed as simple-visible before, but the screen
+        // never actually showed it in Simple Mode.
+        assertFalse(visible.contains(VideoControlGroup.PIP))
         assertFalse(visible.contains(VideoControlGroup.SPEED))
         assertFalse(visible.contains(VideoControlGroup.ASPECT))
         assertFalse(visible.contains(VideoControlGroup.SUBTITLES))
         assertFalse(visible.contains(VideoControlGroup.AUDIO_TRACK))
         assertFalse(visible.contains(VideoControlGroup.BOOKMARK))
+        assertFalse(visible.contains(VideoControlGroup.LOCK))
+        assertFalse(visible.contains(VideoControlGroup.PICK_VIDEO))
+    }
+
+    @Test
+    fun `simple mode has no more sheet`() {
+        for (group in VideoControlGroup.entries) {
+            assertFalse(FullscreenPolicy.isInMoreSheet(true, group))
+        }
     }
 
     @Test
     fun `studio mode shows every video control`() {
-        for (group in VideoControlGroup.entries) {
-            assertTrue(FullscreenPolicy.isProControlVisible(false, group))
+        // Directly on the overlay: transport, seek, fullscreen.
+        val direct = VideoControlGroup.entries.filter {
+            FullscreenPolicy.isProControlVisible(false, it)
         }
+        assertTrue(direct.contains(VideoControlGroup.TRANSPORT))
+        assertTrue(direct.contains(VideoControlGroup.SEEK))
+        assertTrue(direct.contains(VideoControlGroup.FULLSCREEN))
+        assertFalse(direct.contains(VideoControlGroup.PIP))
+        assertFalse(direct.contains(VideoControlGroup.SPEED))
+        assertFalse(direct.contains(VideoControlGroup.ASPECT))
+        assertFalse(direct.contains(VideoControlGroup.SUBTITLES))
+        assertFalse(direct.contains(VideoControlGroup.AUDIO_TRACK))
+        assertFalse(direct.contains(VideoControlGroup.BOOKMARK))
+        assertFalse(direct.contains(VideoControlGroup.LOCK))
+        assertFalse(direct.contains(VideoControlGroup.PICK_VIDEO))
+
+        // Behind the single "more" sheet: everything else except the
+        // below-player library action PICK_VIDEO.
+        val sheet = VideoControlGroup.entries.filter {
+            FullscreenPolicy.isInMoreSheet(false, it)
+        }
+        assertTrue(sheet.contains(VideoControlGroup.PIP))
+        assertTrue(sheet.contains(VideoControlGroup.LOCK))
+        assertTrue(sheet.contains(VideoControlGroup.SPEED))
+        assertTrue(sheet.contains(VideoControlGroup.ASPECT))
+        assertTrue(sheet.contains(VideoControlGroup.SUBTITLES))
+        assertTrue(sheet.contains(VideoControlGroup.AUDIO_TRACK))
+        assertTrue(sheet.contains(VideoControlGroup.BOOKMARK))
+        assertFalse(sheet.contains(VideoControlGroup.TRANSPORT))
+        assertFalse(sheet.contains(VideoControlGroup.SEEK))
+        assertFalse(sheet.contains(VideoControlGroup.FULLSCREEN))
+        assertFalse(sheet.contains(VideoControlGroup.PICK_VIDEO))
     }
 }

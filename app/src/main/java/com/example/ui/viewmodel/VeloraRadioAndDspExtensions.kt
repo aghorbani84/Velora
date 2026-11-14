@@ -310,6 +310,12 @@ fun VeloraViewModel.setSubtitleColorTheme(theme: SubtitleColorTheme) {
     videoCinemaSettingsFlow.update { it.copy(subtitleColorTheme = theme) }
 }
 
+fun VeloraViewModel.setVideoGestureHintSeen() {
+    viewModelScope.launch {
+        settingsRepository.updateVideoGestureHintSeen(true)
+    }
+}
+
 fun VeloraViewModel.setThemePaletteMode(mode: com.example.domain.model.ThemePaletteMode) {
     viewModelScope.launch {
         settingsRepository.updateThemePaletteMode(mode)

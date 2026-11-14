@@ -1,7 +1,6 @@
 package com.example.ui.screens
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -54,14 +53,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.ui.components.MiniPlayerBar
@@ -85,7 +82,6 @@ fun VeloraShellScreen(
     viewModel: VeloraViewModel,
     uiState: VeloraUiState
 ) {
-    val context = LocalContext.current
     val isPersian = uiState.settings.appLanguageCode == "fa"
     val isSimpleMode = uiState.settings.isSimpleMode
     val homeDestination = if (isSimpleMode) VeloraDestination.MUSIC else VeloraDestination.LIBRARY
@@ -126,17 +122,6 @@ fun VeloraShellScreen(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) {
         viewModel.autoScanDeviceMedia()
-    }
-
-    LaunchedEffect(uiState.settings.autoScanOnStartup) {
-        if (uiState.settings.autoScanOnStartup) {
-            val allGranted = permissionsToRequest.all { perm ->
-                ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
-            }
-            if (allGranted) {
-                viewModel.autoScanDeviceMedia()
-            }
-        }
     }
 
     BackHandler(enabled = currentDestination != homeDestination) {

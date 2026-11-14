@@ -97,6 +97,7 @@ data class AppSettings(
     val corruptionFallbackCount: Int = 0,
     val appLanguageCode: String = "en",
     val isSimpleMode: Boolean = true,
+    val videoGestureHintSeen: Boolean = false,
     val autoScanOnStartup: Boolean = true,
     val onlyValidMusicInSearch: Boolean = true,
     val backgroundVideoAudioEnabled: Boolean = true,

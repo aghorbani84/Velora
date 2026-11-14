@@ -42,6 +42,7 @@ class MediaLibraryScanner(
 
         val dedupByMediaStoreId = linkedMapOf<Long, Track>()
         val dedupByUri = linkedSetOf<String>()
+        var lastProgressEmitMs = 0L
 
         fun registerTrack(track: Track) {
             if (!PhiDesignMetrics.isSafeMediaFolder(track.folderPath)) return
@@ -49,11 +50,18 @@ class MediaLibraryScanner(
             if (dedupByMediaStoreId.containsKey(track.mediaStoreId)) return
             dedupByUri.add(track.uri)
             dedupByMediaStoreId[track.mediaStoreId] = track
-            _scanProgress.update {
-                it.copy(
-                    scannedCount = it.scannedCount + 1,
-                    indexedCount = dedupByMediaStoreId.size
-                )
+            // Throttle progress emissions: the UI state combine rebuilds on every
+            // scanProgress update, so emit at most once per throttle window and
+            // let the final update below flush the exact counts.
+            val nowMs = System.currentTimeMillis()
+            if (nowMs - lastProgressEmitMs >= SCAN_PROGRESS_THROTTLE_MS) {
+                lastProgressEmitMs = nowMs
+                _scanProgress.update {
+                    it.copy(
+                        scannedCount = dedupByMediaStoreId.size,
+                        indexedCount = dedupByMediaStoreId.size
+                    )
+                }
             }
         }
 
@@ -89,6 +97,7 @@ class MediaLibraryScanner(
             _scanProgress.update {
                 it.copy(
                     isScanning = false,
+                    scannedCount = dedupByMediaStoreId.size,
                     indexedCount = dedupByMediaStoreId.size,
                     currentSourceLabel = "Complete (${dedupByMediaStoreId.size} tracks)",
                     lastScanDurationMs = elapsed
@@ -100,6 +109,8 @@ class MediaLibraryScanner(
             _scanProgress.update {
                 it.copy(
                     isScanning = false,
+                    scannedCount = dedupByMediaStoreId.size,
+                    indexedCount = dedupByMediaStoreId.size,
                     lastScanDurationMs = elapsed,
                     errorMessage = "Scan interrupted: ${e.localizedMessage ?: "Permission or I/O error"}"
                 )
@@ -402,6 +413,7 @@ class MediaLibraryScanner(
 
     companion object {
         private const val TAG = "MediaLibraryScanner"
+        private const val SCAN_PROGRESS_THROTTLE_MS = 200L
 
         val SUPPORTED_AUDIO_EXTENSIONS = setOf("mp3", "flac", "wav", "ogg", "m4a", "aac", "opus")
         val SUPPORTED_VIDEO_EXTENSIONS = setOf("mp4", "mkv", "webm", "mov", "3gp")
