@@ -34,6 +34,14 @@ The existing Android/Compose/Media3 architecture and real callbacks remain uncha
 - Corner language is tightened to 10/16/24dp; surfaces are not pill-shaped by default.
 - Breakpoints remain compact phone `<600dp`, expanded `600–839dp`, tablet rail `>=840dp`.
 
+### Responsive behavior
+
+- **Compact phone `<420dp` content width:** Home primary actions become a full-width vertical stack; no button relies on a fractional-weight row. Now Playing metadata stacks identity, route and secondary actions; visualizer modes and transport controls remain reachable through horizontal scrolling instead of clipping.
+- **Expanded phone `420–599dp`:** Home actions share the row using the φ split; content cards remain full-width; horizontally curated shelves retain intentional horizontal scrolling.
+- **Expanded/tablet `600–839dp`:** Home and player use full-width content cards with stable hierarchy; the shell keeps bottom navigation while long shelves remain independently scrollable.
+- **Tablet rail `>=840dp`:** The shell switches to navigation rail; content retains a readable max hierarchy rather than stretching controls across the entire window.
+- **Large text:** Track identity and route/action controls are stacked instead of competing for one horizontal line; every action remains at least 48dp.
+
 ## Component decisions
 
 ### Shell and navigation

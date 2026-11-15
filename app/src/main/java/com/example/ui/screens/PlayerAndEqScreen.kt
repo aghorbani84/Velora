@@ -3,15 +3,19 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -118,7 +122,8 @@ private fun NowPlayingArtwork(track: Track) {
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .fillMaxWidth()
-            .height(250.dp)
+            .aspectRatio(1f)
+            .heightIn(max = 280.dp)
             .clip(shape)
             .background(Brush.linearGradient(listOf(FazoraGoldMuted, FazoraCarbonElevated, FazoraObsidian)))
             .border(1.dp, FazoraCarbonBorder, shape)
@@ -148,7 +153,7 @@ private fun EmptyNowPlayingArtwork(isPersian: Boolean) {
         shape = RoundedCornerShape(PhiTokens.CornerRadius21),
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
+            .heightIn(min = 160.dp, max = 220.dp)
             .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
     ) {
         Column(
@@ -332,12 +337,8 @@ fun PlayerAndEqScreen(
                     }
                     Spacer(modifier = Modifier.height(PhiTokens.Space21))
 
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = activeTrack?.title ?: if (isPersian) "آهنگی انتخاب نشده" else "No track selected",
                                 style = MaterialTheme.typography.headlineLarge,
@@ -386,7 +387,10 @@ fun PlayerAndEqScreen(
                             }
                         }
                         if (activeTrack != null) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                horizontalArrangement = Arrangement.End,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 IconButton(
                                     onClick = { onToggleFavorite(activeTrack) },
                                     modifier = Modifier
@@ -461,17 +465,16 @@ fun PlayerAndEqScreen(
 
                     Spacer(modifier = Modifier.height(PhiTokens.Space8))
 
-                    Row(
+                    LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        VisualizerMode.entries.forEach { mode ->
+                        items(VisualizerMode.entries, key = { it.name }) { mode ->
                             val selected = engine.visualizerMode == mode
                             Surface(
                                 color = if (selected) FazoraGold else FazoraCarbonElevated,
                                 shape = RoundedCornerShape(PhiTokens.CornerRadius8),
                                 modifier = Modifier
-                                    .weight(1f)
                                     .minimumInteractiveComponentSize()
                                     .clip(RoundedCornerShape(PhiTokens.CornerRadius8))
                                     .clickable { onSetVisualizerMode(mode) }
@@ -633,7 +636,9 @@ fun PlayerAndEqScreen(
                     Row(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
                     ) {
                         val isShuffle = queue.mode == QueueMode.SHUFFLE
                         IconButton(

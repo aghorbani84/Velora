@@ -1044,41 +1044,13 @@ fun MusicScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(PhiTokens.Space21))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            onClick = onPlayAll,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = FazoraGold,
-                                contentColor = FazoraObsidian
-                            ),
-                            modifier = Modifier
-                                .weight(PhiTokens.PRIMARY_WEIGHT)
-                                .minimumInteractiveComponentSize()
-                                .semantics {
-                                    role = Role.Button
-                                    stateDescription = if (isPersian) "پخش مجموعه" else "Play collection"
-                                }
-                                .testTag("music_play_all_button")
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(if (isPersian) "شروع پخش" else "Start listening")
-                        }
-
-                        OutlinedButton(
-                            onClick = onShuffleAll,
-                            modifier = Modifier
-                                .weight(PhiTokens.SECONDARY_WEIGHT)
-                                .minimumInteractiveComponentSize()
-                                .testTag("music_shuffle_all_button")
-                        ) {
-                            Icon(Icons.Default.Shuffle, contentDescription = null, tint = FazoraGold)
-                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(if (isPersian) "کشف تصادفی" else "Surprise me", color = FazoraIvory)
-                        }
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        HomePrimaryActions(
+                            compact = maxWidth < 420.dp,
+                            isPersian = isPersian,
+                            onPlayAll = onPlayAll,
+                            onShuffleAll = onShuffleAll
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
@@ -1175,6 +1147,56 @@ private fun HomeSectionHeader(
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(title, style = MaterialTheme.typography.titleLarge, color = FazoraIvory, fontWeight = FontWeight.SemiBold)
         Text(subtitle, style = MaterialTheme.typography.bodySmall, color = FazoraSteel)
+    }
+}
+
+@Composable
+private fun HomePrimaryActions(
+    compact: Boolean,
+    isPersian: Boolean,
+    onPlayAll: () -> Unit,
+    onShuffleAll: () -> Unit
+) {
+    if (compact) {
+        Column(verticalArrangement = Arrangement.spacedBy(PhiTokens.Space8), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onPlayAll,
+                colors = ButtonDefaults.buttonColors(containerColor = FazoraGold, contentColor = FazoraObsidian),
+                modifier = Modifier.fillMaxWidth().minimumInteractiveComponentSize().testTag("music_play_all_button")
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                Text(if (isPersian) "شروع پخش" else "Start listening", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            OutlinedButton(
+                onClick = onShuffleAll,
+                modifier = Modifier.fillMaxWidth().minimumInteractiveComponentSize().testTag("music_shuffle_all_button")
+            ) {
+                Icon(Icons.Default.Shuffle, contentDescription = null, tint = FazoraGold)
+                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                Text(if (isPersian) "کشف تصادفی" else "Surprise me", color = FazoraIvory, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onPlayAll,
+                colors = ButtonDefaults.buttonColors(containerColor = FazoraGold, contentColor = FazoraObsidian),
+                modifier = Modifier.weight(PhiTokens.PRIMARY_WEIGHT).minimumInteractiveComponentSize().testTag("music_play_all_button")
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                Text(if (isPersian) "شروع پخش" else "Start listening", maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            OutlinedButton(
+                onClick = onShuffleAll,
+                modifier = Modifier.weight(PhiTokens.SECONDARY_WEIGHT).minimumInteractiveComponentSize().testTag("music_shuffle_all_button")
+            ) {
+                Icon(Icons.Default.Shuffle, contentDescription = null, tint = FazoraGold)
+                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                Text(if (isPersian) "کشف تصادفی" else "Surprise me", color = FazoraIvory, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
 }
 
