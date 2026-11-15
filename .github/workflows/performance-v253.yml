@@ -41,12 +41,16 @@ jobs:
       - name: Run instrumentation on Android Emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
-          target: google_apis
+          api-level: 34
+          target: default
           arch: x86_64
           profile: pixel_2
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
-          disable-animations: true
+          cores: 2
+          ram-size: 2048M
+          disk-size: 4096M
+          force-avd-creation: true
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot
+          disable-animations: false
           script: |
             ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.PerformanceInstrumentedTest -Pvelora.versionName=2.5.3 --no-daemon --stacktrace
             adb logcat -d -v threadtime -s VeloraPerf:I '*:S' | tee perf-metrics.log
