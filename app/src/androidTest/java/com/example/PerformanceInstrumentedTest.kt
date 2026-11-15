@@ -47,16 +47,14 @@ class PerformanceInstrumentedTest {
         }
 
         val pssKb = afterMemory?.totalPss ?: beforeMemory?.totalPss ?: -1
-        val privateDirtyKb = afterMemory?.privateDirty ?: beforeMemory?.privateDirty ?: -1
         val metric = String.format(
             Locale.US,
-            "METRIC version=%s device=%s api=%d cold_start_ms=%d pss_kb=%d private_dirty_kb=%d cpu_percent_5s=%.2f sample_ms=%d pid=%d",
+            "METRIC version=%s device=%s api=%d cold_start_ms=%d pss_kb=%d cpu_percent_5s=%.2f sample_ms=%d pid=%d",
             BuildConfig.VERSION_NAME,
             android.os.Build.MODEL,
             android.os.Build.VERSION.SDK_INT,
             coldStartMs,
             pssKb,
-            privateDirtyKb,
             cpuPercent,
             sampleDurationMs,
             pid
