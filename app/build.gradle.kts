@@ -32,7 +32,7 @@ android {
     versionName =
       providers
         .gradleProperty("velora.versionName")
-        .orElse(providers.provider { fileVersion.ifEmpty { "2.5.2" } })
+        .orElse(providers.provider { fileVersion.ifEmpty { "2.5.3" } })
         .get()
         .trim()
         .removePrefix("v")

@@ -56,6 +56,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Now Playing refresh:** Updated player identity, status language, empty artwork treatment and Lab framing while preserving real Media3/ViewModel callbacks.
 - **Design documentation:** Added the Neon Nocturne UI system specification and validation plan.
 
+## [2.5.3] - 2026-11-15
+
+### Changed
+- **Responsive Home:** Switched primary actions to a full-width vertical stack below `420dp`, while preserving the two-column phi-weighted layout on wider phones.
+- **Responsive Now Playing:** Stacked track metadata and secondary actions on compact screens, made artwork ratio-aware, and prevented visualizer/transport controls from clipping.
+- **Responsive interaction surfaces:** Added independent horizontal scrolling for visualizer modes and transport controls where the available width cannot contain every control safely.
+- **Release packaging:** Increased Android `versionCode` to `14` so the responsive build installs as a valid in-place update over v2.5.2.
+
 ## [Unreleased]
 
 ### Fixed
