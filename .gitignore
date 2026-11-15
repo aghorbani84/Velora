@@ -20,3 +20,5 @@ ci-signing.properties
 *.keystore
 *.base64
 *-debug.log
+/dist
+
