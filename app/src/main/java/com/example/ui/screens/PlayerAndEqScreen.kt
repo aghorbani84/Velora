@@ -316,9 +316,9 @@ fun PlayerAndEqScreen(
                             text = if (isSimpleMode) {
                                 playbackStatusLabel
                             } else if (engine.engineAvailable) {
-                                "Media3 + 10-Band Biquad DSP"
+                                "LAB • Media3 + 10-Band DSP"
                             } else {
-                                "DSP Ready"
+                                "LAB • DSP READY"
                             },
                             style = MaterialTheme.typography.labelMedium,
                             color = FazoraSteel

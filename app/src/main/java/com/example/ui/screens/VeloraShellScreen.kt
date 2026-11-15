@@ -198,7 +198,7 @@ fun VeloraShellScreen(
                     containerColor = FazoraObsidian,
                     topBar = {
                         Surface(
-                            color = FazoraCarbon,
+                            color = FazoraObsidian,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .windowInsetsPadding(WindowInsets.statusBars)
@@ -211,25 +211,31 @@ fun VeloraShellScreen(
                                     .padding(horizontal = 16.dp, vertical = 8.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .background(FazoraGold, RoundedCornerShape(3.dp))
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
                                     Text(
                                         text = "VELORA",
                                         style = MaterialTheme.typography.titleLarge,
                                         fontWeight = FontWeight.Bold,
                                         color = FazoraGold
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
                                     Surface(
                                         color = FazoraCarbonElevated,
-                                        shape = RoundedCornerShape(12.dp)
+                                        shape = RoundedCornerShape(PhiTokens.CornerRadius8)
                                     ) {
                                         Text(
                                             text = if (isSimpleMode) {
-                                                if (isPersian) "ساده" else "SIMPLE"
+                                                if (isPersian) "میدان" else "FIELD"
                                             } else {
-                                                if (isPersian) "استودیو" else "STUDIO"
+                                                if (isPersian) "آزمایشگاه" else "LAB"
                                             },
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = if (isSimpleMode) FazoraIvory else FazoraGold,
+                                            color = if (isSimpleMode) FazoraSteel else FazoraGold,
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                         )
                                     }
@@ -269,9 +275,9 @@ fun VeloraShellScreen(
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = if (isSimpleMode) {
-                                                if (isPersian) "حالت پیشرفته" else "Studio Pro"
+                                                if (isPersian) "باز کردن آزمایشگاه" else "Open Lab"
                                             } else {
-                                                if (isPersian) "حالت ساده" else "Simple Mode"
+                                                if (isPersian) "بازگشت به میدان" else "Return to Field"
                                             },
                                             style = MaterialTheme.typography.labelMedium
                                         )
