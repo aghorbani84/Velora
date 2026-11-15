@@ -48,10 +48,7 @@ jobs:
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect
           disable-animations: true
           script: |
-            ./gradlew :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=com.example.PerformanceInstrumentedTest \
-              -Pvelora.versionName=2.5.3 \
-              --no-daemon --stacktrace
+            ./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.example.PerformanceInstrumentedTest -Pvelora.versionName=2.5.3 --no-daemon --stacktrace
             adb logcat -d -v threadtime -s VeloraPerf:I '*:S' | tee perf-metrics.log
             adb shell dumpsys meminfo com.aistudio.fazora.audiosync | tee meminfo-after-test.txt || true
 
