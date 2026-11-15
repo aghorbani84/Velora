@@ -4,15 +4,15 @@
 
 <br/>
 
-[![Download Latest APK](https://img.shields.io/badge/⬇_Download_APK-VELORA_v2.5.1-E5A817?style=for-the-badge&logo=android&logoColor=0B0B0D)](../../releases/latest)
-[![All Releases](https://img.shields.io/badge/Releases-Signed_APK_%26_AAB-D9BD83?style=for-the-badge&logo=github&logoColor=0B0B0D)](../../releases)
-[![Android CI](https://img.shields.io/badge/CI-Build_%26_Detekt_Passing-2ECC71?style=for-the-badge&logo=githubactions&logoColor=0B0B0D)](../../actions/workflows/android.yml)
-[![Release Pipeline](https://img.shields.io/badge/CD-Auto_Release_Enabled-F5C451?style=for-the-badge&logo=githubactions&logoColor=0B0B0D)](../../actions/workflows/release.yml)
+[![Download Latest APK](https://img.shields.io/badge/⬇_Download_APK-VELORA_v2.5.2-6EE7FF?style=for-the-badge&logo=android&logoColor=070A12)](../../releases/latest)
+[![All Releases](https://img.shields.io/badge/Releases-Signed_APK_%26_AAB-D9BD83?style=for-the-badge&logo=github&logoColor=070A12)](../../releases)
+[![Android CI](https://img.shields.io/badge/CI-Build_%26_Detekt_Passing-2ECC71?style=for-the-badge&logo=githubactions&logoColor=070A12)](../../actions/workflows/android.yml)
+[![Release Pipeline](https://img.shields.io/badge/CD-Auto_Release_Enabled-F5C451?style=for-the-badge&logo=githubactions&logoColor=070A12)](../../actions/workflows/release.yml)
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Media3 ExoPlayer](https://img.shields.io/badge/AndroidX_Media3-1.5.1-00C853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/media/media3)
-[![Room Database](https://img.shields.io/badge/Room_SQLite-2.7.0_(v3)-E5A817?style=flat-square&logo=sqlite&logoColor=white)](https://developer.android.com/training/data-storage/room)
+[![Room Database](https://img.shields.io/badge/Room_SQLite-2.7.0_(v3)-6EE7FF?style=flat-square&logo=sqlite&logoColor=white)](https://developer.android.com/training/data-storage/room)
 [![Koin DI](https://img.shields.io/badge/Koin_DI-4.0.2-D9BD83?style=flat-square)](https://insert-koin.io)
 [![Detekt](https://img.shields.io/badge/Detekt-1.23.8_(0_Issues)-BDA36B?style=flat-square)](https://detekt.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-F5F2EB?style=flat-square)](LICENSE)
@@ -32,9 +32,9 @@ All commits to `main`/`master` and version tags (`v*.*.*`) automatically trigger
 
 | Artifact File | Description | Target Architecture | Min SDK | Direct Link |
 | :--- | :--- | :--- | :--- | :--- |
-| **`VELORA-v2.5.1-release-signed.apk`** | **Recommended Production APK** (Signed & Optimized) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26) | [**Download Latest Release ⬇**](../../releases/latest) |
-| **`VELORA-v2.5.1-universal-debug.apk`** | Developer & Diagnostic APK (Includes TestTags & Debug Symbols) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26) | [**Download from Releases ⬇**](../../releases/latest) |
-| **`VELORA-v2.5.1-release.aab`** | Signed Android App Bundle for Google Play Store | Dynamic Split Bundle | Android 8.0+ (API 26) | [**Download from Releases ⬇**](../../releases/latest) |
+| **`VELORA-v2.5.2-release-signed.apk`** | **Recommended Production APK** (Signed & Optimized) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26) | [**Download Latest Release ⬇**](../../releases/latest) |
+| **`VELORA-v2.5.2-universal-debug.apk`** | Developer & Diagnostic APK (Includes TestTags & Debug Symbols) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26) | [**Download from Releases ⬇**](../../releases/latest) |
+| **`VELORA-v2.5.2-release.aab`** | Signed Android App Bundle for Google Play Store | Dynamic Split Bundle | Android 8.0+ (API 26) | [**Download from Releases ⬇**](../../releases/latest) |
 | **`SHA256SUMS.txt`** | Cryptographic SHA-256 Checksums for Binary Verification | Plaintext Manifest | — | [**Verify Checksums 🔐**](../../releases/latest) |
 
 ### Verifying Downloaded Binaries
@@ -45,8 +45,8 @@ sha256sum -c SHA256SUMS.txt
 
 > **One-Click Manual Release:** Maintainers can also trigger a custom versioned release at any time from **[Actions → VELORA Release & APK Publisher → Run workflow](../../actions/workflows/release.yml)** or by pushing a tag:
 > ```bash
-> git tag -a v2.5.1 -m "VELORA v2.5.1 — Beyond Playback"
-> git push origin v2.5.1
+> git tag -a v2.5.2 -m "VELORA v2.5.2 — Beyond Playback"
+> git push origin v2.5.2
 > ```
 
 ---
@@ -105,13 +105,13 @@ interface IMediaOrchestrator {
 
 VELORA rejects generic neon templates in favor of a calm, atmospheric **Dark Saffron & Champagne Gold** palette engineered to exceed **WCAG 2.1 AA** contrast standards and **Golden Ratio ($\varphi = 1.61803398875$)** spatial proportions.
 
-| Token Name | Hex Code | Role | WCAG 2.1 Contrast vs Obsidian (`#0B0B0D`) |
+| Token Name | Hex Code | Role | WCAG 2.1 Contrast vs Obsidian (`#070A12`) |
 | :--- | :--- | :--- | :--- |
-| `VeloraObsidian` | `#0B0B0D` | Primary Canvas Background | — (Base Surface) |
+| `VeloraObsidian` | `#070A12` | Primary Canvas Background | — (Base Surface) |
 | `VeloraSecondaryBg` | `#121216` | Secondary Structural Surface | — |
 | `VeloraElevated` | `#19191F` | Elevated Navigation & Sheet Surface | — |
 | `VeloraCard` | `#202027` | Media Card & Control Container | — |
-| `VeloraPrimarySaffron` | `#E5A817` | Primary Brand Accent & Active Indicator | **9.84 : 1** (`AAA` / `AA` PASS) |
+| `VeloraPrimarySaffron` | `#6EE7FF` | Primary Brand Accent & Active Indicator | **9.84 : 1** (`AAA` / `AA` PASS) |
 | `VeloraDeepSaffron` | `#C88712` | Pressed / Secondary Accent Tone | **7.12 : 1** (`AAA` / `AA` PASS) |
 | `VeloraBrightSaffron` | `#F5C451` | Active Waveform & Peak Highlight | **12.65 : 1** (`AAA` PASS) |
 | `VeloraChampagneGold` | `#D9BD83` | Hi-Res Badge & Editorial Highlight | **11.10 : 1** (`AAA` PASS) |
@@ -199,7 +199,7 @@ VELORA is currently a dedicated **Android-only (`Media3 ExoPlayer` + `Jetpack Co
 - **اعتبارسنجی امن استریم و افزونه‌های Sandboxed**: پشتیبانی از استریم‌های `HLS (.m3u8)`، `MPEG-DASH (.mpd)` و `HTTPS` با پالایش و اعتبارسنجی امن نشانی‌های اینترنتی و جلوگیری از پیمایش مسیر (`VeloraDownloadValidator`) و رجیستری افزونه‌های امن Tier 1.
 
 ### 📲 دانلود و نصب
-برای دریافت آخرین فایل نصبی (`.apk`) امضاشده، به بخش **[Releases (انتشارها)](../../releases/latest)** در بالای همین مخزن مراجعه کنید و فایل **`VELORA-v2.5.1-release-signed.apk`** را دانلود و نصب نمایید.
+برای دریافت آخرین فایل نصبی (`.apk`) امضاشده، به بخش **[Releases (انتشارها)](../../releases/latest)** در بالای همین مخزن مراجعه کنید و فایل **`VELORA-v2.5.2-release-signed.apk`** را دانلود و نصب نمایید.
 
 </div>
 

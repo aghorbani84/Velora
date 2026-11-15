@@ -48,6 +48,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 - **Magic dashboard build:** Added the missing Compose size import required by the hero surface.
 
+## [2.5.2] - 2026-11-15
+
+### Changed
+- **Neon Nocturne visual system:** Replaced the legacy saffron/gold visual language with the Aurora Signal palette: deep night, live cyan, violet depth and coral attention states.
+- **Shell refresh:** Reframed the primary modes as `FIELD` and `LAB`, with a new signal-mark header and flatter navigation surface.
+- **Now Playing refresh:** Updated player identity, status language, empty artwork treatment and Lab framing while preserving real Media3/ViewModel callbacks.
+- **Design documentation:** Added the Neon Nocturne UI system specification and validation plan.
+
 ## [Unreleased]
 
 ### Fixed

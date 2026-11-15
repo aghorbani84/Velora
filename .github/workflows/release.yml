@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release version tag (e.g. v2.5.1)'
+        description: 'Release version tag (e.g. v2.5.2)'
         required: false
-        default: 'v2.5.1'
+        default: 'v2.5.2'
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -104,13 +104,13 @@ jobs:
       - name: Resolve Release Version & Tag
         id: meta
         run: |
-          GRADLE_VER="2.5.1"
+          GRADLE_VER="2.5.2"
           if [ -f VERSION ]; then
             GRADLE_VER=$(tr -d '[:space:]' < VERSION)
             GRADLE_VER="${GRADLE_VER#v}"
           fi
           if [ -z "$GRADLE_VER" ]; then
-            GRADLE_VER="2.5.1"
+            GRADLE_VER="2.5.2"
           fi
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version_tag }}" ]; then
@@ -269,9 +269,10 @@ jobs:
           {
             echo "## ✨ VELORA — Beyond Playback (${TAG})"
             echo ""
-            echo "**VELORA ${TAG}** is an intelligent, privacy-first multimedia platform engineered with **Kotlin**, **Jetpack Compose (Material 3 Dark Saffron & Champagne Gold)**, **Media3 ExoPlayer**, a **10-Band Cascaded Peaking Biquad DSP Equalizer**, **Studio DSP Rack (Preamp, Sub-Bass Boost, 3D Stereo Width, A-B Loop, Smart Sleep Timer)**, **Live World & Persian Radio Tuner**, and **Sandboxed Declarative Plugins**."
+            echo "**VELORA ${TAG}** is an intelligent, privacy-first multimedia platform engineered with **Kotlin**, **Jetpack Compose (Neon Nocturne / Aurora Signal)**, **Media3 ExoPlayer**, a **10-Band Cascaded Peaking Biquad DSP Equalizer**, **Studio DSP Rack (Preamp, Sub-Bass Boost, 3D Stereo Width, A-B Loop, Smart Sleep Timer)**, **Live World & Persian Radio Tuner**, and **Sandboxed Declarative Plugins**."
             echo ""
             echo "### 🚀 What's New in ${TAG}"
+            echo "- **Neon Nocturne UI refresh**: Aurora Signal palette, FIELD/LAB shell modes, an updated immersive player hierarchy, and new artwork/empty-state treatment."
             echo "- **Local Listening Stats & Studio Recap**: Live dashboard of total listen minutes, total plays, Hi-Res masters count, top artists, and most-played tracks."
             echo "- **Rule-Based Smart Playlists Builder**: Create dynamic smart playlists filtered by minimum bitrate (kbps), sample rate (Hz), play count, favorites, and artist/title keywords."
             echo "- **In-App Synced .LRC Timestamp Studio**: Stamp real-time playback timestamps onto lyric lines, add new verses on the fly, and export standard \`.LRC\` files."
