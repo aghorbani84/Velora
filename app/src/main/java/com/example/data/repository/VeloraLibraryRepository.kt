@@ -78,13 +78,14 @@ class VeloraLibraryRepository(
 
     suspend fun performScan(
         allowedFolderUris: Set<String>,
-        includeMediaStore: Boolean = true
+        includeMediaStore: Boolean = true,
+        includeDemoSamples: Boolean = true
     ): List<Track> = withContext(Dispatchers.IO) {
         val existingFavorites = trackDao.getAllTracksOnce()
             .filter { it.isFavorite }
             .map { it.id }
             .toSet()
-        val discovered = scanner.scanAllSources(allowedFolderUris, includeMediaStore)
+        val discovered = scanner.scanAllSources(allowedFolderUris, includeMediaStore, includeDemoSamples)
         val uniqueEntities = discovered
             .distinctBy { it.uri }
             .distinctBy { it.id }
@@ -94,6 +95,22 @@ class VeloraLibraryRepository(
             }
         trackDao.upsertTracks(uniqueEntities)
         uniqueEntities.map { it.toDomain() }
+    }
+
+    suspend fun purgeDemoSampleTracks(): Int = withContext(Dispatchers.IO) {
+        val demoDir = File(context.filesDir, "fazora_studio_masters")
+        if (demoDir.exists()) {
+            demoDir.listFiles()?.forEach { it.delete() }
+            demoDir.delete()
+        }
+        val current = trackDao.getAllTracksOnce()
+        val demoTracks = current.filter {
+            it.folderPath.contains("fazora_studio_masters") ||
+                it.uri.contains("fazora_studio_masters") ||
+                it.uri.contains("storage.googleapis.com/gtv-videos-bucket")
+        }
+        demoTracks.forEach { trackDao.deleteTrackById(it.id) }
+        demoTracks.size
     }
 
     suspend fun toggleFavorite(trackId: String): Boolean = withContext(Dispatchers.IO) {

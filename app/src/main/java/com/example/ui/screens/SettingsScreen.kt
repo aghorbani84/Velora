@@ -382,6 +382,9 @@ fun SettingsScreen(
                                                 ThemePaletteMode.VELORA_SAFFRON ->
                                                     if (isPersian) "پالت اصلی استودیویی با طلای زعفرانی و شامپاینی"
                                                     else "Classic audiophile signature saffron & champagne gold"
+                                                ThemePaletteMode.VELORA_DAYLIGHT ->
+                                                    if (isPersian) "زمینه روشن عاجی با طلای زعفرانی برای محیط‌های پرنور"
+                                                    else "Warm ivory daylight surface with saffron gold accents"
                                                 ThemePaletteMode.HIGH_CONTRAST_MONOCHROME ->
                                                     if (isPersian) "مشکی و سفید مطلق بدون اتلاف باتری اولد"
                                                     else "Pure monochrome black & white for maximum accessibility"

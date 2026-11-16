@@ -37,14 +37,15 @@ class MediaLibraryScanner(
 
     suspend fun scanAllSources(
         allowedFolderUris: Set<String>,
-        includeMediaStore: Boolean = true
+        includeMediaStore: Boolean = true,
+        includeDemoSamples: Boolean = true
     ): List<Track> = withContext(Dispatchers.IO) {
         val startMs = System.currentTimeMillis()
         _scanProgress.value = ScanProgress(
             isScanning = true,
             scannedCount = 0,
             indexedCount = 0,
-            currentSourceLabel = "Fazora Studio Reference Masters",
+            currentSourceLabel = if (includeDemoSamples) "Fazora Studio Reference Masters" else "Device Media Library",
             errorMessage = null
         )
 
@@ -70,8 +71,10 @@ class MediaLibraryScanner(
         }
 
         try {
-            val bundled = BundledMediaSynthesizer.ensureStudioMastersExist(context)
-            bundled.forEach { registerTrack(it) }
+            if (includeDemoSamples) {
+                val bundled = BundledMediaSynthesizer.ensureStudioMastersExist(context)
+                bundled.forEach { registerTrack(it) }
+            }
 
             if (includeMediaStore) {
                 _scanProgress.update { it.copy(currentSourceLabel = "Device MediaStore Audio") }

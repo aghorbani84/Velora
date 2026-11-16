@@ -56,7 +56,7 @@ class VeloraViewModel(
     val mediaOrchestrator: IMediaOrchestrator = MediaOrchestrator(repository, settingsRepository, playerEngine)
 ) : ViewModel() {
 
-    val exoPlayer: ExoPlayer?
+    internal val exoPlayer: ExoPlayer?
         get() = (playerEngine as? Media3PlayerEngine)?.exoPlayer
 
     private val _searchQuery = MutableStateFlow("")
@@ -173,7 +173,11 @@ class VeloraViewModel(
     fun scanLibrary() {
         viewModelScope.launch {
             val settings = settingsRepository.getSettingsOnce()
-            val scanned = repository.performScan(settings.allowedFolderUris)
+            val scanned = repository.performScan(
+                allowedFolderUris = settings.allowedFolderUris,
+                includeMediaStore = true,
+                includeDemoSamples = settings.includeDemoSamples
+            )
             mediaOrchestrator.ensureQueueSeeded(scanned)
             mediaOrchestrator.postBanner("Indexed ${scanned.size} media tracks")
         }
@@ -203,7 +207,11 @@ class VeloraViewModel(
                 return@launch
             }
             val updatedSettings = settingsRepository.getSettingsOnce()
-            val scanned = repository.performScan(updatedSettings.allowedFolderUris)
+            val scanned = repository.performScan(
+                allowedFolderUris = updatedSettings.allowedFolderUris,
+                includeMediaStore = true,
+                includeDemoSamples = updatedSettings.includeDemoSamples
+            )
             mediaOrchestrator.postBanner("Added folder & indexed ${scanned.size} tracks")
         }
     }
@@ -217,7 +225,11 @@ class VeloraViewModel(
             }
             settingsRepository.addAllowedFolder(path)
             val updatedSettings = settingsRepository.getSettingsOnce()
-            val scanned = repository.performScan(updatedSettings.allowedFolderUris)
+            val scanned = repository.performScan(
+                allowedFolderUris = updatedSettings.allowedFolderUris,
+                includeMediaStore = true,
+                includeDemoSamples = updatedSettings.includeDemoSamples
+            )
             mediaOrchestrator.postBanner("Created folder '$folderName' (${scanned.size} total tracks)")
         }
     }
@@ -474,5 +486,25 @@ class VeloraViewModel(
 
     fun clearEngineError() {
         playerEngine.clearError()
+    }
+}
+
+fun VeloraViewModel.setIncludeDemoSamples(enabled: Boolean) {
+    viewModelScope.launch {
+        settingsRepository.updateIncludeDemoSamples(enabled)
+        if (!enabled) {
+            val removed = repository.purgeDemoSampleTracks()
+            mediaOrchestrator.postBanner("Removed $removed studio demo sample tracks")
+        } else {
+            scanLibrary()
+        }
+    }
+}
+
+fun VeloraViewModel.purgeDemoSamples() {
+    viewModelScope.launch {
+        settingsRepository.updateIncludeDemoSamples(false)
+        val removed = repository.purgeDemoSampleTracks()
+        mediaOrchestrator.postBanner("Removed $removed studio demo sample tracks")
     }
 }

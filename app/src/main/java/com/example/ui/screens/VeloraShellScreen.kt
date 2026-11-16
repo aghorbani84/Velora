@@ -156,10 +156,11 @@ fun VeloraShellScreen(
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+        val bgColor = MaterialTheme.colorScheme.background
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(FazoraObsidian)
+                .background(bgColor)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
         ) {
             val useNavigationRail = maxWidth >= 680.dp
@@ -175,7 +176,7 @@ fun VeloraShellScreen(
                 }
 
                 Scaffold(
-                    containerColor = FazoraObsidian,
+                    containerColor = bgColor,
                     topBar = {
                         VeloraStudioTopConsoleBar(
                             isSimpleMode = isSimpleMode,
@@ -212,8 +213,8 @@ fun VeloraShellScreen(
                             .background(
                                 Brush.radialGradient(
                                     colors = listOf(
-                                        FazoraGoldDeep.copy(alpha = 0.08f),
-                                        FazoraObsidian
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                        bgColor
                                     ),
                                     center = Offset(240f, 80f),
                                     radius = 950f

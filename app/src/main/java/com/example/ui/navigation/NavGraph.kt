@@ -114,7 +114,6 @@ fun VeloraNavGraph(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val media3ExoPlayer = viewModel.exoPlayer
 
     NavHost(
         navController = navController,
@@ -197,7 +196,7 @@ fun VeloraNavGraph(
         composable(VeloraDestination.VIDEO.route) {
             VideoPlayerScreen(
                 uiState = uiState,
-                exoPlayer = media3ExoPlayer,
+                playerEngine = viewModel.playerEngine,
                 onPlayVideoTrack = { viewModel.playTrack(it, uiState.videoTracks) },
                 onTogglePlayPause = { viewModel.togglePlayPause() },
                 onSeekTo = { viewModel.seekTo(it) },

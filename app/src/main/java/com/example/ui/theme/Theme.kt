@@ -67,6 +67,31 @@ val VeloraHighContrastColorScheme: ColorScheme = darkColorScheme(
 )
 
 /**
+ * Velora Daylight Ivory Color Scheme (Light Mode — WCAG 2.1 AA Verified).
+ */
+val VeloraDaylightColorScheme: ColorScheme = lightColorScheme(
+    primary = Color(0xFF946200),
+    onPrimary = Color(0xFFFFFFFF),
+    primaryContainer = Color(0xFFFFDEA3),
+    onPrimaryContainer = Color(0xFF2F1E00),
+    secondary = Color(0xFF6B5C3F),
+    onSecondary = Color(0xFFFFFFFF),
+    secondaryContainer = Color(0xFFF4E0BB),
+    onSecondaryContainer = Color(0xFF241A04),
+    tertiary = Color(0xFF7B570E),
+    onTertiary = Color(0xFFFFFFFF),
+    background = Color(0xFFF9F6F0),
+    onBackground = Color(0xFF121216),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF121216),
+    surfaceVariant = Color(0xFFEDE7DC),
+    onSurfaceVariant = Color(0xFF4C4639),
+    outline = Color(0xFFCFC8B8),
+    error = Color(0xFFBA1A1A),
+    onError = Color(0xFFFFFFFF)
+)
+
+/**
  * Mathematically balances and clamps a ColorScheme so all foreground and background
  * pairings strictly adhere to WCAG 2.1 AA luminance ratio (>= 4.5:1) while preserving
  * the user device's Material You dynamic hue.
@@ -132,10 +157,11 @@ fun VeloraTheme(
                 }
                 balanceDynamicColorScheme(dynamicScheme, isDark = darkTheme)
             } else {
-                VeloraSaffronColorScheme
+                if (darkTheme) VeloraSaffronColorScheme else VeloraDaylightColorScheme
             }
         }
         ThemePaletteMode.VELORA_SAFFRON -> VeloraSaffronColorScheme
+        ThemePaletteMode.VELORA_DAYLIGHT -> VeloraDaylightColorScheme
         ThemePaletteMode.HIGH_CONTRAST_MONOCHROME -> VeloraHighContrastColorScheme
     }
 

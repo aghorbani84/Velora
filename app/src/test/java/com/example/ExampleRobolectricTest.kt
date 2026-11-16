@@ -507,4 +507,24 @@ class ExampleRobolectricTest {
         assertEquals("velora_media_session", com.example.data.playback.VeloraPlaybackService.SESSION_ID)
         controller.destroy()
     }
+
+    @Test
+    fun `performScan with includeDemoSamples false skips bundled samples and purgeDemoSampleTracks removes them`() = runBlocking {
+        val withDemos = repository.performScan(
+            allowedFolderUris = emptySet(),
+            includeMediaStore = false,
+            includeDemoSamples = true
+        )
+        assertTrue(withDemos.isNotEmpty())
+
+        val purgedCount = repository.purgeDemoSampleTracks()
+        assertTrue(purgedCount > 0)
+
+        val withoutDemos = repository.performScan(
+            allowedFolderUris = emptySet(),
+            includeMediaStore = false,
+            includeDemoSamples = false
+        )
+        assertTrue(withoutDemos.isEmpty())
+    }
 }

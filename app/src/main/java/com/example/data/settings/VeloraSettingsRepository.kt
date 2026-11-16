@@ -136,6 +136,10 @@ class VeloraSettingsRepository(
         dataStore.edit { it[KEY_DYNAMIC_COLOR_ENABLED] = enabled }
     }
 
+    suspend fun updateIncludeDemoSamples(enabled: Boolean) {
+        dataStore.edit { it[KEY_INCLUDE_DEMO_SAMPLES] = enabled }
+    }
+
     suspend fun addAllowedFolder(folderUriOrPath: String): Boolean {
         if (!PhiDesignMetrics.isSafeMediaFolder(folderUriOrPath)) {
             Log.w(TAG, "Rejected unsafe media folder path: $folderUriOrPath")
@@ -236,7 +240,8 @@ class VeloraSettingsRepository(
             dynamicColorEnabled = prefs[KEY_DYNAMIC_COLOR_ENABLED] ?: true,
             themePaletteMode = prefs[KEY_THEME_PALETTE_MODE]?.let {
                 runCatching { com.example.domain.model.ThemePaletteMode.valueOf(it) }.getOrNull()
-            } ?: com.example.domain.model.ThemePaletteMode.SYSTEM_DYNAMIC
+            } ?: com.example.domain.model.ThemePaletteMode.SYSTEM_DYNAMIC,
+            includeDemoSamples = prefs[KEY_INCLUDE_DEMO_SAMPLES] ?: false
         )
     }
 
@@ -265,6 +270,7 @@ class VeloraSettingsRepository(
         private val KEY_ADAPTIVE_AUDIO = stringPreferencesKey("adaptive_audio_mode")
         private val KEY_DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
         private val KEY_THEME_PALETTE_MODE = stringPreferencesKey("theme_palette_mode")
+        private val KEY_INCLUDE_DEMO_SAMPLES = booleanPreferencesKey("include_demo_samples")
 
         fun backupCorruptFileIfPresent(
             targetFile: File,

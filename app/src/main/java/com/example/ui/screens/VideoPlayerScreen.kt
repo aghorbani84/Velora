@@ -3,11 +3,9 @@ package com.example.ui.screens
 import android.content.Intent
 import android.app.Activity
 import android.content.pm.ActivityInfo
-import android.view.LayoutInflater
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.OptIn
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -17,8 +15,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,29 +77,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import com.example.R
 import com.example.domain.engine.PlaybackStatus
-import com.example.domain.model.GestureActionType
+import com.example.domain.engine.PlayerEngine
 import com.example.domain.model.FullscreenPolicy
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.SubtitleColorTheme
 import com.example.domain.model.SubtitleFontScale
 import com.example.domain.model.Track
-import com.example.domain.model.VeloraGestureEngine
 import com.example.domain.model.VideoAspectMode
+import com.example.domain.model.VideoControlGroup
 import com.example.ui.components.TrackRowItem
+import com.example.ui.components.VeloraVideoSurface
+import com.example.ui.components.veloraCinemaGestures
 import com.example.ui.theme.FazoraCarbon
 import com.example.ui.theme.FazoraCarbonBorder
 import com.example.ui.theme.FazoraCarbonElevated
@@ -115,11 +107,10 @@ import com.example.ui.theme.PhiTokens
 import com.example.ui.viewmodel.FazoraUiState
 import kotlinx.coroutines.delay
 
-@OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayerScreen(
     uiState: FazoraUiState,
-    exoPlayer: ExoPlayer?,
+    playerEngine: PlayerEngine?,
     onPlayVideoTrack: (Track) -> Unit,
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
@@ -295,41 +286,12 @@ fun VideoPlayerScreen(
                     .fillMaxSize()
                     .background(Color.Black)
             ) {
-                if (exoPlayer != null) {
-                    AndroidView(
-                        factory = { ctx ->
-                            val playerView = LayoutInflater.from(ctx).inflate(
-                                R.layout.velora_video_player_view,
-                                null,
-                                false
-                            ) as PlayerView
-                            playerView.apply {
-                                setEnableComposeSurfaceSyncWorkaround(true)
-                                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
-                                useController = false
-                                keepScreenOn = true
-                                player = exoPlayer
-                                onResume()
-                            }
-                        },
-                        update = { view ->
-                            if (view.player !== exoPlayer) {
-                                view.player = exoPlayer
-                            }
-                            view.onResume()
-                            view.resizeMode = when (engine.videoAspectMode) {
-                                VideoAspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                VideoAspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                VideoAspectMode.GOLDEN_PHI -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                                VideoAspectMode.SIXTEEN_NINE -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                            }
-                        },
-                        onRelease = { view -> view.player = null },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .testTag("fullscreen_media3_player_view")
-                    )
-                }
+                VeloraVideoSurface(
+                    playerEngine = playerEngine,
+                    videoAspectMode = engine.videoAspectMode,
+                    surfaceTestTag = "fullscreen_media3_player_view",
+                    modifier = Modifier.fillMaxSize()
+                )
 
                 val fullscreenDimAlpha = (1f - uiState.videoCinemaSettings.brightnessLevel).coerceIn(0f, 0.75f)
                 if (fullscreenDimAlpha > 0.02f) {
@@ -343,61 +305,20 @@ fun VideoPlayerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(controlsLocked, engine.positionMs, durationMs) {
-                            detectTapGestures(
-                                onDoubleTap = { offset ->
-                                    if (!controlsLocked) {
-                                        interactionNonce++
-                                        val res = VeloraGestureEngine.resolveDoubleTapGesture(
-                                            tapX = offset.x,
-                                            surfaceWidth = size.width.toFloat(),
-                                            currentPositionMs = engine.positionMs,
-                                            durationMs = durationMs
-                                        )
-                                        when (res.action) {
-                                            GestureActionType.SEEK_BACKWARD,
-                                            GestureActionType.SEEK_FORWARD -> {
-                                                onSeekTo(res.targetPositionMs)
-                                                seekNotice = res.hudLabel
-                                            }
-                                            else -> {
-                                                onTogglePlayPause()
-                                                seekNotice = res.hudLabel
-                                            }
-                                        }
-                                    }
-                                },
-                                onTap = {
-                                    controlsVisible = !controlsVisible
-                                    interactionNonce++
-                                }
-                            )
-                        }
-                        .pointerInput(controlsLocked, uiState.videoCinemaSettings.brightnessLevel, engine.volume) {
-                            var dragStartX = 0f
-                            detectVerticalDragGestures(
-                                onDragStart = { offset -> dragStartX = offset.x },
-                                onVerticalDrag = { change, dragAmount ->
-                                    if (!controlsLocked) {
-                                        change.consume()
-                                        val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
-                                            startX = dragStartX,
-                                            surfaceWidth = size.width.toFloat(),
-                                            surfaceHeight = size.height.toFloat(),
-                                            dragDeltaY = dragAmount,
-                                            currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
-                                            currentVolume = engine.volume
-                                        )
-                                        if (swipe.action == GestureActionType.ADJUST_BRIGHTNESS) {
-                                            onSetVideoBrightness(swipe.newValue)
-                                        } else {
-                                            onSetVolume(swipe.newValue)
-                                        }
-                                        seekNotice = swipe.hudLabel
-                                    }
-                                }
-                            )
-                        }
+                        .veloraCinemaGestures(
+                            controlsLocked = controlsLocked,
+                            positionMs = engine.positionMs,
+                            durationMs = durationMs,
+                            currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
+                            currentVolume = engine.volume,
+                            onToggleControls = { controlsVisible = !controlsVisible },
+                            onInteraction = { interactionNonce++ },
+                            onSeekTo = onSeekTo,
+                            onTogglePlayPause = onTogglePlayPause,
+                            onSetBrightness = onSetVideoBrightness,
+                            onSetVolume = onSetVolume,
+                            onHudNotice = { seekNotice = it }
+                        )
                 )
 
                 if (seekNotice != null) {
@@ -762,94 +683,28 @@ fun VideoPlayerScreen(
                             .aspectRatio(aspectRatioFloat)
                             .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
                             .background(Color.Black)
-                            .pointerInput(engine.positionMs, durationMs) {
-                                detectTapGestures(
-                                    onDoubleTap = { offset ->
-                                        interactionNonce++
-                                        val res = VeloraGestureEngine.resolveDoubleTapGesture(
-                                            tapX = offset.x,
-                                            surfaceWidth = size.width.toFloat(),
-                                            currentPositionMs = engine.positionMs,
-                                            durationMs = durationMs
-                                        )
-                                        when (res.action) {
-                                            GestureActionType.SEEK_BACKWARD,
-                                            GestureActionType.SEEK_FORWARD -> {
-                                                onSeekTo(res.targetPositionMs)
-                                                seekNotice = res.hudLabel
-                                            }
-                                            else -> {
-                                                onTogglePlayPause()
-                                                seekNotice = res.hudLabel
-                                            }
-                                        }
-                                    },
-                                    onTap = {
-                                        controlsVisible = !controlsVisible
-                                        interactionNonce++
-                                    }
-                                )
-                            }
-                            .pointerInput(uiState.videoCinemaSettings.brightnessLevel, engine.volume) {
-                                var dragStartX = 0f
-                                detectVerticalDragGestures(
-                                    onDragStart = { offset -> dragStartX = offset.x },
-                                    onVerticalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
-                                            startX = dragStartX,
-                                            surfaceWidth = size.width.toFloat(),
-                                            surfaceHeight = size.height.toFloat(),
-                                            dragDeltaY = dragAmount,
-                                            currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
-                                            currentVolume = engine.volume
-                                        )
-                                        if (swipe.action == GestureActionType.ADJUST_BRIGHTNESS) {
-                                            onSetVideoBrightness(swipe.newValue)
-                                        } else {
-                                            onSetVolume(swipe.newValue)
-                                        }
-                                        seekNotice = swipe.hudLabel
-                                    }
-                                )
-                            }
+                            .veloraCinemaGestures(
+                                controlsLocked = false,
+                                positionMs = engine.positionMs,
+                                durationMs = durationMs,
+                                currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
+                                currentVolume = engine.volume,
+                                onToggleControls = { controlsVisible = !controlsVisible },
+                                onInteraction = { interactionNonce++ },
+                                onSeekTo = onSeekTo,
+                                onTogglePlayPause = onTogglePlayPause,
+                                onSetBrightness = onSetVideoBrightness,
+                                onSetVolume = onSetVolume,
+                                onHudNotice = { seekNotice = it }
+                            )
                             .testTag("video_surface_container")
                     ) {
-                        if (exoPlayer != null) {
-                            AndroidView(
-                                factory = { ctx ->
-                                    val playerView = LayoutInflater.from(ctx).inflate(
-                                        R.layout.velora_video_player_view,
-                                        null,
-                                        false
-                                    ) as PlayerView
-                                    playerView.apply {
-                                        setEnableComposeSurfaceSyncWorkaround(true)
-                                        setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
-                                        useController = false
-                                        keepScreenOn = true
-                                        player = exoPlayer
-                                        onResume()
-                                    }
-                                },
-                                update = { view ->
-                                    if (view.player !== exoPlayer) {
-                                        view.player = exoPlayer
-                                    }
-                                    view.onResume()
-                                    view.resizeMode = when (engine.videoAspectMode) {
-                                        VideoAspectMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                        VideoAspectMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                        VideoAspectMode.GOLDEN_PHI -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                                        VideoAspectMode.SIXTEEN_NINE -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    }
-                                },
-                                onRelease = { view -> view.player = null },
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .testTag("media3_player_view")
-                            )
-                        }
+                        VeloraVideoSurface(
+                            playerEngine = playerEngine,
+                            videoAspectMode = engine.videoAspectMode,
+                            surfaceTestTag = "media3_player_view",
+                            modifier = Modifier.fillMaxSize()
+                        )
 
                         val dimAlpha = (1f - uiState.videoCinemaSettings.brightnessLevel).coerceIn(0f, 0.75f)
                         if (dimAlpha > 0.02f) {
@@ -1107,7 +962,7 @@ fun VideoPlayerScreen(
                         }
                     }
 
-                    if (!isSimpleMode) {
+                    if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.SPEED)) {
                         Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
                         Text(
@@ -1138,7 +993,9 @@ fun VideoPlayerScreen(
                                 }
                             }
                         }
+                    }
 
+                    if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.ASPECT)) {
                         Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
                         Text(
@@ -1169,7 +1026,9 @@ fun VideoPlayerScreen(
                                 }
                             }
                         }
+                    }
 
+                    if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.SUBTITLES)) {
                         Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
                         Row(
@@ -1195,34 +1054,38 @@ fun VideoPlayerScreen(
                                 )
                             }
 
-                            OutlinedButton(
-                                onClick = { showAudioDialog = true },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("video_audio_track_button")
-                            ) {
-                                Icon(Icons.Default.Audiotrack, contentDescription = null, tint = FazoraGold)
-                                Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                                Text(
-                                    text = if (isPersian) {
-                                        "ترک‌های صوتی (${engine.audioTracks.size.coerceAtLeast(1)})"
-                                    } else {
-                                        "Audio Tracks (${engine.audioTracks.size.coerceAtLeast(1)})"
-                                    },
-                                    color = FazoraIvory
-                                )
+                            if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.AUDIO_TRACK)) {
+                                OutlinedButton(
+                                    onClick = { showAudioDialog = true },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("video_audio_track_button")
+                                ) {
+                                    Icon(Icons.Default.Audiotrack, contentDescription = null, tint = FazoraGold)
+                                    Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                                    Text(
+                                        text = if (isPersian) {
+                                            "ترک‌های صوتی (${engine.audioTracks.size.coerceAtLeast(1)})"
+                                        } else {
+                                            "Audio Tracks (${engine.audioTracks.size.coerceAtLeast(1)})"
+                                        },
+                                        color = FazoraIvory
+                                    )
+                                }
                             }
 
-                            OutlinedButton(
-                                onClick = onAddVideoBookmark,
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("video_add_bookmark_button")
-                            ) {
-                                Icon(Icons.Default.BookmarkAdd, contentDescription = null, tint = FazoraGold)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(if (isPersian) "بوکمارک صحنه" else "Bookmark Scene", color = FazoraIvory)
+                            if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.BOOKMARK)) {
+                                OutlinedButton(
+                                    onClick = onAddVideoBookmark,
+                                    modifier = Modifier
+                                        .minimumInteractiveComponentSize()
+                                        .testTag("video_add_bookmark_button")
+                                ) {
+                                    Icon(Icons.Default.BookmarkAdd, contentDescription = null, tint = FazoraGold)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(if (isPersian) "بوکمارک صحنه" else "Bookmark Scene", color = FazoraIvory)
+                                }
                             }
                         }
 
@@ -1239,7 +1102,9 @@ fun VideoPlayerScreen(
                                 }
                             }
                         }
+                    }
 
+                    if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.PICK_VIDEO)) {
                         Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
                         Row(
