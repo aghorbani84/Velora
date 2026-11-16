@@ -21,6 +21,10 @@ data class Track(
     val bitrateKbps: Int = 320,
     val isFavorite: Boolean = false
 ) {
+    val titleLower: String = title.lowercase(java.util.Locale.ROOT)
+    val artistLower: String = artist.lowercase(java.util.Locale.ROOT)
+    val albumLower: String = album.lowercase(java.util.Locale.ROOT)
+
     val durationFormatted: String
         get() = formatDurationMs(durationMs)
 
@@ -28,8 +32,7 @@ data class Track(
         if (mediaType == MediaType.VIDEO) return true
         if (durationMs < 35_000L) return false
 
-        val titleLower = title.lowercase()
-        val uriLower = uri.lowercase()
+        val uriLower = uri.lowercase(java.util.Locale.ROOT)
 
         val isChatAudio = titleLower.startsWith("aud-") || titleLower.startsWith("ptt-") ||
             listOf("whatsapp", "/ptt/", "/opus/").any { uriLower.contains(it) }

@@ -313,4 +313,198 @@ class ExampleRobolectricTest {
         orchestrator.close()
         engine.release()
     }
+
+    @Test
+    fun `assembleVeloraUiState characterization test - sorting, filtering, search, and smart playlists`() {
+        val fixedTracks = listOf(
+            Track(
+                id = "t_alpha",
+                mediaStoreId = 101L,
+                title = "Alpha Nocturne",
+                artist = "Zed Composer",
+                album = "Midnight Suite",
+                durationMs = 240_000L,
+                uri = "/storage/emulated/0/Music/alpha.flac",
+                folderPath = "/storage/emulated/0/Music",
+                mediaType = MediaType.AUDIO,
+                addedTimestampMs = 1_000L,
+                sampleRateHz = 96_000,
+                bitrateKbps = 1411,
+                isFavorite = true
+            ),
+            Track(
+                id = "t_beta",
+                mediaStoreId = 102L,
+                title = "Beta Horizon",
+                artist = "Aria Ensemble",
+                album = "Dawn",
+                durationMs = 180_000L,
+                uri = "/storage/emulated/0/Music/beta.mp3",
+                folderPath = "/storage/emulated/0/Music",
+                mediaType = MediaType.AUDIO,
+                addedTimestampMs = 5_000L,
+                sampleRateHz = 44_100,
+                bitrateKbps = 320,
+                isFavorite = false
+            ),
+            Track(
+                id = "t_video",
+                mediaStoreId = 103L,
+                title = "Cinema Reel",
+                artist = "Director Cut",
+                album = "Visuals",
+                durationMs = 600_000L,
+                uri = "/storage/emulated/0/Movies/reel.mp4",
+                folderPath = "/storage/emulated/0/Movies",
+                mediaType = MediaType.VIDEO,
+                addedTimestampMs = 3_000L,
+                sampleRateHz = 48_000,
+                bitrateKbps = 4800,
+                isFavorite = false
+            )
+        )
+
+        val settings = com.example.domain.model.AppSettings(onlyValidMusicInSearch = true)
+        val orchestratorState = com.example.domain.engine.MediaOrchestratorState(
+            queue = com.example.domain.model.PlaybackQueue(
+                tracks = listOf(fixedTracks[0], fixedTracks[1]),
+                currentIndex = 0
+            )
+        )
+
+        // 1. Default TITLE_ASC & ALL filter
+        val stateTitleAsc = com.example.ui.viewmodel.assembleVeloraUiState(
+            arrayOf(
+                fixedTracks,
+                emptyList<com.example.domain.model.Playlist>(),
+                com.example.domain.model.EqPreset.BUILT_IN_PRESETS,
+                settings,
+                com.example.domain.model.ScanProgress(),
+                orchestratorState,
+                "",
+                emptyList<Track>(),
+                null,
+                null,
+                false,
+                emptyList<com.example.domain.model.PlaybackHistoryEntry>(),
+                com.example.domain.model.TrackSortOrder.TITLE_ASC,
+                com.example.domain.model.TrackFilterMode.ALL,
+                emptyList<com.example.domain.model.RadioStation>(),
+                com.example.domain.model.StudioDspState(),
+                null,
+                com.example.domain.model.AudioRouteInfo(),
+                emptyList<com.example.domain.model.SmartRuleCriterion>(),
+                com.example.domain.model.VideoCinemaSettings()
+            )
+        )
+        assertEquals(listOf("t_alpha", "t_beta"), stateTitleAsc.audioTracks.map { it.id })
+        assertEquals(listOf("t_video"), stateTitleAsc.videoTracks.map { it.id })
+        assertTrue(stateTitleAsc.smartPlaylists.isNotEmpty())
+        assertTrue(stateTitleAsc.omniSearchMatches.isEmpty())
+
+        // 2. ARTIST_ASC sort + FAVORITES_ONLY filter + search query
+        val stateFavFiltered = com.example.ui.viewmodel.assembleVeloraUiState(
+            arrayOf(
+                fixedTracks,
+                emptyList<com.example.domain.model.Playlist>(),
+                com.example.domain.model.EqPreset.BUILT_IN_PRESETS,
+                settings,
+                com.example.domain.model.ScanProgress(),
+                orchestratorState,
+                "Nocturne",
+                listOf(fixedTracks[0]),
+                null,
+                null,
+                false,
+                emptyList<com.example.domain.model.PlaybackHistoryEntry>(),
+                com.example.domain.model.TrackSortOrder.ARTIST_ASC,
+                com.example.domain.model.TrackFilterMode.FAVORITES_ONLY,
+                emptyList<com.example.domain.model.RadioStation>(),
+                com.example.domain.model.StudioDspState(),
+                null,
+                com.example.domain.model.AudioRouteInfo(),
+                emptyList<com.example.domain.model.SmartRuleCriterion>(),
+                com.example.domain.model.VideoCinemaSettings()
+            )
+        )
+        assertEquals(listOf("t_alpha"), stateFavFiltered.searchResults.map { it.id })
+        assertTrue(stateFavFiltered.omniSearchMatches.any { it.track.id == "t_alpha" })
+    }
+
+    @Test
+    fun `Playlist position increments monotonically after middle track removal and Room migrations are registered`() = runBlocking {
+        assertEquals(3, VeloraDatabase.ALL_MIGRATIONS.size)
+
+        val tracks = repository.performScan(emptySet(), includeMediaStore = false)
+        assertTrue(tracks.size >= 4)
+        val playlistId = repository.createPlaylist("Monotonic Queue Test", listOf(tracks[0].id, tracks[1].id, tracks[2].id))
+        repository.removeTrackFromPlaylist(playlistId, tracks[1].id)
+
+        // Adding a fourth track after removing the middle element must not collide with the last track's position
+        val fourthTrack = tracks[3]
+        repository.addTrackToPlaylist(playlistId, fourthTrack.id)
+
+        val updatedPlaylist = repository.playlists.first().first { it.id == playlistId }
+        assertEquals(listOf(tracks[0].id, tracks[2].id, fourthTrack.id), updatedPlaylist.tracks.map { it.id })
+    }
+
+    @Test
+    fun `Media3PlayerEngine rejects unsafe network URLs and MediaOrchestrator prepends out-of-pool tracks`() = runBlocking {
+        val engine = Media3PlayerEngine(context)
+        val unsafeTrack = Track(
+            id = "ssrf_probe",
+            mediaStoreId = -1L,
+            title = "Loopback Stream",
+            artist = "Probe",
+            album = "Net",
+            durationMs = 60_000L,
+            uri = "https://127.0.0.1/stream.m3u8",
+            folderPath = "Network",
+            mediaType = MediaType.AUDIO
+        )
+        engine.loadAndPlay(unsafeTrack, 0L)
+        assertEquals(PlaybackStatus.ERROR, engine.playbackState.value.status)
+
+        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val settingsRepo = VeloraSettingsRepository(
+            context = context,
+            scope = testScope,
+            fileName = "orchestrator_pool_${System.currentTimeMillis()}"
+        )
+        val orchestrator = com.example.domain.engine.MediaOrchestrator(
+            repository = repository,
+            settingsRepository = settingsRepo,
+            playerEngine = engine,
+            dispatcher = Dispatchers.Unconfined
+        )
+        val tracks = repository.performScan(emptySet(), includeMediaStore = false)
+        val externalTrack = Track(
+            id = "external_single",
+            mediaStoreId = 777L,
+            title = "External Track",
+            artist = "Guest",
+            album = "Single",
+            durationMs = 120_000L,
+            uri = "/storage/emulated/0/Music/external.mp3",
+            folderPath = "/storage/emulated/0/Music",
+            mediaType = MediaType.AUDIO
+        )
+        orchestrator.play(externalTrack, listOf(tracks[0], tracks[1]), 0L)
+        assertEquals(externalTrack.id, orchestrator.orchestratorState.value.queue.currentTrack?.id)
+        assertTrue(orchestrator.orchestratorState.value.queue.tracks.any { it.id == externalTrack.id })
+
+        orchestrator.close()
+        engine.release()
+    }
+
+    @Test
+    fun `VeloraPlaybackService lifecycle creates and tears down cleanly under Robolectric`() {
+        val controller = org.robolectric.Robolectric.buildService(
+            com.example.data.playback.VeloraPlaybackService::class.java
+        )
+        val service = controller.create().get()
+        assertNotNull(service)
+        assertEquals("velora_media_session", com.example.data.playback.VeloraPlaybackService.SESSION_ID)
+        controller.destroy()
+    }
 }

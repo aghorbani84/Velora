@@ -217,18 +217,47 @@ object PhiDesignMetrics {
         }
     }
 
-    private val FORBIDDEN_EXACT_PATHS = setOf("/", "/home", "/home/", "/root", "/etc")
+    private val ALLOWED_PUBLIC_MEDIA_PREFIXES = listOf(
+        "/storage/emulated/0/music",
+        "/storage/emulated/0/movies",
+        "/storage/emulated/0/download",
+        "/storage/emulated/0/podcasts",
+        "/storage/emulated/0/audiobooks",
+        "/storage/emulated/0/dcim",
+        "/storage/emulated/0/pictures",
+        "/storage/emulated/0/notifications",
+        "/storage/emulated/0/ringtones",
+        "/sdcard/music",
+        "/sdcard/movies",
+        "/sdcard/download",
+        "/sdcard/podcasts",
+        "/sdcard/audiobooks",
+        "/sdcard/dcim"
+    )
 
     fun isSafeMediaFolder(pathOrUri: String): Boolean {
         val normalized = pathOrUri.trim().replace('\\', '/')
-        if (normalized.isEmpty()) return false
+        if (normalized.length < 2 || normalized.contains('\u0000')) return false
+
+        val segments = normalized.split('/')
+        if (segments.any { it == ".." || it == ".ssh" }) return false
+
         val lower = normalized.lowercase()
-        if (lower.contains("/.ssh") || lower.endsWith(".ssh")) return false
-        if (lower in FORBIDDEN_EXACT_PATHS || lower.startsWith("/etc/")) return false
-        // Reject raw /tmp paths unless it is an isolated Android/Robolectric app-private filesDir sandbox
-        val isAppPrivateSandbox = lower.contains("/fazora_studio_masters") || lower.contains("/user_folders")
-        if ((lower == "/tmp" || lower.startsWith("/tmp/")) && !isAppPrivateSandbox) return false
-        if (Regex("^[a-z]:/?$").matches(lower)) return false
-        return abs(normalized.length) >= 2
+        if (lower.startsWith("content://")) {
+            return !lower.contains("..")
+        }
+
+        val matchesPublicMediaDir = ALLOWED_PUBLIC_MEDIA_PREFIXES.any { prefix ->
+            lower == prefix || lower.startsWith("$prefix/")
+        }
+        if (matchesPublicMediaDir) return true
+
+        val isAppPrivateMediaSandbox = (
+            lower.contains("/fazora_studio_masters") ||
+                lower.contains("/velora_studio_masters") ||
+                lower.contains("/user_folders")
+            ) && !lower.startsWith("/etc/") && !lower.startsWith("/proc/") && !lower.startsWith("/sys/")
+
+        return isAppPrivateMediaSandbox
     }
 }

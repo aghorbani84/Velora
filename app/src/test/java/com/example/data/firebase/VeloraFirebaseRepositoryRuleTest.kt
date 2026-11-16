@@ -104,4 +104,32 @@ class VeloraFirebaseRepositoryRuleTest : FirestoreEmulatorTestBase() {
         assertEquals(gains, firstPreset.gainsDb)
         assertEquals(aliceUid, firstPreset.userId)
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun unauthenticatedUser_saveCloudPlaylist_throwsIllegalArgumentException() = runBlocking {
+        auth.signOut()
+        val repository = VeloraFirebaseRepository(db = firestore, auth = auth)
+        repository.saveCloudPlaylist(
+            userId = "spoofed_uid",
+            playlistId = "pl_1",
+            name = "Unauthorized",
+            trackIds = emptyList()
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun unauthenticatedUser_observeCloudPlaylists_throwsIllegalArgumentException() = runBlocking {
+        auth.signOut()
+        val repository = VeloraFirebaseRepository(db = firestore, auth = auth)
+        repository.observeCloudPlaylists("spoofed_uid").first()
+        Unit
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun unauthenticatedUser_observeCloudEqPresets_throwsIllegalArgumentException() = runBlocking {
+        auth.signOut()
+        val repository = VeloraFirebaseRepository(db = firestore, auth = auth)
+        repository.observeCloudEqPresets("spoofed_uid").first()
+        Unit
+    }
 }

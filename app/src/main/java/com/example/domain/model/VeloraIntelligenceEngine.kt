@@ -73,44 +73,131 @@ object VeloraCompatibilityMatrix {
         }
     }
 
-    private val RFC1918_172_REGEX = Regex("""^172\.(1[6-9]|2\d|3[0-1])\..*""")
     private val UNSAFE_URL_TOKENS = listOf(" ", "javascript:", "file://", "data:")
-    private val BLOCKED_IPV4_PREFIXES = listOf("127.", "0.", "10.", "192.168.", "169.254.")
-    private val BLOCKED_IPV6_PREFIXES = listOf("fc", "fd", "fe8", "fe9", "fea", "feb")
-    private val BLOCKED_IPV6_EXACT = setOf("::1", "::", "0:0:0:0:0:0:0:1")
     private val BLOCKED_QUERY_TOKENS = listOf("127.0.0.1", "localhost", "169.254.", "::1", "file:")
 
     fun isValidAuthorizedStreamUrl(url: String): Boolean {
-        val lower = url.trim().lowercase(Locale.ROOT)
-        if (lower.length < 10) return false
-        val isHttpScheme = lower.startsWith("https://") || lower.startsWith("http://")
-        if (!isHttpScheme || UNSAFE_URL_TOKENS.any { lower.contains(it) }) return false
+        val trimmed = url.trim()
+        if (trimmed.length < 10 || trimmed.length > 2048) return false
+        if (trimmed.any { it.isWhitespace() || it.code < 0x20 || it.code > 127 }) return false
+        val lower = trimmed.lowercase(Locale.ROOT)
+        if (UNSAFE_URL_TOKENS.any { lower.contains(it) }) return false
 
-        val withoutScheme = lower.substringAfter("://")
-        val authority = withoutScheme.substringBefore('/').substringBefore('?').substringBefore('#')
-        val host = if (authority.startsWith("[")) {
-            authority.substringBefore(']') + "]"
-        } else {
-            authority.substringBefore(':')
+        val uri = try {
+            java.net.URI(trimmed)
+        } catch (_: java.net.URISyntaxException) {
+            return false
         }
-        if (host.isEmpty() || isIdnHomographOrPrivateHost(host)) return false
 
-        val queryPart = withoutScheme.substringAfter('?', "")
+        val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return false
+        if (scheme != "https" && scheme != "http") return false
+
+        // Reject embedded userinfo / credential confusion (e.g. https://public.com@127.0.0.1/)
+        if (uri.rawUserInfo != null || uri.userInfo != null) return false
+        val rawAuthority = uri.rawAuthority ?: return false
+        if (rawAuthority.contains('@')) return false
+
+        val rawHost = uri.host?.lowercase(Locale.ROOT)?.trim() ?: return false
+        if (rawHost.isEmpty() || isIdnHomographOrPrivateHost(rawHost)) return false
+
+        val queryPart = (uri.rawQuery ?: "").lowercase(Locale.ROOT)
         return BLOCKED_QUERY_TOKENS.none { queryPart.contains(it) }
     }
+
+    private val LOCAL_DOMAIN_SUFFIXES = listOf(".localhost", ".local", ".internal")
+    private val DISALLOWED_IPV6_LITERALS = setOf("::", "::1", "0:0:0:0:0:0:0:1")
+    private val DISALLOWED_IPV6_PREFIXES = listOf("fe8", "fe9", "fea", "feb", "fc", "fd", "ff")
 
     private fun isIdnHomographOrPrivateHost(host: String): Boolean {
         if (host.any { it.code > 127 } || host.startsWith("xn--") || host.contains(".xn--")) {
             return true
         }
-        if (host.startsWith("[")) {
-            val ipv6 = host.removePrefix("[").removeSuffix("]")
-            return ipv6 in BLOCKED_IPV6_EXACT || BLOCKED_IPV6_PREFIXES.any { ipv6.startsWith(it) }
+        val cleanHost = host.removeSurrounding("[", "]")
+        if (cleanHost.isEmpty() || cleanHost == "localhost") return true
+        if (LOCAL_DOMAIN_SUFFIXES.any { cleanHost.endsWith(it) }) return true
+        if (host.startsWith("[") || cleanHost.contains(':')) {
+            return isDisallowedIpv6Literal(cleanHost)
         }
-        val isLocalhost = host == "localhost" || host.endsWith(".localhost")
-        return isLocalhost ||
-            BLOCKED_IPV4_PREFIXES.any { host.startsWith(it) } ||
-            RFC1918_172_REGEX.matches(host)
+        val parts = cleanHost.split('.')
+        val looksNumericOrHex = parts.all { part ->
+            part.isNotEmpty() && part.all { ch ->
+                ch.isDigit() || ch in 'a'..'f' || ch == 'x'
+            }
+        }
+        if (looksNumericOrHex) {
+            // Reject decimal-integer (2130706433), shorthand (127.1), hex (0x7f...), or octal (0177...) IPv4
+            if (parts.size != 4) return true
+            val octets = IntArray(4)
+            for (i in 0..3) {
+                val p = parts[i]
+                if (p.startsWith("0x") || (p.length > 1 && p.startsWith("0"))) return true
+                val v = p.toIntOrNull() ?: return true
+                if (v !in 0..255) return true
+                octets[i] = v
+            }
+            return isPrivateOrReservedIpv4(octets[0], octets[1], octets[2], octets[3])
+        }
+        return !cleanHost.contains('.')
+    }
+
+    private fun isPrivateOrReservedIpv4(b0: Int, b1: Int, b2: Int, b3: Int): Boolean {
+        if (b0 == 0 || b0 == 10 || b0 == 127) return true
+        if (b0 == 169 && b1 == 254) return true
+        if (b0 == 172 && b1 in 16..31) return true
+        if (b0 == 192 && b1 == 168) return true
+        if (b0 == 100 && b1 in 64..127) return true
+        if (b0 == 192 && b1 == 0 && b2 in setOf(0, 2)) return true
+        if (b0 >= 224) return true
+        if (b0 == 255 && b3 == 255) return true
+        return false
+    }
+
+    private fun isDisallowedIpv6Literal(ipv6Host: String): Boolean {
+        val lower = ipv6Host.lowercase(Locale.ROOT)
+        if (lower in DISALLOWED_IPV6_LITERALS || DISALLOWED_IPV6_PREFIXES.any { lower.startsWith(it) }) {
+            return true
+        }
+        return try {
+            val addr = java.net.InetAddress.getByName("[$ipv6Host]")
+            if (isNonPublicInetAddress(addr)) return true
+            val bytes = addr.address
+            when (bytes.size) {
+                4 -> isPrivateOrReservedIpv4(
+                    bytes[0].toInt() and 0xFF,
+                    bytes[1].toInt() and 0xFF,
+                    bytes[2].toInt() and 0xFF,
+                    bytes[3].toInt() and 0xFF
+                )
+                16 -> isDisallowedIpv6Bytes(bytes)
+                else -> true
+            }
+        } catch (_: java.net.UnknownHostException) {
+            true
+        }
+    }
+
+    private fun isNonPublicInetAddress(addr: java.net.InetAddress): Boolean {
+        if (addr.isLoopbackAddress || addr.isAnyLocalAddress || addr.isMulticastAddress) return true
+        return addr.isLinkLocalAddress || addr.isSiteLocalAddress
+    }
+
+    private fun isDisallowedIpv6Bytes(bytes: ByteArray): Boolean {
+        val firstByte = bytes[0].toInt() and 0xFF
+        if ((firstByte and 0xFE) == 0xFC) return true
+        val leadingZeros = (0..9).all { bytes[it].toInt() == 0 }
+        val b10 = bytes[10].toInt() and 0xFF
+        val b11 = bytes[11].toInt() and 0xFF
+        val isIpv4Mapped = leadingZeros && ((b10 == 0 && b11 == 0) || (b10 == 0xFF && b11 == 0xFF))
+        return if (isIpv4Mapped) {
+            isPrivateOrReservedIpv4(
+                bytes[12].toInt() and 0xFF,
+                bytes[13].toInt() and 0xFF,
+                bytes[14].toInt() and 0xFF,
+                bytes[15].toInt() and 0xFF
+            )
+        } else {
+            false
+        }
     }
 }
 
@@ -404,9 +491,7 @@ object VeloraOmniSearchEngine {
     ): List<OmniSearchMatch> {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
-            return allTracks.map {
-                OmniSearchMatch(it, 50, "Library Index", "فهرست کتابخانه")
-            }
+            return emptyList()
         }
         val lowerQuery = trimmed.lowercase(Locale.ROOT)
         val historyMap = history.associateBy { it.track.id }
@@ -434,9 +519,9 @@ object VeloraOmniSearchEngine {
             var reasonEn = "Matched metadata"
             var reasonFa = "تطابق متادیتا"
 
-            val titleLower = track.title.lowercase(Locale.ROOT)
-            val artistLower = track.artist.lowercase(Locale.ROOT)
-            val albumLower = track.album.lowercase(Locale.ROOT)
+            val titleLower = track.titleLower
+            val artistLower = track.artistLower
+            val albumLower = track.albumLower
 
             if (titleLower.startsWith(lowerQuery)) {
                 score += 100

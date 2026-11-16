@@ -157,39 +157,64 @@ object VeloraDownloadValidator {
         return VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl(url)
     }
 
+    private val MANIFEST_URI_ATTR_REGEX = Regex(
+        """(?:URI|media|initialization|sourceURL|xlink:href)\s*=\s*"([^"]+)"""",
+        RegexOption.IGNORE_CASE
+    )
+    private val DASH_BASE_URL_REGEX = Regex(
+        """<BaseURL[^>]*>([^<]+)</BaseURL>""",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val UNSAFE_MANIFEST_TOKENS = listOf("file:", "javascript:", "data:", "content:", "..", "\\")
+
     /**
      * Inspects an HLS (.m3u8) or MPEG-DASH (.mpd) manifest payload and rejects manifests
-     * that embed non-allowlisted URI schemes (`file://`, `javascript:`) or private/loopback segment URLs.
+     * that embed non-allowlisted URI schemes (`file://`, `javascript:`), private/loopback URLs,
+     * or unsafe `#EXT-X-KEY` / `#EXT-X-MAP` / `#EXT-X-MEDIA` / `<BaseURL>` / `<SegmentTemplate>` attributes.
      */
     fun isSafeAdaptiveManifestPayload(manifestText: String): Boolean {
-        if (manifestText.isBlank()) return false
-        for (rawLine in manifestText.lineSequence()) {
-            val line = rawLine.trim()
-            if (line.isEmpty() || line.startsWith("#")) continue
-            val lower = line.lowercase(Locale.ROOT)
-            if (lower.contains("file://") || lower.contains("javascript:") || lower.contains("../")) {
-                return false
-            }
-            if (lower.startsWith("http://") || lower.startsWith("https://")) {
-                if (!VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl(line)) {
-                    return false
-                }
-            }
+        if (manifestText.isBlank() || manifestText.length > 524_288) return false
+        return manifestText.lineSequence().all { rawLine -> isSafeManifestLine(rawLine) }
+    }
+
+    private fun isSafeManifestLine(rawLine: String): Boolean {
+        val line = rawLine.trim()
+        if (line.isEmpty()) return true
+        val attrsSafe = MANIFEST_URI_ATTR_REGEX.findAll(line).all { match ->
+            isSafeManifestReference(match.groupValues[1].trim())
         }
-        return true
+        val baseUrlsSafe = DASH_BASE_URL_REGEX.findAll(line).all { match ->
+            isSafeManifestReference(match.groupValues[1].trim())
+        }
+        if (!attrsSafe || !baseUrlsSafe) return false
+        if (line.startsWith("#") || line.startsWith("<")) return true
+        return isSafeManifestReference(line)
+    }
+
+    private fun isSafeManifestReference(reference: String): Boolean {
+        val clean = reference.trim()
+        if (clean.isEmpty()) return false
+        val lower = clean.lowercase(Locale.ROOT)
+        if (UNSAFE_MANIFEST_TOKENS.any { lower.contains(it) }) {
+            return false
+        }
+        return if (lower.startsWith("http://") || lower.startsWith("https://") || lower.contains("://")) {
+            VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl(clean)
+        } else {
+            !clean.startsWith("/")
+        }
     }
 
     fun isSafeDownloadTargetFileName(relativePath: String): Boolean {
         val trimmed = relativePath.trim()
         if (trimmed.isEmpty()) return false
         val normalized = trimmed.replace('\\', '/')
-        if (normalized.startsWith("/") || normalized.contains("../") || normalized.contains("/..")) {
+        if (normalized.startsWith("/") || normalized.contains('\u0000') || normalized.contains(':')) {
             return false
         }
-        if (normalized.contains('\u0000') || normalized.contains(':')) {
-            return false
-        }
-        return true
+        val segments = normalized.split('/')
+        return segments.none { it.isEmpty() || it == "." || it == ".." }
     }
 }
 

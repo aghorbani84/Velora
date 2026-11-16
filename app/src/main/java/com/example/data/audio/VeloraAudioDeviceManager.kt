@@ -43,8 +43,10 @@ class VeloraAudioDeviceManager(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && audioManager != null && deviceCallback != null) {
             try {
                 audioManager.registerAudioDeviceCallback(deviceCallback, Handler(Looper.getMainLooper()))
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to register audio device callback: ${e.message}")
+            } catch (e: SecurityException) {
+                Log.w(TAG, "Audio device callback registration denied", e)
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "Invalid audio device callback argument", e)
             }
         }
     }
@@ -65,7 +67,8 @@ class VeloraAudioDeviceManager(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val devices = try {
                 audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-            } catch (e: Exception) {
+            } catch (e: SecurityException) {
+                Log.w(TAG, "Unable to query audio output devices", e)
                 emptyArray<AudioDeviceInfo>()
             }
 

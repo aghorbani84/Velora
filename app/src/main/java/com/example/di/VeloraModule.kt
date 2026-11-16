@@ -21,7 +21,10 @@ val veloraAppModule = module {
             androidContext(),
             VeloraDatabase::class.java,
             "velora_library.db"
-        ).fallbackToDestructiveMigration(dropAllTables = true).build()
+        )
+            .addMigrations(*VeloraDatabase.ALL_MIGRATIONS)
+            .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
+            .build()
     }
 
     single { get<VeloraDatabase>().trackDao() }

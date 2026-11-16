@@ -290,6 +290,12 @@ object VeloraRadioCatalog {
 
 object VeloraBackupExporter {
 
+    private fun escapeJson(raw: String): String =
+        raw.replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "")
+
     fun exportBackupJson(
         playlists: List<Playlist>,
         eqPresets: List<EqPreset>,
@@ -314,7 +320,37 @@ object VeloraBackupExporter {
             appendLine("    \"customEqPresets\": ${customPresets.size},")
             appendLine("    \"bookmarks\": ${bookmarks.size},")
             appendLine("    \"customRadioStations\": ${customStations.size}")
-            appendLine("  }")
+            appendLine("  },")
+            appendLine("  \"playlists\": [")
+            playlists.forEachIndexed { idx, pl ->
+                val trackIdsJson = pl.tracks.joinToString(", ") { "\"${escapeJson(it.id)}\"" }
+                val comma = if (idx < playlists.lastIndex) "," else ""
+                appendLine("    {\"name\": \"${escapeJson(pl.name)}\", \"trackIds\": [$trackIdsJson]}$comma")
+            }
+            appendLine("  ],")
+            appendLine("  \"customEqPresets\": [")
+            customPresets.forEachIndexed { idx, preset ->
+                val gainsJson = preset.gainsDb.joinToString(", ") { "%.2f".format(Locale.US, it) }
+                val comma = if (idx < customPresets.lastIndex) "," else ""
+                appendLine("    {\"id\": \"${escapeJson(preset.id)}\", \"name\": \"${escapeJson(preset.name)}\", \"gainsDb\": [$gainsJson]}$comma")
+            }
+            appendLine("  ],")
+            appendLine("  \"bookmarks\": [")
+            bookmarks.forEachIndexed { idx, bm ->
+                val comma = if (idx < bookmarks.lastIndex) "," else ""
+                val bmHead = "{\"id\": \"${escapeJson(bm.id)}\", \"trackId\": \"${escapeJson(bm.trackId)}\""
+                val bmTail = "\"trackTitle\": \"${escapeJson(bm.trackTitle)}\", \"timestampMs\": ${bm.timestampMs}, \"label\": \"${escapeJson(bm.label)}\"}"
+                appendLine("    $bmHead, $bmTail$comma")
+            }
+            appendLine("  ],")
+            appendLine("  \"customRadioStations\": [")
+            customStations.forEachIndexed { idx, st ->
+                val comma = if (idx < customStations.lastIndex) "," else ""
+                val stHead = "{\"name\": \"${escapeJson(st.name)}\", \"streamUrl\": \"${escapeJson(st.streamUrl)}\""
+                val stTail = "\"tagline\": \"${escapeJson(st.tagline)}\"}"
+                appendLine("    $stHead, $stTail$comma")
+            }
+            appendLine("  ]")
             append("}")
         }
     }

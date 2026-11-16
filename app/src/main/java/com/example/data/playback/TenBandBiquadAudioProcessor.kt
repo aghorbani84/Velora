@@ -72,7 +72,7 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
 
     @Volatile
     private var isLowBatteryMode: Boolean = false
-    private var telemetryThrottleCounter: Int = 0
+    private var lastTelemetryEmitNano: Long = 0L
 
     fun setLowBatteryMode(enabled: Boolean) {
         isLowBatteryMode = enabled
@@ -262,12 +262,12 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
         broadbandEnergySum: Double,
         maxPeakAbs: Double
     ) {
-        if (isLowBatteryMode) {
-            telemetryThrottleCounter++
-            if (telemetryThrottleCounter % 8 != 0) {
-                return
-            }
+        val nowNano = System.nanoTime()
+        val minIntervalNano = if (isLowBatteryMode) 200_000_000L else 50_000_000L
+        if (lastTelemetryEmitNano != 0L && (nowNano - lastTelemetryEmitNano) < minIntervalNano) {
+            return
         }
+        lastTelemetryEmitNano = nowNano
         val sampleRate = if (inputAudioFormat.sampleRate > 0) inputAudioFormat.sampleRate else 44100
         val totalSamples = (frameCount * channels).coerceAtLeast(1)
         val rms = sqrt(broadbandEnergySum / totalSamples)
@@ -329,6 +329,7 @@ class TenBandBiquadAudioProcessor : AudioProcessor {
     override fun flush() {
         outputBuffer = AudioProcessor.EMPTY_BUFFER
         inputEnded = false
+        lastTelemetryEmitNano = 0L
         for (b in 0 until EqSpecification.BAND_COUNT) {
             z1State[b].fill(0.0)
             z2State[b].fill(0.0)

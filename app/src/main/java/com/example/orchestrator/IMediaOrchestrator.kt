@@ -1,6 +1,5 @@
 package com.example.orchestrator
 
-import androidx.media3.common.MediaItem
 import com.example.domain.engine.EnginePlaybackState
 import com.example.domain.engine.MediaOrchestratorState
 import com.example.domain.engine.PlaybackStatus
@@ -86,11 +85,6 @@ interface IMediaOrchestrator {
         contextTracks: List<Track> = emptyList(),
         startPositionMs: Long = 0L
     )
-
-    /**
-     * Plays an AndroidX Media3 [MediaItem] by converting its URI and metadata into a VELORA [Track].
-     */
-    fun play(mediaItem: MediaItem, startPositionMs: Long = 0L)
 
     /**
      * Resumes playback of the active media item if currently paused.

@@ -34,16 +34,19 @@ import com.example.orchestrator.resumeFromHistory
 import com.example.orchestrator.setEqBandGain
 import com.example.orchestrator.setEqEnabled
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class VeloraViewModel(
     val repository: VeloraLibraryRepository,
     val settingsRepository: VeloraSettingsRepository,
@@ -71,9 +74,11 @@ class VeloraViewModel(
 
     val playbackState: StateFlow<PlaybackState> = mediaOrchestrator.playbackState
 
-    private val searchResultsFlow = _searchQuery.flatMapLatest { query ->
-        repository.searchTracks(query)
-    }
+    private val searchResultsFlow = _searchQuery
+        .debounce { query -> if (query.isBlank()) 0L else 250L }
+        .flatMapLatest { query ->
+            repository.searchTracks(query)
+        }
 
     val uiState: StateFlow<VeloraUiState> = combine(
         repository.allTracks,
@@ -108,15 +113,6 @@ class VeloraViewModel(
             mediaOrchestrator.bootstrapAndRestoreSession()
         }
         viewModelScope.launch {
-            playerEngine.playbackState.collect { engine ->
-                val dsp = studioDspStateFlow.value
-                val endMs = dsp.loopEndMs ?: Long.MAX_VALUE
-                if (dsp.isAbLoopActive && engine.positionMs >= endMs) {
-                    mediaOrchestrator.seekTo(dsp.loopStartMs ?: 0L)
-                }
-            }
-        }
-        viewModelScope.launch {
             settingsRepository.settingsFlow.collect { s ->
                 (playerEngine as? Media3PlayerEngine)?.biquadProcessor?.setLowBatteryMode(s.lowBatteryModeEnabled)
             }
@@ -125,17 +121,53 @@ class VeloraViewModel(
             audioDeviceManager.activeRoute.collect { route ->
                 val s = settingsRepository.getSettingsOnce()
                 if (s.adaptiveAudioMode == AdaptiveAudioMode.ADAPTIVE_AI) {
-                    when (route.type) {
-                        AudioRouteType.BLUETOOTH -> mediaOrchestrator.applyEqPreset(EqPreset.BASS_BOOST)
-                        AudioRouteType.WIRED_HEADPHONES, AudioRouteType.USB_DAC -> {
-                            mediaOrchestrator.applyEqPreset(EqPreset.FLAT)
-                        }
-                        AudioRouteType.SPEAKER -> mediaOrchestrator.applyEqPreset(EqPreset.VOCAL)
-                        AudioRouteType.UNKNOWN -> {}
+                    val targetPreset = when (route.type) {
+                        AudioRouteType.BLUETOOTH -> EqPreset.BASS_BOOST
+                        AudioRouteType.WIRED_HEADPHONES, AudioRouteType.USB_DAC -> EqPreset.FLAT
+                        AudioRouteType.SPEAKER -> EqPreset.VOCAL
+                        AudioRouteType.UNKNOWN -> null
+                    }
+                    if (targetPreset != null) {
+                        playerEngine.setEqBandGains(targetPreset.gainsDb)
                     }
                 }
             }
         }
+        viewModelScope.launch {
+            firebaseRepository.authStateFlow().collectLatest { user ->
+                if (user != null) {
+                    launch {
+                        firebaseRepository.observeCloudPlaylists(user.uid).collect { cloudPlaylists ->
+                            val localPlaylists = uiState.value.playlists
+                            cloudPlaylists.forEach { cloudPl ->
+                                if (localPlaylists.none { it.name == cloudPl.name }) {
+                                    repository.createPlaylist(cloudPl.name, cloudPl.trackIds)
+                                }
+                            }
+                        }
+                    }
+                    launch {
+                        firebaseRepository.observeCloudEqPresets(user.uid).collect { cloudPresets ->
+                            val localPresets = uiState.value.eqPresets
+                            cloudPresets.forEach { cloudPreset ->
+                                if (cloudPreset.gainsDb.size == 10 && localPresets.none { !it.isBuiltIn && it.name == cloudPreset.name }) {
+                                    repository.saveCustomEqPreset(
+                                        name = cloudPreset.name,
+                                        gainsDb = cloudPreset.gainsDb.map { it.toFloat() }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fun handleIncomingMediaIntent(uriOrText: String) {
+        val trimmed = uriOrText.trim()
+        if (trimmed.isEmpty()) return
+        playNetworkStream(trimmed, "External Media Stream")
     }
 
     fun scanLibrary() {

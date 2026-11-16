@@ -86,8 +86,8 @@ class VeloraLibraryRepository(
             .toSet()
         val discovered = scanner.scanAllSources(allowedFolderUris, includeMediaStore)
         val uniqueEntities = discovered
-            .distinctBy { it.mediaStoreId }
             .distinctBy { it.uri }
+            .distinctBy { it.id }
             .map { track ->
                 val preservedFav = track.isFavorite || (track.id in existingFavorites)
                 TrackEntity.fromDomain(track.copy(isFavorite = preservedFav))
@@ -148,35 +148,24 @@ class VeloraLibraryRepository(
     suspend fun createPlaylist(name: String, initialTrackIds: List<String> = emptyList()): Long =
         withContext(Dispatchers.IO) {
             val cleanName = name.trim().ifBlank { "Untitled Playlist" }
-            val playlistId = playlistDao.insertPlaylist(
-                PlaylistEntity(
-                    name = cleanName,
-                    createdAtMs = System.currentTimeMillis()
-                )
+            playlistDao.createPlaylistTransaction(
+                name = cleanName,
+                createdAtMs = System.currentTimeMillis(),
+                initialTrackIds = initialTrackIds
             )
-            initialTrackIds.forEachIndexed { idx, trackId ->
-                playlistDao.addTrackToPlaylist(
-                    PlaylistTrackCrossRef(
-                        playlistId = playlistId,
-                        trackId = trackId,
-                        position = idx
-                    )
-                )
-            }
-            playlistId
         }
 
     suspend fun deletePlaylist(playlistId: Long) = withContext(Dispatchers.IO) {
-        playlistDao.clearPlaylistTracks(playlistId)
-        playlistDao.deletePlaylist(playlistId)
+        playlistDao.deletePlaylistTransaction(playlistId)
     }
 
     suspend fun addTrackToPlaylist(playlistId: Long, trackId: String) = withContext(Dispatchers.IO) {
+        val nextPos = playlistDao.getNextPositionForPlaylist(playlistId)
         playlistDao.addTrackToPlaylist(
             PlaylistTrackCrossRef(
                 playlistId = playlistId,
                 trackId = trackId,
-                position = (System.currentTimeMillis() % 100_000).toInt()
+                position = nextPos
             )
         )
     }
@@ -225,25 +214,19 @@ class VeloraLibraryRepository(
         val existingFav = trackDao.getTrackById(track.id)?.isFavorite ?: track.isFavorite
         val cachedTrack = track.copy(isFavorite = existingFav)
         trackDao.upsertTracks(listOf(TrackEntity.fromDomain(cachedTrack)))
-        val historyDao = playbackHistoryDao
-        val existing = historyDao?.getHistoryForTrack(track.id)
-        val updatedPlayCount = (existing?.playCount ?: 0) + 1
-        val completedCount = existing?.completedCount ?: 0
         val clampedPosition = startPositionMs.coerceIn(0L, track.durationMs.coerceAtLeast(0L))
-        val entity = PlaybackHistoryEntity(
+        val historyDao = playbackHistoryDao
+        val entity = historyDao?.recordPlayAtomically(
             trackId = track.id,
-            lastPlayedAtMs = playedAtMs,
-            lastPositionMs = clampedPosition,
-            playCount = updatedPlayCount,
-            completedCount = completedCount
+            clampedPosition = clampedPosition,
+            playedAtMs = playedAtMs
         )
-        historyDao?.upsertHistory(entity)
         PlaybackHistoryEntry(
             track = cachedTrack,
             lastPlayedAtMs = playedAtMs,
             lastPositionMs = clampedPosition,
-            playCount = updatedPlayCount,
-            completedCount = completedCount
+            playCount = entity?.playCount ?: 1,
+            completedCount = entity?.completedCount ?: 0
         )
     }
 
@@ -255,14 +238,12 @@ class VeloraLibraryRepository(
         positionMs: Long,
         completed: Boolean = false
     ) = withContext(Dispatchers.IO) {
-        val historyDao = playbackHistoryDao ?: return@withContext
-        val existing = historyDao.getHistoryForTrack(trackId) ?: return@withContext
-        val updated = existing.copy(
-            lastPositionMs = positionMs.coerceAtLeast(0L),
-            lastPlayedAtMs = System.currentTimeMillis(),
-            completedCount = if (completed) existing.completedCount + 1 else existing.completedCount
+        playbackHistoryDao?.updateHistoryPositionAtomically(
+            trackId = trackId,
+            positionMs = positionMs,
+            completed = completed,
+            nowMs = System.currentTimeMillis()
         )
-        historyDao.upsertHistory(updated)
     }
 
     /**

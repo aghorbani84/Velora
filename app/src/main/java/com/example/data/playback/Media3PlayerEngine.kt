@@ -140,29 +140,29 @@ class Media3PlayerEngine(
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
                     _playbackState.update { it.copy(audioSessionId = audioSessionId) }
-                    attachHardwareEqualizerIfSupported(audioSessionId)
+                    hardwareEqualizer = attachHardwareEqualizer(
+                        previous = hardwareEqualizer,
+                        audioSessionId = audioSessionId,
+                        enabled = _playbackState.value.eqEnabled,
+                        gainsDb = _playbackState.value.eqBandGainsDb
+                    )
                 }
 
                 override fun onTracksChanged(tracks: Tracks) {
-                    extractAvailableTracks(tracks)
+                    val (subtitles, audios) = parseAvailableTracks(tracks)
+                    _playbackState.update { it.copy(subtitleTracks = subtitles, audioTracks = audios) }
                 }
 
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
                     _playbackState.update {
-                        it.copy(
-                            videoWidth = videoSize.width,
-                            videoHeight = videoSize.height
-                        )
+                        it.copy(videoWidth = videoSize.width, videoHeight = videoSize.height)
                     }
                 }
             })
 
             exoPlayerInstance = player
             _playbackState.update {
-                it.copy(
-                    engineAvailable = true,
-                    audioSessionId = player.audioSessionId
-                )
+                it.copy(engineAvailable = true, audioSessionId = player.audioSessionId)
             }
 
             spectrumCollectorJob?.cancel()
@@ -181,101 +181,47 @@ class Media3PlayerEngine(
                     }
                 }
             }
-        } catch (e: Throwable) {
-            Log.w(TAG, "ExoPlayer native initialization unavailable in this environment: ${e.message}")
-            _playbackState.update {
-                it.copy(engineAvailable = false)
-            }
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "ExoPlayer native initialization unavailable in this environment", e)
+            _playbackState.update { it.copy(engineAvailable = false) }
+        } catch (e: UnsatisfiedLinkError) {
+            Log.w(TAG, "ExoPlayer native library unavailable in this environment", e)
+            _playbackState.update { it.copy(engineAvailable = false) }
         }
     }
 
-    private fun attachHardwareEqualizerIfSupported(audioSessionId: Int) {
-        if (audioSessionId == C.AUDIO_SESSION_ID_UNSET || audioSessionId <= 0) return
-        try {
-            hardwareEqualizer?.release()
-            val eq = Equalizer(0, audioSessionId)
-            eq.enabled = _playbackState.value.eqEnabled
-            hardwareEqualizer = eq
-            syncHardwareEqualizerBands(_playbackState.value.eqBandGainsDb)
-        } catch (e: Throwable) {
-            Log.d(TAG, "Hardware Equalizer effect not attached: ${e.message}")
-        }
-    }
+    @Volatile
+    private var abLoopStartMs: Long? = null
 
-    private fun syncHardwareEqualizerBands(gainsDb: List<Float>) {
-        val eq = hardwareEqualizer ?: return
-        try {
-            val numBands = eq.numberOfBands.toInt()
-            val range = eq.bandLevelRange
-            val minMb = range.getOrNull(0)?.toInt() ?: -1200
-            val maxMb = range.getOrNull(1)?.toInt() ?: 1200
-            val mappedMillibels = BiquadEqDsp.mapTenBandsToHardwareMillibels(
-                gainsDb = gainsDb,
-                hardwareBandCount = numBands,
-                minMillibels = minMb,
-                maxMillibels = maxMb
-            )
-            for (b in 0 until numBands) {
-                eq.setBandLevel(b.toShort(), mappedMillibels[b].toShort())
-            }
-        } catch (_: Throwable) {
-        }
-    }
+    @Volatile
+    private var abLoopEndMs: Long? = null
 
-    private fun extractAvailableTracks(tracks: Tracks) {
-        val subtitles = mutableListOf<SubtitleTrackInfo>()
-        val audios = mutableListOf<AudioTrackInfo>()
-
-        for ((groupIdx, group) in tracks.groups.withIndex()) {
-            when (group.type) {
-                C.TRACK_TYPE_TEXT -> {
-                    for (trackIdx in 0 until group.length) {
-                        val format = group.getTrackFormat(trackIdx)
-                        val id = "$groupIdx:$trackIdx"
-                        val label = format.label ?: format.language ?: "Subtitle ${subtitles.size + 1}"
-                        subtitles.add(
-                            SubtitleTrackInfo(
-                                id = id,
-                                label = label,
-                                language = format.language ?: "und",
-                                isSelected = group.isTrackSelected(trackIdx)
-                            )
-                        )
-                    }
-                }
-                C.TRACK_TYPE_AUDIO -> {
-                    for (trackIdx in 0 until group.length) {
-                        val format = group.getTrackFormat(trackIdx)
-                        val id = "$groupIdx:$trackIdx"
-                        val label = format.label ?: format.language ?: "Audio ${audios.size + 1}"
-                        audios.add(
-                            AudioTrackInfo(
-                                id = id,
-                                label = label,
-                                language = format.language ?: "und",
-                                isSelected = group.isTrackSelected(trackIdx)
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
-        _playbackState.update {
-            it.copy(
-                subtitleTracks = subtitles,
-                audioTracks = audios
-            )
-        }
+    fun setAbLoopBounds(startMs: Long?, endMs: Long?) {
+        abLoopStartMs = startMs
+        abLoopEndMs = endMs?.takeIf { startMs != null && it > startMs }
     }
 
     override fun loadAndPlay(track: Track, startPositionMs: Long) {
         if (released) return
         retryJob?.cancel()
         retryAttempt = 0
-        if (track.uri.startsWith("/") || track.uri.startsWith("file://")) {
-            val path = track.uri.removePrefix("file://")
-            val file = File(path)
+        val rawUri = track.uri.trim()
+        val isHttpUri = rawUri.startsWith("http://", ignoreCase = true) ||
+            rawUri.startsWith("https://", ignoreCase = true)
+        if (isHttpUri && !com.example.domain.model.VeloraDownloadValidator.isValidStreamOrManifestUrl(rawUri)) {
+            _playbackState.update {
+                it.copy(
+                    currentTrack = track,
+                    status = PlaybackStatus.ERROR,
+                    positionMs = 0L,
+                    durationMs = track.durationMs.coerceAtLeast(0L),
+                    errorMessage = "Blocked unauthorized or unsafe stream URL: ${track.title}"
+                )
+            }
+            return
+        }
+        if (rawUri.startsWith("/") || rawUri.startsWith("file://")) {
+            val file = File(rawUri.removePrefix("file://"))
             if (!file.exists() || !file.canRead() || file.length() == 0L) {
                 _playbackState.update {
                     it.copy(
@@ -305,25 +251,21 @@ class Media3PlayerEngine(
         if (player == null) {
             _playbackState.update {
                 it.copy(
-                    status = PlaybackStatus.PLAYING,
-                    positionMs = clampedStart
+                    status = PlaybackStatus.ERROR,
+                    engineAvailable = false,
+                    positionMs = clampedStart,
+                    errorMessage = "Playback engine unavailable on this device"
                 )
             }
             return
         }
 
-        val parsedUri = if (track.uri.startsWith("/")) {
-            Uri.fromFile(File(track.uri))
-        } else {
-            Uri.parse(track.uri)
-        }
-
+        val parsedUri = if (rawUri.startsWith("/")) Uri.fromFile(File(rawUri)) else Uri.parse(rawUri)
         val metadata = MediaMetadata.Builder()
             .setTitle(track.title)
             .setArtist(track.artist)
             .setAlbumTitle(track.album)
             .build()
-
         val mediaItem = MediaItem.Builder()
             .setMediaId(track.id)
             .setUri(parsedUri)
@@ -336,14 +278,6 @@ class Media3PlayerEngine(
         player.playWhenReady = true
     }
 
-    /**
-     * Req 4 (background playback): the MediaSessionService is declared in the
-     * manifest but nothing in the app ever started it, so playback survived
-     * only while the app process lived. Starting it here hands the shared
-     * ExoPlayer to the foreground service (mediaPlayback type); Media3
-     * promotes it to foreground with the media notification while playing.
-     * Safe to call repeatedly; failures are logged, never fatal.
-     */
     private fun ensurePlaybackServiceStarted() {
         runCatching {
             val intent = Intent(context, VeloraPlaybackService::class.java)
@@ -353,7 +287,7 @@ class Media3PlayerEngine(
                 context.startService(intent)
             }
         }.onFailure { err ->
-            Log.w("Media3PlayerEngine", "Could not start playback service: ${err.message}")
+            Log.w(TAG, "Could not start playback service: ${err.message}")
         }
     }
 
@@ -370,7 +304,13 @@ class Media3PlayerEngine(
                 player.play()
             }
         } else if (current.currentTrack != null) {
-            _playbackState.update { it.copy(status = PlaybackStatus.PLAYING) }
+            _playbackState.update {
+                it.copy(
+                    status = PlaybackStatus.ERROR,
+                    engineAvailable = false,
+                    errorMessage = "Playback engine unavailable on this device"
+                )
+            }
         }
     }
 
@@ -388,11 +328,7 @@ class Media3PlayerEngine(
     }
 
     override fun togglePlayPause() {
-        if (_playbackState.value.isPlaying) {
-            pause()
-        } else {
-            play()
-        }
+        if (_playbackState.value.isPlaying) pause() else play()
     }
 
     override fun stop() {
@@ -426,17 +362,10 @@ class Media3PlayerEngine(
 
     override fun setVolume(volume: Float) {
         val clamped = volume.coerceIn(0.0f, 1.0f)
-        if (clamped > 0f) {
-            preMuteVolume = clamped
-        }
+        if (clamped > 0f) preMuteVolume = clamped
         val muted = clamped == 0.0f
         exoPlayerInstance?.volume = clamped
-        _playbackState.update {
-            it.copy(
-                volume = clamped,
-                isMuted = muted
-            )
-        }
+        _playbackState.update { it.copy(volume = clamped, isMuted = muted) }
     }
 
     override fun setMuted(muted: Boolean) {
@@ -464,17 +393,14 @@ class Media3PlayerEngine(
 
     override fun setEqEnabled(enabled: Boolean) {
         biquadProcessor.setEnabled(enabled)
-        try {
-            hardwareEqualizer?.enabled = enabled
-        } catch (_: Throwable) {
-        }
+        setHardwareEqEnabled(hardwareEqualizer, enabled)
         _playbackState.update { it.copy(eqEnabled = enabled) }
     }
 
     override fun setEqBandGains(gainsDb: List<Float>) {
         val normalized = EqSpecification.normalizeGains(gainsDb)
         biquadProcessor.setBandGains(normalized)
-        syncHardwareEqualizerBands(normalized)
+        syncHardwareEqualizerBands(hardwareEqualizer, normalized)
         _playbackState.update { it.copy(eqBandGainsDb = normalized) }
     }
 
@@ -508,21 +434,6 @@ class Media3PlayerEngine(
         applyTrackSelectionOverride(player, C.TRACK_TYPE_AUDIO, trackId)
     }
 
-    private fun applyTrackSelectionOverride(player: ExoPlayer, trackType: Int, trackId: String) {
-        val parts = trackId.split(":")
-        val groupIdx = parts.getOrNull(0)?.toIntOrNull() ?: return
-        val trackIdx = parts.getOrNull(1)?.toIntOrNull() ?: return
-        val groups = player.currentTracks.groups
-        if (groupIdx !in groups.indices) return
-        val group = groups[groupIdx]
-        if (group.type != trackType || trackIdx !in 0 until group.length) return
-        val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(trackIdx))
-        player.trackSelectionParameters = player.trackSelectionParameters
-            .buildUpon()
-            .setOverrideForType(override)
-            .build()
-    }
-
     override fun setVideoAspectMode(mode: VideoAspectMode) {
         _playbackState.update { it.copy(videoAspectMode = mode) }
     }
@@ -548,21 +459,16 @@ class Media3PlayerEngine(
         val rawPosition = player.currentPosition.coerceAtLeast(0L)
         val clampedPos = PlaybackQueue.clampSeekPosition(rawPosition, rawDuration)
 
-        val mappedStatus = when {
-            player.playerError != null -> PlaybackStatus.ERROR
-            player.playbackState == Player.STATE_ENDED -> PlaybackStatus.ENDED
-            player.isPlaying -> PlaybackStatus.PLAYING
-            player.playbackState == Player.STATE_BUFFERING -> PlaybackStatus.BUFFERING
-            player.playbackState == Player.STATE_READY -> PlaybackStatus.PAUSED
-            else -> PlaybackStatus.IDLE
+        val loopStart = abLoopStartMs
+        if (loopStart != null && shouldTriggerAbLoop(loopStart, abLoopEndMs, clampedPos)) {
+            player.seekTo(loopStart)
+            _playbackState.update { it.copy(positionMs = loopStart) }
+            return
         }
 
+        val mappedStatus = mapPlayerStatus(player)
         _playbackState.update { state ->
-            state.copy(
-                status = mappedStatus,
-                positionMs = clampedPos,
-                durationMs = rawDuration
-            )
+            state.copy(status = mappedStatus, positionMs = clampedPos, durationMs = rawDuration)
         }
     }
 
@@ -592,10 +498,7 @@ class Media3PlayerEngine(
         retryJob?.cancel()
         retryJob = null
         onTrackEndedCallback = null
-        try {
-            hardwareEqualizer?.release()
-        } catch (_: Throwable) {
-        }
+        releaseHardwareEqualizer(hardwareEqualizer)
         hardwareEqualizer = null
         exoPlayerInstance?.release()
         exoPlayerInstance = null
@@ -625,8 +528,149 @@ class Media3PlayerEngine(
     }
 
     companion object {
-        private const val TAG = "Media3PlayerEngine"
+        internal const val TAG = "Media3PlayerEngine"
         private const val MAX_RETRY_ATTEMPTS = 3
         private val RETRY_BACKOFF_MS = longArrayOf(750L, 2_000L, 5_000L)
+    }
+}
+
+private fun shouldTriggerAbLoop(loopStart: Long, loopEnd: Long?, currentPositionMs: Long): Boolean {
+    if (loopEnd == null || loopEnd <= loopStart) return false
+    return currentPositionMs >= loopEnd
+}
+
+private fun mapPlayerStatus(player: ExoPlayer): PlaybackStatus = when {
+    player.playerError != null -> PlaybackStatus.ERROR
+    player.playbackState == Player.STATE_ENDED -> PlaybackStatus.ENDED
+    player.isPlaying -> PlaybackStatus.PLAYING
+    player.playbackState == Player.STATE_BUFFERING -> PlaybackStatus.BUFFERING
+    player.playbackState == Player.STATE_READY -> PlaybackStatus.PAUSED
+    else -> PlaybackStatus.IDLE
+}
+
+@OptIn(UnstableApi::class)
+private fun parseAvailableTracks(tracks: Tracks): Pair<List<SubtitleTrackInfo>, List<AudioTrackInfo>> {
+    val subtitles = mutableListOf<SubtitleTrackInfo>()
+    val audios = mutableListOf<AudioTrackInfo>()
+    for ((groupIdx, group) in tracks.groups.withIndex()) {
+        when (group.type) {
+            C.TRACK_TYPE_TEXT -> {
+                for (trackIdx in 0 until group.length) {
+                    val format = group.getTrackFormat(trackIdx)
+                    val label = format.label ?: format.language ?: "Subtitle ${subtitles.size + 1}"
+                    subtitles.add(
+                        SubtitleTrackInfo(
+                            id = "$groupIdx:$trackIdx",
+                            label = label,
+                            language = format.language ?: "und",
+                            isSelected = group.isTrackSelected(trackIdx)
+                        )
+                    )
+                }
+            }
+            C.TRACK_TYPE_AUDIO -> {
+                for (trackIdx in 0 until group.length) {
+                    val format = group.getTrackFormat(trackIdx)
+                    val label = format.label ?: format.language ?: "Audio ${audios.size + 1}"
+                    audios.add(
+                        AudioTrackInfo(
+                            id = "$groupIdx:$trackIdx",
+                            label = label,
+                            language = format.language ?: "und",
+                            isSelected = group.isTrackSelected(trackIdx)
+                        )
+                    )
+                }
+            }
+        }
+    }
+    return subtitles to audios
+}
+
+@OptIn(UnstableApi::class)
+private fun applyTrackSelectionOverride(player: ExoPlayer, trackType: Int, trackId: String) {
+    val parts = trackId.split(":")
+    val groupIdx = parts.getOrNull(0)?.toIntOrNull() ?: return
+    val trackIdx = parts.getOrNull(1)?.toIntOrNull() ?: return
+    val groups = player.currentTracks.groups
+    if (groupIdx !in groups.indices) return
+    val group = groups[groupIdx]
+    if (group.type != trackType || trackIdx !in 0 until group.length) return
+    val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(trackIdx))
+    player.trackSelectionParameters = player.trackSelectionParameters
+        .buildUpon()
+        .setOverrideForType(override)
+        .build()
+}
+
+private fun attachHardwareEqualizer(
+    previous: Equalizer?,
+    audioSessionId: Int,
+    enabled: Boolean,
+    gainsDb: List<Float>
+): Equalizer? {
+    if (audioSessionId == C.AUDIO_SESSION_ID_UNSET || audioSessionId <= 0) return previous
+    releaseHardwareEqualizer(previous)
+    return try {
+        val eq = Equalizer(0, audioSessionId)
+        eq.enabled = enabled
+        syncHardwareEqualizerBands(eq, gainsDb)
+        eq
+    } catch (e: IllegalStateException) {
+        Log.d(Media3PlayerEngine.TAG, "Hardware Equalizer effect not attached (illegal state)", e)
+        null
+    } catch (e: IllegalArgumentException) {
+        Log.d(Media3PlayerEngine.TAG, "Hardware Equalizer effect not attached (invalid session)", e)
+        null
+    } catch (e: UnsupportedOperationException) {
+        Log.d(Media3PlayerEngine.TAG, "Hardware Equalizer effect unsupported on this audio session", e)
+        null
+    }
+}
+
+private fun syncHardwareEqualizerBands(eq: Equalizer?, gainsDb: List<Float>) {
+    if (eq == null) return
+    try {
+        val numBands = eq.numberOfBands.toInt()
+        val range = eq.bandLevelRange
+        val minMb = range.getOrNull(0)?.toInt() ?: -1200
+        val maxMb = range.getOrNull(1)?.toInt() ?: 1200
+        val mappedMillibels = BiquadEqDsp.mapTenBandsToHardwareMillibels(
+            gainsDb = gainsDb,
+            hardwareBandCount = numBands,
+            minMillibels = minMb,
+            maxMillibels = maxMb
+        )
+        for (b in 0 until numBands) {
+            eq.setBandLevel(b.toShort(), mappedMillibels[b].toShort())
+        }
+    } catch (e: IllegalStateException) {
+        Log.w(Media3PlayerEngine.TAG, "Failed to sync hardware equalizer bands (illegal state)", e)
+    } catch (e: IllegalArgumentException) {
+        Log.w(Media3PlayerEngine.TAG, "Failed to sync hardware equalizer bands (invalid band argument)", e)
+    } catch (e: UnsupportedOperationException) {
+        Log.w(Media3PlayerEngine.TAG, "Hardware equalizer band level modification unsupported", e)
+    }
+}
+
+private fun setHardwareEqEnabled(eq: Equalizer?, enabled: Boolean) {
+    if (eq == null) return
+    try {
+        eq.enabled = enabled
+    } catch (e: IllegalStateException) {
+        Log.w(Media3PlayerEngine.TAG, "Unable to toggle hardware equalizer enabled state", e)
+    } catch (e: UnsupportedOperationException) {
+        Log.w(Media3PlayerEngine.TAG, "Hardware equalizer toggle unsupported", e)
+    }
+}
+
+private fun releaseHardwareEqualizer(eq: Equalizer?) {
+    if (eq == null) return
+    try {
+        eq.release()
+    } catch (e: IllegalStateException) {
+        Log.w(Media3PlayerEngine.TAG, "Hardware equalizer already released", e)
+    } catch (e: UnsupportedOperationException) {
+        Log.w(Media3PlayerEngine.TAG, "Hardware equalizer release unsupported", e)
     }
 }

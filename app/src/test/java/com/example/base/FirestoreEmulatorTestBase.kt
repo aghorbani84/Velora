@@ -66,11 +66,30 @@ abstract class FirestoreEmulatorTestBase {
         auth.signOut()
     }
 
+    protected fun isEmulatorReachable(): Boolean {
+        return isPortOpen(EMULATOR_HOST, AUTH_PORT) && isPortOpen(EMULATOR_HOST, FIRESTORE_PORT)
+    }
+
+    private fun isPortOpen(host: String, port: Int): Boolean {
+        return try {
+            java.net.Socket().use { socket ->
+                socket.connect(java.net.InetSocketAddress(host, port), 150)
+                true
+            }
+        } catch (_: java.io.IOException) {
+            false
+        }
+    }
+
     protected suspend fun signInTestUser(email: String): String = withContext(Dispatchers.IO) {
+        org.junit.Assume.assumeTrue(
+            "Firebase Local Emulator not running on $EMULATOR_HOST:$AUTH_PORT/$FIRESTORE_PORT",
+            isEmulatorReachable()
+        )
         withTimeout(AUTH_TIMEOUT_MS) {
             val result = try {
                 auth.signInWithEmailAndPassword(email, DEFAULT_PASSWORD).await()
-            } catch (unused: FirebaseAuthInvalidUserException) {
+            } catch (_: FirebaseAuthInvalidUserException) {
                 auth.createUserWithEmailAndPassword(email, DEFAULT_PASSWORD).await()
             }
             checkNotNull(result.user?.uid) { "User auth failed" }

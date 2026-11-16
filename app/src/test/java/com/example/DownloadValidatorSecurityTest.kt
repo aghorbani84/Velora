@@ -112,4 +112,95 @@ class DownloadValidatorSecurityTest {
         )
         assertFalse(VeloraPluginRegistry.isPluginAllowedInSandbox(unsignedPlugin))
     }
+
+    @Test
+    fun `rejects authority userinfo confusion, IPv4-mapped IPv6, and decimal-octal-hex loopback bypasses (F1)`() {
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("https://public.com@127.0.0.1/stream.m3u8"))
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("https://user:pass@stream.radioparadise.com/flac"))
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("http://[::ffff:127.0.0.1]/stream.m3u8"))
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("http://[::ffff:10.0.0.1]/stream.m3u8"))
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("http://[::ffff:169.254.169.254]/meta"))
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("http://2130706433/stream.mp3"))
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("http://0177.0.0.1/stream.mp3"))
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("http://0x7f.0.0.1/stream.mp3"))
+        assertFalse(VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl("http://127.1/stream.mp3"))
+    }
+
+    @Test
+    fun `rejects HLS EXT-X-KEY URI and DASH BaseURL or SegmentTemplate SSRF payloads (F15)`() {
+        val poisonedExtXKey = """
+            #EXTM3U
+            #EXT-X-VERSION:3
+            #EXT-X-KEY:METHOD=AES-128,URI="http://127.0.0.1:8080/secret.key"
+            #EXTINF:10.0,
+            https://cdn.velora.org/segments/seg01.ts
+        """.trimIndent()
+        assertFalse(VeloraDownloadValidator.isSafeAdaptiveManifestPayload(poisonedExtXKey))
+
+        val poisonedExtXMap = """
+            #EXTM3U
+            #EXT-X-MAP:URI="file:///data/data/com.aistudio.fazora.audiosync/shared_prefs/secret.xml"
+            #EXTINF:10.0,
+            seg01.m4s
+        """.trimIndent()
+        assertFalse(VeloraDownloadValidator.isSafeAdaptiveManifestPayload(poisonedExtXMap))
+
+        val poisonedDashMpd = """
+            <MPD xmlns="urn:mpeg:dash:schema:mpd:2011">
+              <Period>
+                <AdaptationSet>
+                  <BaseURL>http://169.254.169.254/latest/meta-data/</BaseURL>
+                  <SegmentTemplate media="seg_${'$'}Number$.m4s" initialization="http://10.0.0.1/init.mp4" />
+                </AdaptationSet>
+              </Period>
+            </MPD>
+        """.trimIndent()
+        assertFalse(VeloraDownloadValidator.isSafeAdaptiveManifestPayload(poisonedDashMpd))
+
+        val cleanDashMpd = """
+            <MPD xmlns="urn:mpeg:dash:schema:mpd:2011">
+              <Period>
+                <AdaptationSet>
+                  <BaseURL>https://cdn.velora.org/dash/</BaseURL>
+                  <SegmentTemplate media="seg_${'$'}Number$.m4s" initialization="init.mp4" />
+                </AdaptationSet>
+              </Period>
+            </MPD>
+        """.trimIndent()
+        assertTrue(VeloraDownloadValidator.isSafeAdaptiveManifestPayload(cleanDashMpd))
+    }
+
+    @Test
+    fun `rejects dot and dot-dot download filenames and enforces strict folder allowlist (N11, N16, N1)`() {
+        assertFalse(VeloraDownloadValidator.isSafeDownloadTargetFileName(".."))
+        assertFalse(VeloraDownloadValidator.isSafeDownloadTargetFileName("."))
+        assertFalse(VeloraDownloadValidator.isSafeDownloadTargetFileName("sub/../escape.mp3"))
+        assertTrue(VeloraDownloadValidator.isSafeDownloadTargetFileName("saffron_mix.flac"))
+
+        // Strict allowlist in PhiDesignMetrics.isSafeMediaFolder (N16)
+        assertTrue(com.example.domain.model.PhiDesignMetrics.isSafeMediaFolder("/storage/emulated/0/Music"))
+        assertTrue(com.example.domain.model.PhiDesignMetrics.isSafeMediaFolder("/storage/emulated/0/Movies/Cinema"))
+        assertTrue(com.example.domain.model.PhiDesignMetrics.isSafeMediaFolder("content://com.android.externalstorage.documents/tree/primary%3AMusic"))
+        assertFalse(com.example.domain.model.PhiDesignMetrics.isSafeMediaFolder("/proc/self"))
+        assertFalse(com.example.domain.model.PhiDesignMetrics.isSafeMediaFolder("/sys/class"))
+        assertFalse(com.example.domain.model.PhiDesignMetrics.isSafeMediaFolder("/data/data/com.other.app"))
+        assertFalse(com.example.domain.model.PhiDesignMetrics.isSafeMediaFolder("/storage/emulated/0/Music/../../etc"))
+
+        // MediaSession URI validation (N1)
+        assertTrue(
+            com.example.data.playback.VeloraPlaybackService.isAllowedSessionMediaUri(
+                "https://stream.radioparadise.com/aac-320"
+            )
+        )
+        assertFalse(
+            com.example.data.playback.VeloraPlaybackService.isAllowedSessionMediaUri(
+                "http://127.0.0.1:8080/internal.mp3"
+            )
+        )
+        assertFalse(
+            com.example.data.playback.VeloraPlaybackService.isAllowedSessionMediaUri(
+                "file:///data/data/com.aistudio.fazora.audiosync/databases/velora_library.db"
+            )
+        )
+    }
 }

@@ -90,9 +90,15 @@ jobs:
 
           if [ -n "$SDKMANAGER" ] && [ -x "$SDKMANAGER" ]; then
             yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
-            yes | "$SDKMANAGER" "platform-tools" "build-tools;36.0.0" > /dev/null 2>&1 || true
-            yes | "$SDKMANAGER" "platforms;android-36" > /dev/null 2>&1 || true
-            yes | "$SDKMANAGER" "platforms;android-36.1" > /dev/null 2>&1 || true
+            if [ ! -d "$SDK_ROOT/build-tools/36.0.0" ]; then
+              yes | "$SDKMANAGER" "platform-tools" "build-tools;36.0.0" > /dev/null
+            fi
+            if [ ! -d "$SDK_ROOT/platforms/android-36" ]; then
+              yes | "$SDKMANAGER" "platforms;android-36" > /dev/null
+            fi
+            if [ ! -d "$SDK_ROOT/platforms/android-36.1" ]; then
+              yes | "$SDKMANAGER" "platforms;android-36.1" > /dev/null 2>&1 || true
+            fi
           fi
 
       - name: Setup Gradle
@@ -216,13 +222,11 @@ jobs:
 
           # KEYSTORE_PATH is a path, not a secret — it stays in $GITHUB_ENV.
           # STORE_PASSWORD / KEY_PASSWORD are scoped to the assemble step only
-          # (env: on that step) and never exported to $GITHUB_ENV.
+          # (env: on that step) and never written to disk or exported to $GITHUB_ENV.
           echo "KEYSTORE_PATH=${GITHUB_WORKSPACE}/my-upload-key.jks" >> "$GITHUB_ENV"
-          printf 'KEYSTORE_PATH=%s/my-upload-key.jks\nSTORE_PASSWORD=%s\nKEY_ALIAS=upload\nKEY_PASSWORD=%s\n' \
-            "${GITHUB_WORKSPACE}" "${ACTIVE_STORE_PASS}" "${ACTIVE_KEY_PASS}" > ci-signing.properties
 
-      - name: Run Detekt & Unit Verification Suite
-        run: ./gradlew detekt :app:testDebugUnitTest --tests com.example.ExampleUnitTest --tests com.example.DspBiquadMathTest --tests com.example.DownloadValidatorSecurityTest --tests com.example.FullscreenPolicyTest -Pvelora.versionName="${{ steps.meta.outputs.version }}" --parallel
+      - name: Run Detekt, Lint & Unit Verification Suite
+        run: ./gradlew detekt lintDebug :app:testDebugUnitTest -Pvelora.versionName="${{ steps.meta.outputs.version }}" --parallel
 
       - name: Assemble Signed Release & Debug APKs
         env:
@@ -345,11 +349,7 @@ jobs:
                 --title "VELORA ${TAG} — Beyond Playback" \
                 --notes-file dist/RELEASE_NOTES.md \
                 --prerelease \
-                --draft=false || \
-              gh release edit "$TAG" \
-                --repo "$REPO" \
-                --title "VELORA ${TAG} — Beyond Playback" \
-                --notes-file dist/RELEASE_NOTES.md
+                --draft=false
             else
               gh release edit "$TAG" \
                 --repo "$REPO" \
@@ -357,11 +357,7 @@ jobs:
                 --notes-file dist/RELEASE_NOTES.md \
                 --prerelease=false \
                 --draft=false \
-                --latest || \
-              gh release edit "$TAG" \
-                --repo "$REPO" \
-                --title "VELORA ${TAG} — Beyond Playback" \
-                --notes-file dist/RELEASE_NOTES.md
+                --latest
             fi
             gh release upload "$TAG" "${ASSETS[@]}" --repo "$REPO" --clobber
           else
@@ -372,22 +368,14 @@ jobs:
                 --target "$COMMIT_SHA" \
                 --title "VELORA ${TAG} — Beyond Playback" \
                 --notes-file dist/RELEASE_NOTES.md \
-                --prerelease || \
-              gh release create "$TAG" "${ASSETS[@]}" \
-                --repo "$REPO" \
-                --title "VELORA ${TAG} — Beyond Playback" \
-                --notes-file dist/RELEASE_NOTES.md
+                --prerelease
             else
               gh release create "$TAG" "${ASSETS[@]}" \
                 --repo "$REPO" \
                 --target "$COMMIT_SHA" \
                 --title "VELORA ${TAG} — Beyond Playback" \
                 --notes-file dist/RELEASE_NOTES.md \
-                --latest || \
-              gh release create "$TAG" "${ASSETS[@]}" \
-                --repo "$REPO" \
-                --title "VELORA ${TAG} — Beyond Playback" \
-                --notes-file dist/RELEASE_NOTES.md
+                --latest
             fi
           fi
           rm -f my-upload-key.jks ci-signing.properties

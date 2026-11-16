@@ -1,8 +1,9 @@
 package com.example.domain.engine
 
-import androidx.media3.common.MediaItem
+import android.util.Log
 import com.example.data.repository.VeloraLibraryRepository
 import com.example.data.settings.VeloraSettingsRepository
+import com.example.domain.model.AppSettings
 import com.example.domain.model.DeclarativePluginManifest
 import com.example.domain.model.EqPreset
 import com.example.domain.model.EqSpecification
@@ -119,13 +120,19 @@ class MediaOrchestrator(
     }
 
     override suspend fun bootstrapAndRestoreSession() {
-        runCatching {
-            val savedSettings = settingsRepository.getSettingsOnce()
-            playerEngine.setEqEnabled(savedSettings.eqEnabled)
-            playerEngine.setEqBandGains(savedSettings.customEqGainsDb)
-            playerEngine.setPlaybackSpeed(savedSettings.defaultPlaybackSpeed)
-            playerEngine.setVideoAspectMode(savedSettings.videoAspectMode)
+        val savedSettings = runCatching {
+            settingsRepository.getSettingsOnce().also { settings ->
+                playerEngine.setEqEnabled(settings.eqEnabled)
+                playerEngine.setEqBandGains(settings.customEqGainsDb)
+                playerEngine.setPlaybackSpeed(settings.defaultPlaybackSpeed)
+                playerEngine.setVideoAspectMode(settings.videoAspectMode)
+            }
+        }.onFailure { err ->
+            Log.e(TAG, "Failed to restore saved DSP/playback settings", err)
+            postBanner("Couldn't restore your last session")
+        }.getOrElse { AppSettings() }
 
+        runCatching {
             var tracks = repository.getAllTracksOnce()
             if (tracks.isEmpty() || savedSettings.autoScanOnStartup) {
                 tracks = repository.performScan(savedSettings.allowedFolderUris)
@@ -149,6 +156,9 @@ class MediaOrchestrator(
 
                 queueFlow.value = restoredQueue
             }
+        }.onFailure { err ->
+            Log.e(TAG, "Failed to restore media library or session queue", err)
+            postBanner("Couldn't restore your last session")
         }
     }
 
@@ -166,18 +176,15 @@ class MediaOrchestrator(
     }
 
     override fun play(mediaItem: Track, contextTracks: List<Track>, startPositionMs: Long) {
-        val pool = contextTracks.ifEmpty {
+        val basePool = contextTracks.ifEmpty {
             queueFlow.value.tracks.ifEmpty { listOf(mediaItem) }
         }
-        val startIdx = pool.indexOfFirst { it.id == mediaItem.id }.coerceAtLeast(0)
+        val foundIdx = basePool.indexOfFirst { it.id == mediaItem.id }
+        val pool = if (foundIdx >= 0) basePool else listOf(mediaItem) + basePool
+        val startIdx = if (foundIdx >= 0) foundIdx else 0
         val updatedQueue = queueFlow.value.setQueue(pool, startIdx)
         queueFlow.value = updatedQueue
         startTrackOnEngine(mediaItem, updatedQueue, startPositionMs)
-    }
-
-    override fun play(mediaItem: MediaItem, startPositionMs: Long) {
-        val convertedTrack = convertMedia3ItemToTrack(mediaItem)
-        play(convertedTrack, listOf(convertedTrack), startPositionMs)
     }
 
     override fun resume() {
@@ -230,6 +237,10 @@ class MediaOrchestrator(
     }
 
     override fun selectQueueTrack(track: Track) {
+        if (queueFlow.value.tracks.none { it.id == track.id }) {
+            postBanner("Track '${track.title}' is not in the active queue")
+            return
+        }
         val updated = queueFlow.value.selectTrack(track.id)
         queueFlow.value = updated
         startTrackOnEngine(track, updated, 0L)
@@ -425,7 +436,20 @@ class MediaOrchestrator(
     override fun close() {
         orchestratorScope.cancel()
     }
+
+    companion object {
+        private const val TAG = "MediaOrchestrator"
+    }
 }
+
+@Volatile
+private var cachedOrchestratorTrackId: String? = null
+
+@Volatile
+private var cachedOrchestratorFormat: MediaFormatDescriptor? = null
+
+@Volatile
+private var cachedOrchestratorLyrics: List<SyncedLyricLine> = emptyList()
 
 private fun buildOrchestratorState(values: Array<Any?>): MediaOrchestratorState {
     val queue = values[0] as PlaybackQueue
@@ -438,12 +462,21 @@ private fun buildOrchestratorState(values: Array<Any?>): MediaOrchestratorState 
     val banner = values[5] as String?
 
     val activeTrack = engineState.currentTrack ?: queue.currentTrack
-    val format = activeTrack?.let {
-        VeloraCompatibilityMatrix.inspectMediaFormat(it.uri, it.mediaType)
+    val format: MediaFormatDescriptor?
+    val lyrics: List<SyncedLyricLine>
+    if (activeTrack == null) {
+        format = null
+        lyrics = emptyList()
+    } else if (activeTrack.id == cachedOrchestratorTrackId) {
+        format = cachedOrchestratorFormat
+        lyrics = cachedOrchestratorLyrics
+    } else {
+        format = VeloraCompatibilityMatrix.inspectMediaFormat(activeTrack.uri, activeTrack.mediaType)
+        lyrics = VeloraLyricsAndSubtitleEngine.resolveAutomaticLyricsForTrack(activeTrack)
+        cachedOrchestratorTrackId = activeTrack.id
+        cachedOrchestratorFormat = format
+        cachedOrchestratorLyrics = lyrics
     }
-    val lyrics = activeTrack?.let {
-        VeloraLyricsAndSubtitleEngine.resolveAutomaticLyricsForTrack(it)
-    }.orEmpty()
 
     return MediaOrchestratorState(
         queue = queue,
@@ -454,26 +487,5 @@ private fun buildOrchestratorState(values: Array<Any?>): MediaOrchestratorState 
         timeMachineBookmarks = bookmarks,
         declarativePlugins = plugins,
         lastBannerMessage = banner
-    )
-}
-
-private fun convertMedia3ItemToTrack(mediaItem: MediaItem): Track {
-    val uriStr = mediaItem.localConfiguration?.uri?.toString().orEmpty()
-    val descriptor = VeloraCompatibilityMatrix.inspectMediaFormat(uriStr)
-    val meta = mediaItem.mediaMetadata
-    val rawId = mediaItem.mediaId.ifBlank { "media3_${uriStr.hashCode()}" }
-    return Track(
-        id = rawId,
-        mediaStoreId = (rawId.hashCode().toLong() and 0x7FFFFFFFL),
-        title = meta.title?.toString()?.takeIf { it.isNotBlank() } ?: rawId,
-        artist = meta.artist?.toString()?.takeIf { it.isNotBlank() } ?: descriptor.containerName,
-        album = meta.albumTitle?.toString()?.takeIf { it.isNotBlank() } ?: descriptor.primaryCodec,
-        durationMs = 180_000L,
-        uri = uriStr,
-        folderPath = uriStr.substringBeforeLast('/', "/storage/emulated/0/Music"),
-        mediaType = descriptor.mediaType,
-        addedTimestampMs = System.currentTimeMillis(),
-        sampleRateHz = 48_000,
-        bitrateKbps = 320
     )
 }

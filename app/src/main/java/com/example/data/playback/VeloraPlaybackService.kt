@@ -3,10 +3,15 @@ package com.example.data.playback
 import android.app.PendingIntent
 import android.content.Intent
 import android.util.Log
+import androidx.media3.common.MediaItem
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.example.MainActivity
 import com.example.domain.engine.PlayerEngine
+import com.example.domain.model.PhiDesignMetrics
+import com.example.domain.model.VeloraCompatibilityMatrix
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
 import org.koin.android.ext.android.inject
 
 class VeloraPlaybackService : MediaSessionService() {
@@ -18,7 +23,12 @@ class VeloraPlaybackService : MediaSessionService() {
         super.onCreate()
         runCatching {
             val media3Engine = playerEngine as? Media3PlayerEngine
-            val exoPlayer = media3Engine?.exoPlayer ?: return
+            val exoPlayer = media3Engine?.exoPlayer
+            if (exoPlayer == null) {
+                Log.w(TAG, "ExoPlayer instance unavailable; stopping VeloraPlaybackService")
+                stopSelf()
+                return
+            }
 
             mediaSession?.release()
             val activityIntent = Intent(this, MainActivity::class.java)
@@ -30,13 +40,39 @@ class VeloraPlaybackService : MediaSessionService() {
             )
 
             val session = MediaSession.Builder(this, exoPlayer)
-                .setId("velora_media_session_${System.currentTimeMillis()}")
+                .setId(SESSION_ID)
                 .setSessionActivity(pendingIntent)
+                .setCallback(
+                    object : MediaSession.Callback {
+                        override fun onAddMediaItems(
+                            mediaSession: MediaSession,
+                            controller: MediaSession.ControllerInfo,
+                            mediaItems: MutableList<MediaItem>
+                        ): ListenableFuture<MutableList<MediaItem>> {
+                            val validated = mutableListOf<MediaItem>()
+                            for (item in mediaItems) {
+                                val rawUri = (
+                                    item.localConfiguration?.uri
+                                        ?: item.requestMetadata.mediaUri
+                                    )?.toString()?.trim().orEmpty()
+                                if (!isAllowedSessionMediaUri(rawUri)) {
+                                    Log.w(TAG, "Rejected unauthorized MediaSession item URI: $rawUri")
+                                    return Futures.immediateFailedFuture(
+                                        SecurityException("Rejected unauthorized media URI")
+                                    )
+                                }
+                                validated.add(item)
+                            }
+                            return Futures.immediateFuture(validated)
+                        }
+                    }
+                )
                 .build()
             mediaSession = session
             addSession(session)
         }.onFailure { err ->
-            Log.w("VeloraPlaybackService", "MediaSession initialization skipped: ${err.message}")
+            Log.w(TAG, "MediaSession initialization skipped: ${err.message}")
+            stopSelf()
         }
     }
 
@@ -50,11 +86,41 @@ class VeloraPlaybackService : MediaSessionService() {
         return mediaSession
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val player = mediaSession?.player
+        if (player == null || !player.playWhenReady || player.mediaItemCount == 0) {
+            stopSelf()
+        }
+    }
+
     override fun onDestroy() {
         runCatching {
+            mediaSession?.player?.pause()
             mediaSession?.release()
         }
         mediaSession = null
         super.onDestroy()
+    }
+
+    companion object {
+        private const val TAG = "VeloraPlaybackService"
+        const val SESSION_ID = "velora_media_session"
+
+        fun isAllowedSessionMediaUri(rawUri: String): Boolean {
+            val trimmed = rawUri.trim()
+            if (trimmed.isEmpty()) return false
+            val lower = trimmed.lowercase()
+            return when {
+                lower.startsWith("http://") || lower.startsWith("https://") ->
+                    VeloraCompatibilityMatrix.isValidAuthorizedStreamUrl(trimmed)
+                lower.startsWith("content://") ->
+                    !trimmed.contains("..")
+                lower.startsWith("file://") ->
+                    PhiDesignMetrics.isSafeMediaFolder(trimmed.removePrefix("file://").substringBeforeLast('/'))
+                trimmed.startsWith("/") ->
+                    PhiDesignMetrics.isSafeMediaFolder(trimmed.substringBeforeLast('/'))
+                else -> false
+            }
+        }
     }
 }

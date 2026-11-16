@@ -36,6 +36,10 @@ service cloud.firestore {
              (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
     }
 
+    function isValidBandGain(val) {
+      return (val is int || val is float) && val >= -24 && val <= 24;
+    }
+
     function isValidPlaylist(data, expectedUid) {
       return data.userId == expectedUid &&
              data.name is string &&
@@ -43,6 +47,7 @@ service cloud.firestore {
              data.name.size() <= 100 &&
              data.trackIds is list &&
              data.trackIds.size() <= 200 &&
+             (data.trackIds.size() == 0 || (data.trackIds[0] is string && data.trackIds[0].size() >= 1 && data.trackIds[0].size() <= 256)) &&
              data.createdAt is timestamp &&
              data.createdAt <= request.time &&
              (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
@@ -55,6 +60,16 @@ service cloud.firestore {
              data.name.size() <= 60 &&
              data.gainsDb is list &&
              data.gainsDb.size() == 10 &&
+             isValidBandGain(data.gainsDb[0]) &&
+             isValidBandGain(data.gainsDb[1]) &&
+             isValidBandGain(data.gainsDb[2]) &&
+             isValidBandGain(data.gainsDb[3]) &&
+             isValidBandGain(data.gainsDb[4]) &&
+             isValidBandGain(data.gainsDb[5]) &&
+             isValidBandGain(data.gainsDb[6]) &&
+             isValidBandGain(data.gainsDb[7]) &&
+             isValidBandGain(data.gainsDb[8]) &&
+             isValidBandGain(data.gainsDb[9]) &&
              data.createdAt is timestamp &&
              data.createdAt <= request.time &&
              (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));

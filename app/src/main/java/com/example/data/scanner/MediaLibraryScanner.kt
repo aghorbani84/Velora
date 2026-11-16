@@ -27,6 +27,14 @@ class MediaLibraryScanner(
     private val _scanProgress = MutableStateFlow(ScanProgress())
     val scanProgress: StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
+    private data class CachedFileMetadata(
+        val lastModified: Long,
+        val length: Long,
+        val track: Track
+    )
+
+    private val fileMetadataCache = java.util.concurrent.ConcurrentHashMap<String, CachedFileMetadata>()
+
     suspend fun scanAllSources(
         allowedFolderUris: Set<String>,
         includeMediaStore: Boolean = true
@@ -40,20 +48,24 @@ class MediaLibraryScanner(
             errorMessage = null
         )
 
-        val dedupByMediaStoreId = linkedMapOf<Long, Track>()
+        val dedupById = linkedMapOf<String, Track>()
         val dedupByUri = linkedSetOf<String>()
+        var scannedCounter = 0
 
         fun registerTrack(track: Track) {
             if (!PhiDesignMetrics.isSafeMediaFolder(track.folderPath)) return
             if (dedupByUri.contains(track.uri)) return
-            if (dedupByMediaStoreId.containsKey(track.mediaStoreId)) return
+            if (dedupById.containsKey(track.id)) return
             dedupByUri.add(track.uri)
-            dedupByMediaStoreId[track.mediaStoreId] = track
-            _scanProgress.update {
-                it.copy(
-                    scannedCount = it.scannedCount + 1,
-                    indexedCount = dedupByMediaStoreId.size
-                )
+            dedupById[track.id] = track
+            scannedCounter++
+            if (scannedCounter == 1 || scannedCounter % 8 == 0) {
+                _scanProgress.update {
+                    it.copy(
+                        scannedCount = scannedCounter,
+                        indexedCount = dedupById.size
+                    )
+                }
             }
         }
 
@@ -89,24 +101,45 @@ class MediaLibraryScanner(
             _scanProgress.update {
                 it.copy(
                     isScanning = false,
-                    indexedCount = dedupByMediaStoreId.size,
-                    currentSourceLabel = "Complete (${dedupByMediaStoreId.size} tracks)",
+                    scannedCount = scannedCounter,
+                    indexedCount = dedupById.size,
+                    currentSourceLabel = "Complete (${dedupById.size} tracks)",
                     lastScanDurationMs = elapsed
                 )
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Media scan error", e)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Media scan permission error", e)
             val elapsed = (System.currentTimeMillis() - startMs).coerceAtLeast(1L)
             _scanProgress.update {
                 it.copy(
                     isScanning = false,
                     lastScanDurationMs = elapsed,
-                    errorMessage = "Scan interrupted: ${e.localizedMessage ?: "Permission or I/O error"}"
+                    errorMessage = "Scan interrupted: ${e.localizedMessage ?: "Permission denied"}"
+                )
+            }
+        } catch (e: java.io.IOException) {
+            Log.e(TAG, "Media scan I/O error", e)
+            val elapsed = (System.currentTimeMillis() - startMs).coerceAtLeast(1L)
+            _scanProgress.update {
+                it.copy(
+                    isScanning = false,
+                    lastScanDurationMs = elapsed,
+                    errorMessage = "Scan interrupted: ${e.localizedMessage ?: "I/O error"}"
+                )
+            }
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "Media scan state error", e)
+            val elapsed = (System.currentTimeMillis() - startMs).coerceAtLeast(1L)
+            _scanProgress.update {
+                it.copy(
+                    isScanning = false,
+                    lastScanDurationMs = elapsed,
+                    errorMessage = "Scan interrupted: ${e.localizedMessage ?: "Scanner state error"}"
                 )
             }
         }
 
-        dedupByMediaStoreId.values.toList()
+        dedupById.values.toList()
     }
 
     private fun queryMediaStoreAudio(): List<Track> {
@@ -263,7 +296,7 @@ class MediaLibraryScanner(
                 if (ext in SUPPORTED_AUDIO_EXTENSIONS || ext in SUPPORTED_VIDEO_EXTENSIONS) {
                     val mediaType = if (ext in SUPPORTED_VIDEO_EXTENSIONS) MediaType.VIDEO else MediaType.AUDIO
                     val uriStr = doc.uri.toString()
-                    val stableHash = abs(uriStr.hashCode().toLong()) + 500_000_000L
+                    val stableHash = computeStable63BitHash(uriStr)
                     val enriched = extractMetadataFromUri(
                         uri = doc.uri,
                         fallbackTitle = name.substringBeforeLast('.'),
@@ -293,13 +326,23 @@ class MediaLibraryScanner(
                 val ext = current.extension.lowercase()
                 if (ext in SUPPORTED_AUDIO_EXTENSIONS || ext in SUPPORTED_VIDEO_EXTENSIONS) {
                     val mediaType = if (ext in SUPPORTED_VIDEO_EXTENSIONS) MediaType.VIDEO else MediaType.AUDIO
-                    val stableHash = abs(current.absolutePath.hashCode().toLong()) + 700_000_000L
-                    val enriched = extractMetadataFromFile(
-                        file = current,
-                        folderPath = rootLabel,
-                        mediaType = mediaType,
-                        stableId = stableHash
-                    )
+                    val absPath = current.absolutePath
+                    val lastMod = current.lastModified()
+                    val len = current.length()
+                    val cached = fileMetadataCache[absPath]
+                    val enriched = if (cached != null && cached.lastModified == lastMod && cached.length == len) {
+                        cached.track.copy(folderPath = rootLabel)
+                    } else {
+                        val stableHash = computeStable63BitHash(absPath)
+                        extractMetadataFromFile(
+                            file = current,
+                            folderPath = rootLabel,
+                            mediaType = mediaType,
+                            stableId = stableHash
+                        ).also { track ->
+                            fileMetadataCache[absPath] = CachedFileMetadata(lastMod, len, track)
+                        }
+                    }
                     found.add(enriched)
                 }
             }
@@ -307,6 +350,14 @@ class MediaLibraryScanner(
 
         walk(dir, 0)
         return found
+    }
+
+    private fun computeStable63BitHash(input: String): Long {
+        var h = 1125899906842597L
+        for (i in input.indices) {
+            h = 31L * h + input[i].code.toLong()
+        }
+        return (h and 0x7FFFFFFFFFFFFFFFL).coerceAtLeast(1_000_000L)
     }
 
     private fun extractMetadataFromUri(
@@ -335,7 +386,10 @@ class MediaLibraryScanner(
                 ?.toLongOrNull()?.takeIf { it > 0L }?.let { durationMs = it }
             retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
                 ?.toIntOrNull()?.takeIf { it > 0 }?.let { bitrateKbps = (it / 1000).coerceAtLeast(64) }
-        } catch (_: Throwable) {
+        } catch (e: IllegalArgumentException) {
+            Log.d(TAG, "Metadata extraction skipped for URI $uri", e)
+        } catch (e: SecurityException) {
+            Log.d(TAG, "Metadata permission denied for URI $uri", e)
         } finally {
             runCatching { retriever.release() }
         }
@@ -380,7 +434,10 @@ class MediaLibraryScanner(
                 ?.takeIf { it.isNotBlank() }?.let { album = it }
             retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 ?.toLongOrNull()?.takeIf { it > 0L }?.let { durationMs = it }
-        } catch (_: Throwable) {
+        } catch (e: IllegalArgumentException) {
+            Log.d(TAG, "Metadata extraction skipped for file ${file.name}", e)
+        } catch (e: SecurityException) {
+            Log.d(TAG, "Metadata permission denied for file ${file.name}", e)
         } finally {
             runCatching { retriever.release() }
         }

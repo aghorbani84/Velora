@@ -316,6 +316,10 @@ object BiquadEqDsp {
         }
     }
 
+    private val HANN_WINDOW_512: DoubleArray = DoubleArray(512) { i ->
+        0.5 * (1.0 - cos(2.0 * PI * i / 511.0))
+    }
+
     /**
      * Computes real-time 10-band spectral magnitude (in dBFS, -60f..0f) at each ISO center
      * frequency using a Hann-windowed Goertzel resonator bank over the PCM sample window.
@@ -329,13 +333,18 @@ object BiquadEqDsp {
             return List(EqSpecification.BAND_COUNT) { -60f }
         }
         val windowSize = n.coerceAtMost(512)
+        val usePrecomputedHann = windowSize == 512
         return EqSpecification.CENTER_FREQUENCIES_HZ.map { centerFreqHz ->
             val omega = 2.0 * PI * centerFreqHz.toDouble() / sampleRateHz.toDouble()
             val coeff = 2.0 * cos(omega)
             var s1 = 0.0
             var s2 = 0.0
             for (i in 0 until windowSize) {
-                val hann = 0.5 * (1.0 - cos(2.0 * PI * i / (windowSize - 1).coerceAtLeast(1)))
+                val hann = if (usePrecomputedHann) {
+                    HANN_WINDOW_512[i]
+                } else {
+                    0.5 * (1.0 - cos(2.0 * PI * i / (windowSize - 1).coerceAtLeast(1)))
+                }
                 val s0 = samples[i].toDouble() * hann + coeff * s1 - s2
                 s2 = s1
                 s1 = s0

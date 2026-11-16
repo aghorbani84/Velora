@@ -16,11 +16,14 @@ import com.example.domain.model.Track
 @Entity(
     tableName = "tracks",
     indices = [
-        Index(value = ["mediaStoreId"], unique = true),
+        Index(value = ["mediaStoreId"], unique = false),
         Index(value = ["uri"], unique = true),
         Index(value = ["title"]),
         Index(value = ["artist"]),
-        Index(value = ["album"])
+        Index(value = ["album"]),
+        Index(value = ["mediaType"]),
+        Index(value = ["isFavorite"]),
+        Index(value = ["folderPath"])
     ]
 )
 data class TrackEntity(

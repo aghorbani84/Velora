@@ -266,17 +266,26 @@ class VeloraSettingsRepository(
         private val KEY_DYNAMIC_COLOR_ENABLED = booleanPreferencesKey("dynamic_color_enabled")
         private val KEY_THEME_PALETTE_MODE = stringPreferencesKey("theme_palette_mode")
 
-        fun backupCorruptFileIfPresent(targetFile: File): File? {
+        fun backupCorruptFileIfPresent(
+            targetFile: File,
+            timestampMs: Long = System.currentTimeMillis()
+        ): File? {
             return try {
                 if (targetFile.exists()) {
-                    val backupFile = File(targetFile.parentFile, "${targetFile.name}.corrupt.bak")
-                    targetFile.copyTo(backupFile, overwrite = true)
+                    val backupFile = File(
+                        targetFile.parentFile,
+                        "${targetFile.name}.corrupt.$timestampMs.bak"
+                    )
+                    targetFile.copyTo(backupFile, overwrite = false)
                     backupFile
                 } else {
                     null
                 }
-            } catch (e: Exception) {
+            } catch (e: IOException) {
                 Log.e(TAG, "Failed to create corrupt settings backup", e)
+                null
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Permission denied creating corrupt settings backup", e)
                 null
             }
         }

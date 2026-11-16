@@ -72,10 +72,10 @@ interface IMediaOrchestrator {
     val events: SharedFlow<VeloraMediaEvent>
 
     fun play(mediaItem: Track, queueContext: List<Track> = emptyList(), startPositionMs: Long = 0L)
-    fun play(mediaItem: MediaItem, startPositionMs: Long = 0L)
+    fun playUri(rawUri: String, title: String = "External Media", startPositionMs: Long = 0L)
     fun resume()
     fun pause()
-    fun togglePlayPause()
+    fun togglePlayPause(fallbackTracks: List<Track> = emptyList())
     fun skipToNext()
     fun skipToPrevious()
     fun stop()
@@ -90,8 +90,8 @@ interface IMediaOrchestrator {
 | **Media Orchestrator** | `MediaOrchestrator` (`IMediaOrchestrator`) | Central state machine coordinating `PlayerEngine`, Room history, DataStore session persistence, queue management, and domain events. |
 | **Audio & Video Playback** | `Media3PlayerEngine` + `VeloraPlaybackService` | AndroidX Media3 ExoPlayer & foreground `MediaSessionService` with bilateral seek clamping (`[0, durationMs]`), audio focus, and explicit error surfacing. |
 | **10-Band DSP & RTA** | `TenBandBiquadAudioProcessor` | Real-time 10-band cascaded Direct Form II Transposed RBJ peaking biquad filter (`31.25 Hz`–`16 kHz`) + Goertzel RTA spectrum + 64-point oscilloscope waveform. |
-| **Offline Library & History** | `VeloraLibraryRepository` (`VeloraDatabase` v3) | Incremental `MediaStore` + SAF folder indexing, deduplication by `mediaStoreId` & `uri`, custom EQ presets, playlists, and offline playback history. |
-| **Atomic Settings Store** | `VeloraSettingsRepository` | Jetpack DataStore Preferences with `ReplaceFileCorruptionHandler` creating automatic `.corrupt.bak` forensic backups before safe recovery. |
+| **Offline Library & History** | `VeloraLibraryRepository` (`VeloraDatabase` v4) | Incremental `MediaStore` + SAF folder indexing, deduplication by `uri` & `id`, explicit Room migrations (`1→4`), custom EQ presets, playlists, and offline playback history. |
+| **Atomic Settings Store** | `VeloraSettingsRepository` | Jetpack DataStore Preferences with `ReplaceFileCorruptionHandler` creating timestamped `.corrupt.<timestamp>.bak` forensic backups before safe recovery. |
 | **OmniSearch Engine** | `VeloraOmniSearchEngine` | Prefix, substring, Levenshtein typo-tolerant fuzzy matching, and semantic intent queries (`favorite`, `unfinished`, `hi-res`, `night`). |
 | **Smart Playlist Engine** | `VeloraSmartPlaylistEngine` | Deterministic, explainable local recommendation mixes (*Daily Saffron Mix*, *Most Played*, *Continue Listening*, *Hidden Gems & Hi-Res*, *Favorite Collection*). |
 | **Lyrics & Subtitle Studio** | `VeloraLyricsAndSubtitleEngine` + `VeloraSubtitleExporter` | Time-synchronized lyrics & subtitles with `±250ms` offset calibration, RTL/Unicode support (Persian, Arabic, Japanese, English), and `SRT` / `WebVTT` export. |
@@ -137,13 +137,13 @@ VELORA rejects generic neon templates in favor of a calm, atmospheric **Dark Saf
      $$y[n] = b_0 x[n] + z_1[n-1], \quad z_1[n] = b_1 x[n] - a_1 y[n] + z_2[n-1], \quad z_2[n] = b_2 x[n] - a_2 y[n]$$
    - **Zero Algorithmic Lookahead:** Adds `0` lookahead frames; buffer latency is strictly $L = N_{\text{frames}} / f_s$ (`10.67 ms` at `48 kHz`).
 2. **Real-Time Goertzel 10-Band RTA & 64-Point Time-Domain Waveform:**
-   - Computes exact narrowband energy at all 10 ISO frequencies alongside a normalized 64-sample oscilloscope waveform emitted at 60 FPS for the Compose canvas visualizer.
+   - Computes narrowband energy at all 10 ISO frequencies using a precomputed 512-sample Hann window alongside a normalized 64-sample oscilloscope waveform throttled to 20 Hz (`50 ms`, or `200 ms` in Battery Saver mode) for the Compose canvas visualizer.
 
 ---
 
 ## 📱 Android Architecture & Format Compatibility
 
-VELORA is currently a dedicated **Android-only (`Media3 ExoPlayer` + `Jetpack Compose`)** application (`:app` module, `minSdk 26`, `targetSdk 36`). All UI screens (`app/src/main/java/com/example/ui/screens/`), navigation (`NavGraph.kt`), and state holders (`VeloraPlayerViewModel` + `MediaOrchestrator`) are strictly separated following Clean Architecture principles.
+VELORA is currently a dedicated **Android-only (`Media3 ExoPlayer` + `Jetpack Compose`)** application (`:app` module, `minSdk 26`, `targetSdk 36`). All UI screens (`app/src/main/java/com/example/ui/screens/`), navigation (`NavGraph.kt`), and state holders (`VeloraViewModel` + `MediaOrchestrator`) are strictly separated following Clean Architecture principles.
 
 ### Android Subsystem Verification Matrix (`VeloraPlatformMatrix`)
 
@@ -151,8 +151,8 @@ VELORA is currently a dedicated **Android-only (`Media3 ExoPlayer` + `Jetpack Co
 | :--- | :--- | :--- |
 | **Playback Engine (`API 26–36`)** | AndroidX Media3 ExoPlayer + `VeloraPlaybackService` (`MediaSessionService`) | Hardware & software decoding, background session controls, PiP, bilateral seek clamping |
 | **10-Band DSP & RTA** | `TenBandBiquadAudioProcessor` + Hardware 5-Band Millibel Sync | Cascaded RBJ biquad IIR filtering + Goertzel 10-band RTA & 64-point oscilloscope |
-| **Offline Database & Settings** | Room SQLite v3 (`VeloraDatabase`) + Jetpack DataStore (`VeloraSettingsRepository`) | Incremental `MediaStore`/SAF indexing, playlists, playback history, `.corrupt.bak` recovery |
-| **Secure Stream Validation** | `VeloraDownloadValidator` (`HTTPS` / `HLS .m3u8` / `DASH .mpd` URL sanitization) | Scheme allowlisting, private/loopback host rejection, and path-traversal sanitization |
+| **Offline Database & Settings** | Room SQLite v4 (`VeloraDatabase`) + Jetpack DataStore (`VeloraSettingsRepository`) | Incremental `MediaStore`/SAF indexing, explicit migrations (`1→4`), playlists, playback history, `.corrupt.<timestamp>.bak` recovery |
+| **Secure Stream Validation** | `VeloraDownloadValidator` (`HTTPS` / `HLS .m3u8` / `DASH .mpd` URL sanitization) | Scheme allowlisting, private/loopback/IPv6-mapped host rejection, and path-traversal sanitization |
 | **Sandboxed Plugins** | `VeloraPluginRegistry` (Tier 1 Declarative Registry) | Compliant with Google Play no-dynamic-code-loading (no `.dex`/`.jar`/`.so` loading) |
 
 ### Supported Media Formats (`VeloraCompatibilityMatrix`)
@@ -167,13 +167,10 @@ VELORA is currently a dedicated **Android-only (`Media3 ExoPlayer` + `Jetpack Co
 ## 🛠️ Build, Static Analysis & Test Commands
 
 ```bash
-# 1. Run Detekt static code analysis (0 issues threshold)
-./gradlew detekt
+# 1. Run Detekt static code analysis & Android Lint
+./gradlew detekt lintDebug
 
-# 2. Run JVM Unit Test Suite (DSP math, Queue invariants, OmniSearch, Copilot, Subtitle export, Security)
-./gradlew :app:testDebugUnitTest --tests com.example.ExampleUnitTest
-
-# 3. Run full Unit + Robolectric Suite (Room v3, DataStore corruption recovery, IMediaOrchestrator)
+# 2. Run full Unit + Robolectric Suite (DSP math, Queue invariants, OmniSearch, Security, Room v4 migrations, DataStore recovery, IMediaOrchestrator)
 ./gradlew :app:testDebugUnitTest
 
 # 4. Assemble Debug & Release APKs

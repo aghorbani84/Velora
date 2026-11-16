@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Default: enforce HTTPS/TLS across all network connections (N12, B1) -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Allow Icecast/Shoutcast fallback only on vetted public radio streaming domains -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">somafm.com</domain>
+        <domain includeSubdomains="true">radioparadise.com</domain>
+        <domain includeSubdomains="true">nightride.fm</domain>
+        <domain includeSubdomains="true">srg-ssr.ch</domain>
+        <domain includeSubdomains="true">radiojar.com</domain>
+    </domain-config>
+</network-security-config>

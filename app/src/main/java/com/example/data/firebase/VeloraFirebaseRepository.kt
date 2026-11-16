@@ -136,8 +136,14 @@ class VeloraFirebaseRepository(
         } catch (e: GetCredentialCancellationException) {
             Log.w(TAG, "Interactive Google sign-in was cancelled by user: ${e.message}")
             Result.failure(e)
-        } catch (e: Exception) {
-            Log.e(TAG, "Google Sign-In failed", e)
+        } catch (e: androidx.credentials.exceptions.GetCredentialException) {
+            Log.e(TAG, "Credential Manager sign-in failed", e)
+            Result.failure(e)
+        } catch (e: com.google.firebase.FirebaseException) {
+            Log.e(TAG, "Firebase authentication or Firestore sync failed", e)
+            Result.failure(e)
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "Google Sign-In state error", e)
             Result.failure(e)
         }
     }
@@ -147,6 +153,7 @@ class VeloraFirebaseRepository(
     }
 
     fun observeCloudPlaylists(userId: String): Flow<List<FirestoreCloudPlaylist>> {
+        require(auth?.currentUser?.uid == userId) { "Operation requires authenticated user" }
         val firestore = db ?: return flowOf(emptyList())
         return firestore.collection("users").document(userId)
             .collection("cloud_playlists")
@@ -196,6 +203,7 @@ class VeloraFirebaseRepository(
     }
 
     fun observeCloudEqPresets(userId: String): Flow<List<FirestoreCloudEqPreset>> {
+        require(auth?.currentUser?.uid == userId) { "Operation requires authenticated user" }
         val firestore = db ?: return flowOf(emptyList())
         return firestore.collection("users").document(userId)
             .collection("cloud_eq_presets")

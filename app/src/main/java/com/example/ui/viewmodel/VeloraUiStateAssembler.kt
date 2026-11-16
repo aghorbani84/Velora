@@ -155,6 +155,10 @@ fun VeloraViewModel.setLowBatteryMode(enabled: Boolean) {
 fun VeloraViewModel.setAdaptiveAudioMode(mode: AdaptiveAudioMode) {
     viewModelScope.launch {
         settingsRepository.updateAdaptiveAudioMode(mode)
+        if (mode != AdaptiveAudioMode.ADAPTIVE_AI) {
+            val savedSettings = settingsRepository.getSettingsOnce()
+            playerEngine.setEqBandGains(savedSettings.customEqGainsDb)
+        }
         val isFa = uiState.value.settings.appLanguageCode == "fa"
         val msg = if (isFa) {
             "حالت صوتی به ${mode.labelFa} تغییر یافت"
@@ -254,6 +258,44 @@ internal suspend fun syncCloudDataForUser(
     }
 }
 
+private data class DerivedLibraryProjection(
+    val rawTracks: List<Track>,
+    val playbackHistory: List<PlaybackHistoryEntry>,
+    val sortOrder: TrackSortOrder,
+    val filterMode: TrackFilterMode,
+    val onlyValidMusicInSearch: Boolean,
+    val searchQuery: String,
+    val dbSearchResults: List<Track>,
+    val customSmartRules: List<SmartRuleCriterion>,
+    val sortedTracks: List<Track>,
+    val audioTracks: List<Track>,
+    val videoTracks: List<Track>,
+    val favoriteTracks: List<Track>,
+    val artistsMap: Map<String, List<Track>>,
+    val smartPlaylists: List<SmartPlaylist>,
+    val listeningStats: ListeningStatsSummary,
+    val omniMatches: List<OmniSearchMatch>,
+    val combinedSearchResults: List<Track>
+) {
+    fun matchesInputs(
+        tracks: List<Track>,
+        history: List<PlaybackHistoryEntry>,
+        order: TrackSortOrder,
+        mode: TrackFilterMode,
+        onlyValidMusic: Boolean,
+        query: String,
+        dbResults: List<Track>,
+        smartRules: List<SmartRuleCriterion>
+    ): Boolean {
+        if (rawTracks !== tracks || playbackHistory !== history) return false
+        if (sortOrder != order || filterMode != mode || onlyValidMusicInSearch != onlyValidMusic) return false
+        return searchQuery == query && dbSearchResults === dbResults && customSmartRules === smartRules
+    }
+}
+
+@Volatile
+private var cachedDerivedProjection: DerivedLibraryProjection? = null
+
 internal fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
     @Suppress("UNCHECKED_CAST")
     val rawTracks = values[0] as List<Track>
@@ -284,61 +326,98 @@ internal fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
     val customSmartRules = (values.getOrNull(18) as? List<SmartRuleCriterion>).orEmpty()
     val videoCinemaSettings = (values.getOrNull(19) as? VideoCinemaSettings) ?: VideoCinemaSettings()
 
-    val filteredTracks = when (filterMode) {
-        TrackFilterMode.ALL -> rawTracks
-        TrackFilterMode.FAVORITES_ONLY -> rawTracks.filter { it.isFavorite }
-        TrackFilterMode.HI_RES_ONLY -> rawTracks.filter { it.sampleRateHz >= 48_000 }
-    }
-    val sortedTracks = when (sortOrder) {
-        TrackSortOrder.TITLE_ASC -> filteredTracks.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
-        TrackSortOrder.ARTIST_ASC -> filteredTracks.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.artist })
-        TrackSortOrder.DURATION_DESC -> filteredTracks.sortedByDescending { it.durationMs }
-        TrackSortOrder.RECENTLY_ADDED -> filteredTracks.sortedByDescending { it.addedTimestampMs }
-    }
+    val prev = cachedDerivedProjection
+    val projection = if (
+        prev != null &&
+        prev.matchesInputs(
+            tracks = rawTracks,
+            history = playbackHistory,
+            order = sortOrder,
+            mode = filterMode,
+            onlyValidMusic = settings.onlyValidMusicInSearch,
+            query = searchQuery,
+            dbResults = dbSearchResults,
+            smartRules = customSmartRules
+        )
+    ) {
+        prev
+    } else {
+        val filteredTracks = when (filterMode) {
+            TrackFilterMode.ALL -> rawTracks
+            TrackFilterMode.FAVORITES_ONLY -> rawTracks.filter { it.isFavorite }
+            TrackFilterMode.HI_RES_ONLY -> rawTracks.filter { it.sampleRateHz >= 48_000 }
+        }
+        val sortedTracks = when (sortOrder) {
+            TrackSortOrder.TITLE_ASC -> filteredTracks.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
+            TrackSortOrder.ARTIST_ASC -> filteredTracks.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.artist })
+            TrackSortOrder.DURATION_DESC -> filteredTracks.sortedByDescending { it.durationMs }
+            TrackSortOrder.RECENTLY_ADDED -> filteredTracks.sortedByDescending { it.addedTimestampMs }
+        }
 
-    val audioTracks = if (settings.onlyValidMusicInSearch) {
-        sortedTracks.filter { it.mediaType == MediaType.AUDIO && it.isLikelyValidSong() }
-    } else {
-        sortedTracks.filter { it.mediaType == MediaType.AUDIO }
-    }
-    val videoTracks = sortedTracks.filter { it.mediaType == MediaType.VIDEO }
-    val favoriteTracks = rawTracks.filter { it.isFavorite }
-    val artistsMap = rawTracks
-        .filter { it.mediaType == MediaType.AUDIO && (!settings.onlyValidMusicInSearch || it.isLikelyValidSong()) }
-        .groupBy { it.artist }
-        .toSortedMap(String.CASE_INSENSITIVE_ORDER)
+        val audioTracks = if (settings.onlyValidMusicInSearch) {
+            sortedTracks.filter { it.mediaType == MediaType.AUDIO && it.isLikelyValidSong() }
+        } else {
+            sortedTracks.filter { it.mediaType == MediaType.AUDIO }
+        }
+        val videoTracks = sortedTracks.filter { it.mediaType == MediaType.VIDEO }
+        val favoriteTracks = rawTracks.filter { it.isFavorite }
+        val artistsMap = rawTracks
+            .filter { it.mediaType == MediaType.AUDIO && (!settings.onlyValidMusicInSearch || it.isLikelyValidSong()) }
+            .groupBy { it.artist }
+            .toSortedMap(String.CASE_INSENSITIVE_ORDER)
 
-    val rulePlaylists = customSmartRules.map { rule ->
-        VeloraPhase2Engine.evaluateSmartRule(rule, rawTracks, playbackHistory)
-    }
-    val smartPlaylists = rulePlaylists + VeloraSmartPlaylistEngine.generateSmartPlaylists(rawTracks, playbackHistory)
-    val listeningStats = VeloraPhase2Engine.computeListeningStats(rawTracks, playbackHistory)
-    val omniMatches = VeloraOmniSearchEngine.searchWithSemanticAndFuzzyRanking(
-        query = searchQuery,
-        allTracks = rawTracks,
-        history = playbackHistory
-    )
-    val rawSearchResults = if (searchQuery.isBlank()) {
-        dbSearchResults
-    } else {
-        (omniMatches.map { it.track } + dbSearchResults).distinctBy { it.id }
-    }
-    val combinedSearchResults = if (settings.onlyValidMusicInSearch) {
-        rawSearchResults.filter { it.isLikelyValidSong() }
-    } else {
-        rawSearchResults
+        val rulePlaylists = customSmartRules.map { rule ->
+            VeloraPhase2Engine.evaluateSmartRule(rule, rawTracks, playbackHistory)
+        }
+        val smartPlaylists = rulePlaylists + VeloraSmartPlaylistEngine.generateSmartPlaylists(rawTracks, playbackHistory)
+        val listeningStats = VeloraPhase2Engine.computeListeningStats(rawTracks, playbackHistory)
+        val omniMatches = VeloraOmniSearchEngine.searchWithSemanticAndFuzzyRanking(
+            query = searchQuery,
+            allTracks = rawTracks,
+            history = playbackHistory
+        )
+        val rawSearchResults = if (searchQuery.isBlank()) {
+            dbSearchResults
+        } else {
+            (omniMatches.map { it.track } + dbSearchResults).distinctBy { it.id }
+        }
+        val combinedSearchResults = if (settings.onlyValidMusicInSearch) {
+            rawSearchResults.filter { it.isLikelyValidSong() }
+        } else {
+            rawSearchResults
+        }
+
+        DerivedLibraryProjection(
+            rawTracks = rawTracks,
+            playbackHistory = playbackHistory,
+            sortOrder = sortOrder,
+            filterMode = filterMode,
+            onlyValidMusicInSearch = settings.onlyValidMusicInSearch,
+            searchQuery = searchQuery,
+            dbSearchResults = dbSearchResults,
+            customSmartRules = customSmartRules,
+            sortedTracks = sortedTracks,
+            audioTracks = audioTracks,
+            videoTracks = videoTracks,
+            favoriteTracks = favoriteTracks,
+            artistsMap = artistsMap,
+            smartPlaylists = smartPlaylists,
+            listeningStats = listeningStats,
+            omniMatches = omniMatches,
+            combinedSearchResults = combinedSearchResults
+        ).also { cachedDerivedProjection = it }
     }
 
     return VeloraUiState(
-        allTracks = sortedTracks,
-        audioTracks = audioTracks,
-        videoTracks = videoTracks,
-        favoriteTracks = favoriteTracks,
-        smartPlaylists = smartPlaylists,
+        allTracks = projection.sortedTracks,
+        audioTracks = projection.audioTracks,
+        videoTracks = projection.videoTracks,
+        favoriteTracks = projection.favoriteTracks,
+        smartPlaylists = projection.smartPlaylists,
         customSmartRules = customSmartRules,
-        listeningStats = listeningStats,
+        listeningStats = projection.listeningStats,
         videoCinemaSettings = videoCinemaSettings,
-        omniSearchMatches = omniMatches,
+        omniSearchMatches = projection.omniMatches,
         activeLyrics = customLyrics ?: orchestrator.activeLyrics,
         lyricsOffsetMs = orchestrator.lyricsOffsetMs,
         timeMachineBookmarks = orchestrator.timeMachineBookmarks,
@@ -348,8 +427,8 @@ internal fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         audioRoute = audioRoute,
         sortOrder = sortOrder,
         filterMode = filterMode,
-        artistsMap = artistsMap,
-        selectedArtist = selectedArtist ?: artistsMap.keys.firstOrNull(),
+        artistsMap = projection.artistsMap,
+        selectedArtist = selectedArtist ?: projection.artistsMap.keys.firstOrNull(),
         playlists = playlists,
         playbackHistory = playbackHistory,
         queue = orchestrator.queue,
@@ -358,7 +437,7 @@ internal fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         eqPresets = eqPresets,
         activeEqPresetId = settings.activeEqPresetId,
         searchQuery = searchQuery,
-        searchResults = combinedSearchResults,
+        searchResults = projection.combinedSearchResults,
         settings = settings,
         scanProgress = scanProgress,
         statusBannerMessage = orchestrator.lastBannerMessage,

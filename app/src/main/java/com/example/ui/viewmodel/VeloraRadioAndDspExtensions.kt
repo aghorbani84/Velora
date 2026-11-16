@@ -67,10 +67,13 @@ fun VeloraViewModel.setCrossfadeSeconds(seconds: Int) {
 
 fun VeloraViewModel.setAbLoopPointA() {
     val pos = playerEngine.playbackState.value.positionMs.coerceAtLeast(0L)
+    var updatedEnd: Long? = null
     studioDspStateFlow.update { state ->
         val validEnd = state.loopEndMs?.takeIf { it > pos }
+        updatedEnd = validEnd
         state.copy(loopStartMs = pos, loopEndMs = validEnd)
     }
+    (playerEngine as? Media3PlayerEngine)?.setAbLoopBounds(pos, updatedEnd)
     mediaOrchestrator.postBanner("Set Loop Point A at ${pos / 1000}s")
 }
 
@@ -82,11 +85,13 @@ fun VeloraViewModel.setAbLoopPointB() {
         return
     }
     studioDspStateFlow.update { it.copy(loopStartMs = start, loopEndMs = pos) }
+    (playerEngine as? Media3PlayerEngine)?.setAbLoopBounds(start, pos)
     mediaOrchestrator.postBanner("Active A-B Loop: ${start / 1000}s → ${pos / 1000}s")
 }
 
 fun VeloraViewModel.clearAbLoop() {
     studioDspStateFlow.update { it.copy(loopStartMs = null, loopEndMs = null) }
+    (playerEngine as? Media3PlayerEngine)?.setAbLoopBounds(null, null)
     mediaOrchestrator.postBanner("Cleared A-B Repeat Loop")
 }
 
@@ -183,6 +188,49 @@ fun VeloraViewModel.restoreOfflineBackupJson(rawJson: String, filesDir: File? = 
     bassRegex.find(content)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { setBassBoostPercent(it) }
     stereoRegex.find(content)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { setStereoWidthPercent(it) }
     crossfadeRegex.find(content)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { setCrossfadeSeconds(it) }
+
+    // Restore custom radio stations
+    val stationRegex = Regex(
+        """\{\s*"name"\s*:\s*"([^"]+)"\s*,\s*"streamUrl"\s*:\s*"([^"]+)"\s*,\s*"tagline"\s*:\s*"([^"]*)"\s*\}"""
+    )
+    stationRegex.findAll(content).forEach { match ->
+        val stName = match.groupValues[1]
+        val stUrl = match.groupValues[2]
+        val stTag = match.groupValues[3]
+        VeloraRadioCatalog.createCustomStation(stName, stUrl, stTag)?.let { custom ->
+            customRadioStationsFlow.update { existing ->
+                (listOf(custom) + existing).distinctBy { it.streamUrl }
+            }
+        }
+    }
+
+    // Restore playlists and custom EQ presets asynchronously into Room
+    val playlistRegex = Regex(
+        """\{\s*"name"\s*:\s*"([^"]+)"\s*,\s*"trackIds"\s*:\s*\[([^\]]*)\]\s*\}"""
+    )
+    val presetRegex = Regex(
+        """\{\s*"id"\s*:\s*"([^"]+)"\s*,\s*"name"\s*:\s*"([^"]+)"\s*,\s*"gainsDb"\s*:\s*\[([^\]]+)\]\s*\}"""
+    )
+    viewModelScope.launch {
+        playlistRegex.findAll(content).forEach { match ->
+            val plName = match.groupValues[1]
+            val rawIds = match.groupValues[2]
+            val trackIds = Regex(""""([^"]+)"""").findAll(rawIds).map { it.groupValues[1] }.toList()
+            val alreadyExists = uiState.value.playlists.any { it.name == plName }
+            if (!alreadyExists) {
+                repository.createPlaylist(plName, trackIds)
+            }
+        }
+        presetRegex.findAll(content).forEach { match ->
+            val presetName = match.groupValues[2]
+            val rawGains = match.groupValues[3]
+            val gains = rawGains.split(",").mapNotNull { it.trim().toFloatOrNull() }
+            val alreadyExists = uiState.value.eqPresets.any { !it.isBuiltIn && it.name == presetName }
+            if (gains.size == 10 && !alreadyExists) {
+                repository.saveCustomEqPreset(presetName, gains)
+            }
+        }
+    }
 
     val isFa = uiState.value.settings.appLanguageCode == "fa"
     val msg = if (isFa) "پشتیبان‌گیری آفلاین با موفقیت بازیابی شد" else "Restored VELORA Offline Backup Snapshot"
@@ -284,14 +332,22 @@ fun VeloraViewModel.exportPlaylistAsM3u8(playlistId: Long, filesDir: File? = nul
 fun VeloraViewModel.importM3u8Playlist(playlistName: String, rawM3uContent: String) {
     val cleanName = playlistName.trim().ifEmpty { "Imported M3U8 Playlist" }
     val matched = VeloraPhase2Engine.parseM3u8Content(rawM3uContent, uiState.value.allTracks)
-    val tracksToSave = matched.ifEmpty { uiState.value.allTracks.take(5) }
-    viewModelScope.launch {
-        repository.createPlaylist(cleanName, tracksToSave.map { it.id })
-        val isFa = uiState.value.settings.appLanguageCode == "fa"
-        val msg = if (isFa) {
-            "پلی‌لیست M3U8 '$cleanName' با ${tracksToSave.size} قطعه وارد شد"
+    val isFa = uiState.value.settings.appLanguageCode == "fa"
+    if (matched.isEmpty()) {
+        val emptyMsg = if (isFa) {
+            "هیچ قطعه منطبقی در پلی‌لیست M3U8 '$cleanName' یافت نشد"
         } else {
-            "Imported M3U8 playlist '$cleanName' (${tracksToSave.size} tracks)"
+            "No matching tracks found in M3U8 playlist '$cleanName'"
+        }
+        mediaOrchestrator.postBanner(emptyMsg)
+        return
+    }
+    viewModelScope.launch {
+        repository.createPlaylist(cleanName, matched.map { it.id })
+        val msg = if (isFa) {
+            "پلی‌لیست M3U8 '$cleanName' با ${matched.size} قطعه وارد شد"
+        } else {
+            "Imported M3U8 playlist '$cleanName' (${matched.size} tracks)"
         }
         mediaOrchestrator.postBanner(msg)
     }

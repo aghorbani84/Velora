@@ -15,8 +15,8 @@
                                      ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
 │ 2. ORCHESTRATION LAYER (com.example.orchestrator & domain.engine)          │
-│  • IMediaOrchestrator -> MediaOrchestrator                                 │
-│  • Coordinates PlayerEngine, Room v3 History, DataStore Session Checkpoints│
+│  • IMediaOrchestrator -> MediaOrchestrator (Zero Android/Media3 imports)   │
+│  • Coordinates PlayerEngine, Room v4 History, DataStore Session Checkpoints│
 │  • Emits StateFlow<PlaybackState>, StateFlow<MediaOrchestratorState>,      │
 │    and lifecycle-safe SharedFlow<VeloraMediaEvent>                         │
 └───────────────┬────────────────────────────┬───────────────────────────────┘
@@ -25,10 +25,10 @@
 ┌───────────────────────────────────────┐  ┌─────────────────────────────────┐
 │ 3. DOMAIN LAYER (com.example.domain)  │  │ 4. DATA LAYER (com.example.data)│
 │  • Zero Android framework imports     │  │  • Media3PlayerEngine +         │
-│  • EqBandMath (10-band RBJ Biquad)    │  │    VeloraPlaybackService        │
+│  • BiquadEqDsp (10-band RBJ Biquad)   │  │    VeloraPlaybackService        │
 │  • PlaybackQueue (Shuffle/Repeat)     │  │  • TenBandBiquadAudioProcessor  │
 │  • VeloraOmniSearchEngine (Fuzzy)     │  │    (Direct Form II + Goertzel)  │
-│  • VeloraSmartPlaylistEngine          │  │  • VeloraDatabase (Room v3)     │
+│  • VeloraSmartPlaylistEngine          │  │  • VeloraDatabase (Room v4)     │
 │  • VeloraDownloadValidator (Sanitizer)│  │  • VeloraSettingsRepository     │
 │  • VeloraGestureEngine (Double-tap/Sw)│  │    (DataStore + .corrupt.bak)   │
 │  • VeloraPluginRegistry (Sandbox)     │  │  • VeloraFirebaseRepository     │
@@ -41,11 +41,11 @@
 
 1. **`domain` (`com.example.domain.*`):**
    - Pure Kotlin only. No `android.*` or `androidx.*` imports.
-   - Contains deterministic mathematical and algorithmic engines (`EqBandMath`, `PlaybackQueue`, `VeloraOmniSearchEngine`, `VeloraSmartPlaylistEngine`, `VeloraLyricsAndSubtitleEngine`, `VeloraSubtitleExporter`, `VeloraDownloadValidator`, `VeloraGestureEngine`, `VeloraPluginRegistry`).
+   - Contains deterministic mathematical and algorithmic engines (`BiquadEqDsp`, `PlaybackQueue`, `VeloraOmniSearchEngine`, `VeloraSmartPlaylistEngine`, `VeloraLyricsAndSubtitleEngine`, `VeloraSubtitleExporter`, `VeloraDownloadValidator`, `VeloraGestureEngine`, `VeloraPluginRegistry`).
 2. **`orchestrator` (`com.example.orchestrator.*`):**
-   - Defines `IMediaOrchestrator` and `PlaybackState`, bridging UI intents to `PlayerEngine`, `VeloraLibraryRepository`, and `VeloraSettingsRepository`.
+   - Pure Kotlin interface contract (`IMediaOrchestrator` and `PlaybackState`) with zero `androidx.media3.*` imports, bridging UI intents to `PlayerEngine`, `VeloraLibraryRepository`, and `VeloraSettingsRepository`.
 3. **`data` (`com.example.data.*`):**
-   - Implements AndroidX Media3 playback (`Media3PlayerEngine`, `VeloraPlaybackService`), real-time PCM biquad filtering (`TenBandBiquadAudioProcessor`), Room SQLite v3 persistence (`VeloraDatabase`, `VeloraLibraryRepository`), atomic DataStore settings (`VeloraSettingsRepository`), and Google Sign-In / Firestore sync (`VeloraFirebaseRepository`).
+   - Implements AndroidX Media3 playback (`Media3PlayerEngine`, `VeloraPlaybackService`), real-time PCM biquad filtering (`TenBandBiquadAudioProcessor`), Room SQLite v4 persistence with explicit migrations `MIGRATION_1_2`..`MIGRATION_3_4` (`VeloraDatabase`, `VeloraLibraryRepository`), atomic DataStore settings (`VeloraSettingsRepository`), and Google Sign-In / Firestore sync (`VeloraFirebaseRepository`).
 4. **`ui` (`com.example.ui.*`):**
    - Stateless Jetpack Compose Material 3 screens consuming `StateFlow<VeloraUiState>` and dispatching user intents to `VeloraViewModel`.
 
