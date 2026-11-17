@@ -8,34 +8,27 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,106 +41,105 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.navigation.NavHostController
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.domain.model.ExperienceTier
 import com.example.ui.components.MiniPlayerBar
 import com.example.ui.navigation.VeloraDestination
 import com.example.ui.navigation.VeloraNavGraph
 import com.example.ui.navigation.navigateSingleTopTo
-import com.example.ui.theme.FazoraCarbon
-import com.example.ui.theme.FazoraCarbonBorder
-import com.example.ui.theme.FazoraCarbonElevated
-import com.example.ui.theme.FazoraEmeraldOk
-import com.example.ui.theme.FazoraGold
-import com.example.ui.theme.FazoraGoldBright
-import com.example.ui.theme.FazoraGoldDeep
-import com.example.ui.theme.FazoraGoldMuted
-import com.example.ui.theme.FazoraIvory
-import com.example.ui.theme.FazoraObsidian
-import com.example.ui.theme.FazoraSoftGold
-import com.example.ui.theme.FazoraSteel
 import com.example.ui.theme.PhiTokens
-import com.example.ui.viewmodel.VeloraUiState
+import com.example.ui.theme.VeloraTheme
 import com.example.ui.viewmodel.VeloraViewModel
+import com.example.ui.viewmodel.setExperienceTier
 
 @Composable
 fun VeloraShellScreen(
-    navController: NavHostController,
     viewModel: VeloraViewModel,
-    uiState: VeloraUiState
+    modifier: Modifier = Modifier
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val positionState by viewModel.playbackPosition.collectAsStateWithLifecycle()
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = VeloraDestination.fromRoute(backStackEntry?.destination?.route)
     val context = LocalContext.current
-    val isPersian = uiState.settings.appLanguageCode == "fa"
-    val isSimpleMode = uiState.settings.isSimpleMode
-    val homeDestination = if (isSimpleMode) VeloraDestination.MUSIC else VeloraDestination.LIBRARY
-    val layoutDirection = if (isPersian) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = VeloraDestination.fromRoute(navBackStackEntry?.destination?.route)
-
-    val visibleDestinations = if (isSimpleMode) {
-        listOf(
-            VeloraDestination.MUSIC,
-            VeloraDestination.VIDEO,
-            VeloraDestination.RADIO,
-            VeloraDestination.SETTINGS
-        )
-    } else {
-        VeloraDestination.entries
-    }
-
-    LaunchedEffect(isSimpleMode) {
-        if (isSimpleMode && currentDestination !in visibleDestinations &&
-            currentDestination != VeloraDestination.PLAYER
-        ) {
-            navController.navigateSingleTopTo(VeloraDestination.MUSIC)
-        }
-    }
-
-    val permissionsToRequest = remember {
+    val startupPermissions = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            com.example.ui.permissions.PermissionController.requiredMediaPermissions() +
+            arrayOf(
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.READ_MEDIA_VIDEO,
                 Manifest.permission.POST_NOTIFICATIONS
+            )
         } else {
-            com.example.ui.permissions.PermissionController.requiredMediaPermissions()
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
+    val autoPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) {
         viewModel.autoScanDeviceMedia()
     }
 
+    var didRunStartupAutoScan by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.settings.autoScanOnStartup) {
-        if (uiState.settings.autoScanOnStartup) {
-            val allGranted = permissionsToRequest.all { perm ->
+        if (!didRunStartupAutoScan && uiState.settings.autoScanOnStartup) {
+            didRunStartupAutoScan = true
+            val allGranted = startupPermissions.all { perm ->
                 ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
             }
             if (allGranted) {
                 viewModel.autoScanDeviceMedia()
+            } else {
+                autoPermissionLauncher.launch(startupPermissions)
             }
+        }
+    }
+
+    val tier = uiState.settings.experienceTier
+    val homeDestination = if (tier == ExperienceTier.SIMPLE) {
+        VeloraDestination.MUSIC
+    } else {
+        VeloraDestination.LIBRARY
+    }
+
+    val visibleDestinations = remember(tier) {
+        when (tier) {
+            ExperienceTier.SIMPLE -> listOf(
+                VeloraDestination.MUSIC,
+                VeloraDestination.VIDEO,
+                VeloraDestination.PLAYER,
+                VeloraDestination.SETTINGS
+            )
+            ExperienceTier.STANDARD, ExperienceTier.PRO -> VeloraDestination.entries
+        }
+    }
+
+    LaunchedEffect(tier) {
+        if (tier == ExperienceTier.SIMPLE &&
+            currentDestination !in visibleDestinations &&
+            navController.currentDestination != null
+        ) {
+            navController.navigateSingleTopTo(VeloraDestination.MUSIC)
         }
     }
 
@@ -155,254 +147,120 @@ fun VeloraShellScreen(
         navController.navigateSingleTopTo(homeDestination)
     }
 
-    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
-        val bgColor = MaterialTheme.colorScheme.background
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(bgColor)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-        ) {
-            val useNavigationRail = maxWidth >= 680.dp
+    val isPersian = uiState.settings.appLanguageCode == "fa"
+    val layoutDirection = if (isPersian) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-            Row(modifier = Modifier.fillMaxSize()) {
-                if (useNavigationRail) {
-                    VeloraConsoleNavigationRail(
-                        visibleDestinations = visibleDestinations,
-                        currentDestination = currentDestination,
-                        isPersian = isPersian,
-                        onNavigate = { dest -> navController.navigateSingleTopTo(dest) }
-                    )
-                }
+    VeloraTheme(
+        paletteMode = uiState.settings.themePaletteMode,
+        isPersian = isPersian
+    ) {
+        CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+            BoxWithConstraints(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+                    .testTag("velora_shell_root")
+            ) {
+                val isWideScreen = maxWidth >= PhiTokens.WideScreenBreakpoint
 
                 Scaffold(
-                    containerColor = bgColor,
+                    contentWindowInsets = WindowInsets.safeDrawing,
+                    containerColor = MaterialTheme.colorScheme.background,
                     topBar = {
-                        VeloraStudioTopConsoleBar(
-                            isSimpleMode = isSimpleMode,
+                        VeloraTopHeaderBar(
+                            trackCount = uiState.allTracks.size,
+                            tier = tier,
                             isPersian = isPersian,
-                            routeDeviceName = uiState.audioRoute.deviceName,
-                            isPlaying = uiState.engineState.isPlaying,
-                            onTriggerAutoScan = { permissionLauncher.launch(permissionsToRequest) },
-                            onToggleSimpleMode = { viewModel.setSimpleMode(!isSimpleMode) }
+                            bannerMessage = uiState.statusBannerMessage,
+                            onDismissBanner = { viewModel.dismissBanner() },
+                            onCycleLanguage = {
+                                viewModel.setAppLanguageCode(if (isPersian) "en" else "fa")
+                            },
+                            onSelectTier = { viewModel.setExperienceTier(it) }
                         )
                     },
                     bottomBar = {
-                        VeloraBottomConsoleDock(
-                            uiState = uiState,
-                            currentDestination = currentDestination,
-                            visibleDestinations = visibleDestinations,
-                            useNavigationRail = useNavigationRail,
-                            isPersian = isPersian,
-                            onDismissBanner = { viewModel.dismissBanner() },
-                            onTogglePlayPause = { viewModel.togglePlayPause() },
-                            onNext = { viewModel.skipToNext() },
-                            onPrevious = { viewModel.skipToPrevious() },
-                            onCycleRepeat = { viewModel.cycleRepeatMode() },
-                            onOpenFullPlayer = {
-                                navController.navigateSingleTopTo(VeloraDestination.PLAYER)
-                            },
-                            onNavigate = { dest -> navController.navigateSingleTopTo(dest) }
-                        )
-                    },
-                    modifier = Modifier.weight(1f)
-                ) { innerPadding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                                        bgColor
-                                    ),
-                                    center = Offset(240f, 80f),
-                                    radius = 950f
-                                )
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            MiniPlayerBar(
+                                engineState = uiState.engineState,
+                                positionState = positionState,
+                                onTogglePlayPause = { viewModel.togglePlayPause() },
+                                onSkipNext = { viewModel.skipToNext() },
+                                onOpenPlayer = {
+                                    navController.navigateSingleTopTo(VeloraDestination.PLAYER)
+                                }
                             )
-                            .padding(innerPadding)
-                    ) {
-                        VeloraNavGraph(
-                            navController = navController,
-                            viewModel = viewModel,
-                            uiState = uiState
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun VeloraStudioTopConsoleBar(
-    isSimpleMode: Boolean,
-    isPersian: Boolean,
-    routeDeviceName: String,
-    isPlaying: Boolean,
-    onTriggerAutoScan: () -> Unit,
-    onToggleSimpleMode: () -> Unit
-) {
-    Surface(
-        color = Color.Transparent,
-        modifier = Modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    ) {
-        Surface(
-            color = FazoraCarbon.copy(alpha = 0.96f),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 1.dp,
-                    brush = Brush.horizontalGradient(
-                        colors = listOf(
-                            FazoraGold.copy(alpha = 0.45f),
-                            FazoraCarbonBorder,
-                            FazoraGold.copy(alpha = 0.25f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(18.dp)
-                )
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(FazoraGoldBright, FazoraGoldDeep)
-                                )
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.GraphicEq,
-                            contentDescription = null,
-                            tint = FazoraObsidian,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "VELORA",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = FazoraIvory
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                color = if (isSimpleMode) {
-                                    FazoraCarbonElevated
-                                } else {
-                                    FazoraGold.copy(alpha = 0.18f)
-                                },
-                                shape = RoundedCornerShape(6.dp),
-                                modifier = Modifier.border(
-                                    width = 0.8.dp,
-                                    color = if (isSimpleMode) {
-                                        FazoraCarbonBorder
-                                    } else {
-                                        FazoraGold.copy(alpha = 0.6f)
-                                    },
-                                    shape = RoundedCornerShape(6.dp)
-                                )
-                            ) {
-                                Text(
-                                    text = if (isSimpleMode) "PURE PLAY" else "STUDIO PRO",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isSimpleMode) FazoraSoftGold else FazoraGoldBright,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                            if (!isWideScreen) {
+                                NavigationBar(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.testTag("bottom_nav_bar")
+                                ) {
+                                    visibleDestinations.forEach { dest ->
+                                        val selected = currentDestination == dest
+                                        val label = if (isPersian) dest.labelFa else dest.label
+                                        NavigationBarItem(
+                                            selected = selected,
+                                            onClick = { navController.navigateSingleTopTo(dest) },
+                                            icon = { Icon(dest.icon, contentDescription = label) },
+                                            label = { Text(label, maxLines = 1) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                indicatorColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            ),
+                                            modifier = Modifier.testTag("nav_${dest.route}")
+                                        )
+                                    }
+                                }
                             }
                         }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
+                    }
+                ) { innerPadding ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    ) {
+                        if (isWideScreen) {
+                            NavigationRail(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isPlaying) FazoraEmeraldOk else FazoraGold)
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = if (isPersian) {
-                                    "خروجی: $routeDeviceName • پردازش ۶۴ بیت"
-                                } else {
-                                    "$routeDeviceName • 64-Bit DSP"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = FazoraSteel,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                    .fillMaxHeight()
+                                    .testTag("side_nav_rail")
+                            ) {
+                                visibleDestinations.forEach { dest ->
+                                    val selected = currentDestination == dest
+                                    val label = if (isPersian) dest.labelFa else dest.label
+                                    NavigationRailItem(
+                                        selected = selected,
+                                        onClick = { navController.navigateSingleTopTo(dest) },
+                                        icon = { Icon(dest.icon, contentDescription = label) },
+                                        label = { Text(label) },
+                                        colors = NavigationRailItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
+                                        modifier = Modifier.testTag("nav_${dest.route}")
+                                    )
+                                }
+                            }
+                        }
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            VeloraNavGraph(
+                                navController = navController,
+                                viewModel = viewModel,
+                                uiState = uiState,
+                                positionState = positionState,
+                                startDestination = homeDestination
                             )
                         }
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    IconButton(
-                        onClick = onTriggerAutoScan,
-                        modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .clip(CircleShape)
-                            .background(FazoraCarbonElevated)
-                            .testTag("top_bar_auto_scan_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Auto-scan media",
-                            tint = FazoraGold,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    Button(
-                        onClick = onToggleSimpleMode,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSimpleMode) FazoraCarbonElevated else FazoraGold,
-                            contentColor = if (isSimpleMode) FazoraGold else FazoraObsidian
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .testTag("top_bar_mode_switcher_button")
-                    ) {
-                        Icon(
-                            imageVector = if (isSimpleMode) {
-                                Icons.Default.Tune
-                            } else {
-                                Icons.Default.AutoAwesome
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = if (isSimpleMode) {
-                                if (isPersian) "استودیو" else "Studio Pro"
-                            } else {
-                                if (isPersian) "حالت خلوت" else "Pure Play"
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
                 }
             }
@@ -411,161 +269,151 @@ private fun VeloraStudioTopConsoleBar(
 }
 
 @Composable
-private fun VeloraConsoleNavigationRail(
-    visibleDestinations: List<VeloraDestination>,
-    currentDestination: VeloraDestination,
+private fun VeloraTopHeaderBar(
+    trackCount: Int,
+    tier: ExperienceTier,
     isPersian: Boolean,
-    onNavigate: (VeloraDestination) -> Unit
-) {
-    NavigationRail(
-        containerColor = FazoraCarbon,
-        contentColor = FazoraIvory,
-        modifier = Modifier
-            .fillMaxHeight()
-            .border(1.dp, FazoraCarbonBorder)
-            .testTag("fazora_nav_rail")
-    ) {
-        Spacer(modifier = Modifier.height(12.dp))
-        visibleDestinations.forEach { dest ->
-            val selected = currentDestination == dest
-            val navLabel = if (isPersian) dest.labelFa else dest.label
-            NavigationRailItem(
-                selected = selected,
-                onClick = { onNavigate(dest) },
-                icon = {
-                    Icon(
-                        imageVector = dest.icon,
-                        contentDescription = navLabel
-                    )
-                },
-                label = {
-                    Text(
-                        text = navLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1
-                    )
-                },
-                colors = NavigationRailItemDefaults.colors(
-                    selectedIconColor = FazoraObsidian,
-                    selectedTextColor = FazoraGoldBright,
-                    indicatorColor = FazoraGold,
-                    unselectedIconColor = FazoraSteel,
-                    unselectedTextColor = FazoraSteel
-                ),
-                modifier = Modifier.testTag("nav_item_${dest.route}")
-            )
-        }
-    }
-}
-
-@Composable
-private fun VeloraBottomConsoleDock(
-    uiState: VeloraUiState,
-    currentDestination: VeloraDestination,
-    visibleDestinations: List<VeloraDestination>,
-    useNavigationRail: Boolean,
-    isPersian: Boolean,
+    bannerMessage: String?,
     onDismissBanner: () -> Unit,
-    onTogglePlayPause: () -> Unit,
-    onNext: () -> Unit,
-    onPrevious: () -> Unit,
-    onCycleRepeat: () -> Unit,
-    onOpenFullPlayer: () -> Unit,
-    onNavigate: (VeloraDestination) -> Unit
+    onCycleLanguage: () -> Unit,
+    onSelectTier: (ExperienceTier) -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.navigationBars)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
-        if (uiState.statusBannerMessage != null) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PhiTokens.Space21, vertical = PhiTokens.Space13)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.GraphicEq,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(PhiTokens.IconSize24)
+                )
+                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                Column {
+                    Text(
+                        text = "VELORA",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = if (isPersian) tier.labelFa else tier.labelEn,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)
+            ) {
+                val nextTier = when (tier) {
+                    ExperienceTier.SIMPLE -> ExperienceTier.STANDARD
+                    ExperienceTier.STANDARD -> ExperienceTier.PRO
+                    ExperienceTier.PRO -> ExperienceTier.SIMPLE
+                }
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .clickable { onSelectTier(nextTier) }
+                        .testTag("shell_mode_toggle_button")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space8)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(PhiTokens.IconSize16)
+                        )
+                        Spacer(modifier = Modifier.width(PhiTokens.Space4))
+                        Text(
+                            text = tier.name,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .clickable(onClick = onCycleLanguage)
+                        .testTag("shell_language_toggle_button")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space8)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = "Switch Language",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(PhiTokens.IconSize16)
+                        )
+                        Spacer(modifier = Modifier.width(PhiTokens.Space4))
+                        Text(
+                            text = if (isPersian) "EN" else "فا",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                Text(
+                    text = "$trackCount",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.testTag("shell_track_count_badge")
+                )
+            }
+        }
+
+        if (!bannerMessage.isNullOrBlank()) {
             Surface(
-                color = FazoraGoldMuted.copy(alpha = 0.95f),
-                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = PhiTokens.Space13, vertical = 4.dp)
-                    .border(1.dp, FazoraGold, RoundedCornerShape(14.dp))
+                    .border(PhiTokens.BorderHairline, MaterialTheme.colorScheme.primary)
                     .testTag("status_banner")
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(horizontal = PhiTokens.Space13, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = PhiTokens.Space21, vertical = PhiTokens.Space8)
                 ) {
                     Text(
-                        text = uiState.statusBannerMessage.orEmpty(),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraIvory,
+                        text = bannerMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f)
                     )
-                    TextButton(onClick = onDismissBanner) {
-                        Text("OK", color = FazoraGoldBright, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        if (currentDestination != VeloraDestination.PLAYER &&
-            currentDestination != VeloraDestination.VIDEO
-        ) {
-            MiniPlayerBar(
-                engineState = uiState.engineState,
-                repeatMode = uiState.queue.repeatMode,
-                onTogglePlayPause = onTogglePlayPause,
-                onNext = onNext,
-                onCycleRepeat = onCycleRepeat,
-                onOpenFullPlayer = onOpenFullPlayer,
-                onPrevious = onPrevious
-            )
-        }
-
-        if (!useNavigationRail) {
-            Surface(
-                color = FazoraCarbon,
-                tonalElevation = 8.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(width = 0.8.dp, color = FazoraCarbonBorder)
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    contentColor = FazoraIvory,
-                    tonalElevation = 0.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("fazora_bottom_nav")
-                ) {
-                    visibleDestinations.forEach { dest ->
-                        val selected = currentDestination == dest
-                        val navLabel = if (isPersian) dest.labelFa else dest.label
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { onNavigate(dest) },
-                            icon = {
-                                Icon(
-                                    imageVector = dest.icon,
-                                    contentDescription = navLabel
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = navLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = FazoraObsidian,
-                                selectedTextColor = FazoraGoldBright,
-                                indicatorColor = FazoraGold,
-                                unselectedIconColor = FazoraSteel,
-                                unselectedTextColor = FazoraSteel
-                            ),
-                            modifier = Modifier.testTag("nav_item_${dest.route}")
+                    IconButton(
+                        onClick = onDismissBanner,
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("dismiss_banner_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss Banner",
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }

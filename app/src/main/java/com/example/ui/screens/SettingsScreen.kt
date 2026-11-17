@@ -1,8 +1,10 @@
 package com.example.ui.screens
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,28 +13,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudQueue
+import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,27 +40,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import com.example.domain.model.AdaptiveAudioMode
-import com.example.domain.model.AudioRouteType
-import com.example.domain.model.PhiDesignMetrics
+import com.example.domain.model.ExperienceTier
 import com.example.domain.model.ThemePaletteMode
-import com.example.ui.theme.FazoraCarbon
-import com.example.ui.theme.FazoraCarbonBorder
-import com.example.ui.theme.FazoraCarbonElevated
-import com.example.ui.theme.FazoraEmeraldOk
-import com.example.ui.theme.FazoraGold
-import com.example.ui.theme.FazoraIvory
-import com.example.ui.theme.FazoraObsidian
-import com.example.ui.theme.FazoraSteel
-import com.example.ui.theme.HEX_CARBON
-import com.example.ui.theme.HEX_GOLD
-import com.example.ui.theme.HEX_IVORY
-import com.example.ui.theme.HEX_OBSIDIAN
-import com.example.ui.theme.HEX_STEEL
+import com.example.ui.components.VeloraPrimaryButton
+import com.example.ui.components.VeloraSecondaryButton
+import com.example.ui.components.VeloraSectionCard
 import com.example.ui.theme.PhiTokens
 import com.example.ui.viewmodel.FazoraUiState
-import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -71,9 +57,12 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     onSetLanguageCode: (String) -> Unit = {},
     onTogglePlugin: (String) -> Unit = {},
-    onExportBackupJson: () -> Unit = {},
+    onExportBackupJson: () -> String = { "" },
     onRestoreBackupJson: (String) -> Unit = {},
     onToggleSimpleMode: (Boolean) -> Unit = {},
+    onSetExperienceTier: (ExperienceTier) -> Unit = { tier ->
+        onToggleSimpleMode(tier == ExperienceTier.SIMPLE)
+    },
     onToggleAutoScanOnStartup: (Boolean) -> Unit = {},
     onAutoScanMedia: () -> Unit = {},
     onToggleOnlyValidMusic: (Boolean) -> Unit = {},
@@ -81,882 +70,312 @@ fun SettingsScreen(
     onToggleLowBatteryMode: (Boolean) -> Unit = {},
     onSetAdaptiveAudioMode: (AdaptiveAudioMode) -> Unit = {},
     onSetThemePaletteMode: (ThemePaletteMode) -> Unit = {},
+    onToggleIncludeDemoSamples: (Boolean) -> Unit = {},
+    onPurgeDemoSamples: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    var showRestoreBackupDialog by remember { mutableStateOf(false) }
-    var restoreJsonInput by remember { mutableStateOf("") }
     val settings = uiState.settings
-    val user = uiState.firebaseUser
     val isPersian = settings.appLanguageCode == "fa"
-    val contrastIvoryObsidian = remember { PhiDesignMetrics.contrastRatio(HEX_IVORY, HEX_OBSIDIAN) }
-    val contrastIvoryCarbon = remember { PhiDesignMetrics.contrastRatio(HEX_IVORY, HEX_CARBON) }
-    val contrastGoldObsidian = remember { PhiDesignMetrics.contrastRatio(HEX_GOLD, HEX_OBSIDIAN) }
-    val contrastSteelCarbon = remember { PhiDesignMetrics.contrastRatio(HEX_STEEL, HEX_CARBON) }
+    val tier = settings.experienceTier
+    var backupJsonText by remember { mutableStateOf("") }
+
+    val permissionsToRequest = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.POST_NOTIFICATIONS
+            )
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { onAutoScanMedia() }
 
     LazyColumn(
         contentPadding = PaddingValues(PhiTokens.Space21),
         verticalArrangement = Arrangement.spacedBy(PhiTokens.Space21),
         modifier = modifier
             .fillMaxSize()
-            .background(FazoraObsidian)
+            .background(MaterialTheme.colorScheme.background)
             .testTag("settings_screen")
     ) {
         item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-                    .testTag("adaptive_audio_card")
+            VeloraSectionCard(
+                eyebrow = if (isPersian) "سطح تجربه کاربری (فوری)" else "EXPERIENCE TIER (INSTANT SWITCH)",
+                title = if (isPersian) "انتخاب سطح پیچیدگی رابط کاربری" else "Interface Complexity Tier",
+                subtitle = if (isPersian) {
+                    "تغییر آنی بدون نیاز به راه‌اندازی مجدد برنامه"
+                } else {
+                    "Switch immediately between Simple, Standard, and Studio Pro without restart"
+                }
             ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = if (isPersian) "موتور صوتی تطبیقی و خروجی سخت‌افزاری" else "ADAPTIVE AUDIO ENGINE",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = if (isPersian) "شناسایی مسیر صوتی و تنظیم خودکار Biquad" else "Hardware Route & Auto-EQ Profile",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    val route = uiState.audioRoute
-                    val routeIcon = when (route.type) {
-                        AudioRouteType.BLUETOOTH -> "📶"
-                        AudioRouteType.WIRED_HEADPHONES -> "🎧"
-                        AudioRouteType.USB_DAC -> "🎛️"
-                        AudioRouteType.SPEAKER -> "🔊"
-                        AudioRouteType.UNKNOWN -> "🎵"
-                    }
-                    Surface(
-                        color = FazoraCarbonElevated,
-                        shape = RoundedCornerShape(PhiTokens.CornerRadius13),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(PhiTokens.Space13)
-                        ) {
-                            Text(text = routeIcon, style = MaterialTheme.typography.headlineMedium)
-                            Spacer(modifier = Modifier.width(PhiTokens.Space13))
-                            Column {
-                                Text(
-                                    text = if (isPersian) "خروجی فعال: ${route.deviceName}" else "Active Output: ${route.deviceName}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = FazoraIvory
-                                )
-                                Text(
-                                    text = if (isPersian) "پروفایل پیشنهادی ولورا: ${route.recommendedProfile}"
-                                    else "Recommended Profile: ${route.recommendedProfile}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = FazoraGold
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Text(
-                        text = if (isPersian) "حالت پردازش صوتی:" else "Audio Processing Mode:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        AdaptiveAudioMode.entries.forEach { mode ->
-                            val isSelected = settings.adaptiveAudioMode == mode
-                            OutlinedButton(
-                                onClick = { onSetAdaptiveAudioMode(mode) },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
-                                    contentColor = if (isSelected) FazoraObsidian else FazoraIvory
-                                ),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("mode_${mode.name}")
-                            ) {
-                                Text(
-                                    text = if (isPersian) mode.labelFa else mode.labelEn,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-                    .testTag("battery_and_background_card")
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = if (isPersian) "باتری و پخش پس‌زمینه" else "BATTERY & BACKGROUND PLAYBACK",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = if (isPersian) "پخش در پس‌زمینه و کاهش مصرف شارژ" else "Background Audio & Power Saver",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isPersian) "پخش صدای ویدیو در پس‌زمینه" else "Background Video Audio",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = FazoraIvory
-                            )
-                            Text(
-                                text = if (isPersian)
-                                    "با خاموش شدن صفحه یا رفتن به برنامه‌های دیگر، پخش صدای ویدیو ادامه می‌یابد."
-                                else
-                                    "Video audio keeps playing smoothly when screen turns off or app is minimized.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = FazoraSteel
-                            )
-                        }
-                        Switch(
-                            checked = settings.backgroundVideoAudioEnabled,
-                            onCheckedChange = { onToggleBackgroundVideoAudio(it) }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isPersian) "حالت بهینه‌سازی و کاهش مصرف باتری" else "Battery Saver Mode",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = FazoraIvory
-                            )
-                            Text(
-                                text = if (isPersian)
-                                    "کاهش نرخ پردازش طیف و آنالایزر برای حفظ شارژ باتری و حداقل مصرف پردازنده."
-                                else
-                                    "Throttles visualizer computations to extend battery life and reduce CPU usage.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = FazoraSteel
-                            )
-                        }
-                        Switch(
-                            checked = settings.lowBatteryModeEnabled,
-                            onCheckedChange = { onToggleLowBatteryMode(it) }
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-                    .testTag("smart_filter_card")
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = if (isPersian) "فیلتر هوشمند کتابخانه و جست‌وجو" else "SMART LIBRARY & SEARCH FILTER",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (isPersian) "فقط آهنگ‌های معتبر" else "Valid Music Only",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = FazoraIvory
-                            )
-                            Text(
-                                text = if (isPersian)
-                                    "نادیده گرفتن ویس‌های واتساپ/تلگرام، ضبط مکالمه و فایل‌های زیر ۳۵ ثانیه."
-                                else
-                                    "Filters out voice notes, call recordings, and audio files under 35 seconds.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = FazoraSteel
-                            )
-                        }
-                        Switch(
-                            checked = settings.onlyValidMusicInSearch,
-                            onCheckedChange = { onToggleOnlyValidMusic(it) }
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-                    .testTag("dynamic_color_theme_card")
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = if (isPersian) "تم و پالت رنگی پویا بر اساس دستگاه" else "DYNAMIC MATERIAL 3 COLOR THEME",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = if (isPersian) "رنگ‌های هوشمند، پویا و متوازن ریاضی" else "High-Contrast Harmonized Palettes",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = if (isPersian)
-                            "تولید خودکار پالت رنگی متناسب با تم گوشی با تضمین کنتراست ریاضی WCAG 2.1 AA."
-                        else
-                            "Generates balanced Material You color schemes extracted from device settings, " +
-                                "mathematically calibrated to guarantee WCAG 2.1 AA contrast ratio (>= 4.5:1).",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraSteel
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ThemePaletteMode.entries.forEach { mode ->
-                            val isSelected = settings.themePaletteMode == mode
-                            Surface(
-                                color = if (isSelected) FazoraCarbonElevated else FazoraCarbon,
-                                shape = RoundedCornerShape(PhiTokens.CornerRadius13),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .border(
-                                        width = if (isSelected) 1.5.dp else 1.dp,
-                                        color = if (isSelected) FazoraGold else FazoraCarbonBorder,
-                                        shape = RoundedCornerShape(PhiTokens.CornerRadius13)
-                                    )
-                                    .clickable { onSetThemePaletteMode(mode) }
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = if (isPersian) mode.labelFa else mode.labelEn,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = if (isSelected) FazoraGold else FazoraIvory
-                                        )
-                                        Text(
-                                            text = when (mode) {
-                                                ThemePaletteMode.SYSTEM_DYNAMIC ->
-                                                    if (isPersian) "استخراج هوشمند از والپیپر گوشی (اندروید ۱۲+)"
-                                                    else "Extracts accent tones dynamically from device wallpaper"
-                                                ThemePaletteMode.VELORA_SAFFRON ->
-                                                    if (isPersian) "پالت اصلی استودیویی با طلای زعفرانی و شامپاینی"
-                                                    else "Classic audiophile signature saffron & champagne gold"
-                                                ThemePaletteMode.VELORA_DAYLIGHT ->
-                                                    if (isPersian) "زمینه روشن عاجی با طلای زعفرانی برای محیط‌های پرنور"
-                                                    else "Warm ivory daylight surface with saffron gold accents"
-                                                ThemePaletteMode.HIGH_CONTRAST_MONOCHROME ->
-                                                    if (isPersian) "مشکی و سفید مطلق بدون اتلاف باتری اولد"
-                                                    else "Pure monochrome black & white for maximum accessibility"
-                                            },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = FazoraSteel
-                                        )
-                                    }
-                                    RadioButton(
-                                        selected = isSelected,
-                                        onClick = { onSetThemePaletteMode(mode) },
-                                        colors = RadioButtonDefaults.colors(
-                                            selectedColor = FazoraGold,
-                                            unselectedColor = FazoraSteel
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-                    .testTag("simple_mode_card")
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = if (isPersian) "طراحی رابط کاربری و تراکم صفحه" else "INTERFACE DENSITY & WORKSPACE MODE",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = if (isPersian) "حالت ساده (خلوت) / حالت استودیوی پیشرفته" else "Simple Mode / Studio Advanced Mode",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = if (isPersian)
-                            "حالت ساده: محیط خلوت و مینیمال بدون منوها و اسلایدرهای شلوغ، متمرکز بر پخش روان آهنگ و ویدیو.\n" +
-                                "حالت استودیو: فعال‌سازی تمام تب‌های تخصصی، اکولایزر ۱۰ بانده Biquad، بوست ساب‌بیس، پهنای استریو 3D و بوک‌مارک."
-                        else
-                            "Simple Mode keeps the player clean, distraction-free, and uncluttered. " +
-                                "Studio Advanced Mode reveals the full 10-band DSP rack, Goertzel analyzer, and depth controls.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraSteel
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13)) {
-                        Button(
-                            onClick = { onToggleSimpleMode(true) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (settings.isSimpleMode) FazoraGold else FazoraCarbonElevated,
-                                contentColor = if (settings.isSimpleMode) FazoraObsidian else FazoraIvory
-                            ),
-                            modifier = Modifier.weight(1f).minimumInteractiveComponentSize()
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isPersian) "✨ حالت ساده" else "✨ Simple Mode")
-                        }
-
-                        Button(
-                            onClick = { onToggleSimpleMode(false) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (!settings.isSimpleMode) FazoraGold else FazoraCarbonElevated,
-                                contentColor = if (!settings.isSimpleMode) FazoraObsidian else FazoraIvory
-                            ),
-                            modifier = Modifier.weight(1f).minimumInteractiveComponentSize()
-                        ) {
-                            Icon(Icons.Default.Tune, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(if (isPersian) "🎛️ استودیو پیشرفته" else "🎛️ Studio Pro")
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-                    .testTag("auto_scan_settings_card")
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = if (isPersian) "پایش خودکار رسانه‌های دستگاه" else "AUTOMATIC MEDIA DISCOVERY",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = if (isPersian) {
-                            "جست‌وجو و اسکن خودکار آهنگ‌ها و ویدیوها"
-                        } else {
-                            "Auto-Scan Device Music & Videos"
-                        },
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = if (isPersian) {
-                            "با فعال بودن این گزینه، ولورا هنگام ورود تمام آهنگ‌ها، دانلودها، " +
-                                "فایل‌های تلگرام/واتساپ و ویدیوهای دستگاه را خودکار شناسایی و فهرست می‌کند."
-                        } else {
-                            "Automatically indexes newly added audio files, downloads, " +
-                                "voice recordings, and videos whenever VELORA launches."
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraSteel
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = if (isPersian) "اسکن خودکار هنگام اجرای برنامه" else "Auto-scan on app launch",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = FazoraIvory
-                        )
-                        Switch(
-                            checked = settings.autoScanOnStartup,
-                            onCheckedChange = { onToggleAutoScanOnStartup(it) }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Button(
-                        onClick = onAutoScanMedia,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = FazoraGold,
-                            contentColor = FazoraObsidian
-                        ),
-                        modifier = Modifier.fillMaxWidth().minimumInteractiveComponentSize()
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (isPersian) "🔄 اسکن کامل و خودکار حافظه همین حالا" else "🔄 Auto-Scan All Device Storage Now")
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = "INTERNATIONALIZATION & RTL ARCHITECTURE",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Language & Layout Direction (English / فارسی)",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Switch between English (LTR) and Persian / فارسی (RTL) layout direction and localized labels.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraSteel
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13)) {
-                        val isEnglish = settings.appLanguageCode != "fa"
-                        OutlinedButton(
-                            onClick = { onSetLanguageCode("en") },
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isEnglish) FazoraGold else FazoraCarbonElevated,
-                                contentColor = if (isEnglish) FazoraObsidian else FazoraIvory
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .minimumInteractiveComponentSize()
-                                .testTag("language_en_button")
-                        ) {
-                            Text("English (LTR)")
-                        }
-                        OutlinedButton(
-                            onClick = { onSetLanguageCode("fa") },
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (!isEnglish) FazoraGold else FazoraCarbonElevated,
-                                contentColor = if (!isEnglish) FazoraObsidian else FazoraIvory
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .minimumInteractiveComponentSize()
-                                .testTag("language_fa_button")
-                        ) {
-                            Text("فارسی (RTL)")
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = "FIREBASE CLOUD PERSISTENCE",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Cloud Sync & Identity",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Synchronize playlists and custom 10-band EQ presets securely across your devices " +
-                            "with zero-trust Firestore security rules and Google Sign-In.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraSteel
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                    if (user != null) {
-                        Surface(
-                            color = FazoraCarbonElevated,
-                            shape = RoundedCornerShape(PhiTokens.CornerRadius13),
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(PhiTokens.Space13)) {
-                                Text(
-                                    text = "Connected Account: ${user.displayName ?: "Audiophile"}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = FazoraEmeraldOk
-                                )
-                                Text(
-                                    text = user.email ?: user.uid,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = FazoraSteel
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                        OutlinedButton(
-                            onClick = onSignOut,
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = FazoraCarbonElevated,
-                                contentColor = FazoraIvory
-                            ),
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .testTag("firebase_sign_out_button")
-                        ) {
-                            Text("Sign Out from Firebase")
-                        }
-                    } else {
-                        Button(
-                            onClick = onSignInWithGoogle,
-                            enabled = !uiState.isSigningIn,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = FazoraGold,
-                                contentColor = FazoraObsidian
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .minimumInteractiveComponentSize()
-                                .testTag("firebase_google_sign_in_button")
-                        ) {
-                            Text(
-                                if (uiState.isSigningIn) "Signing in with Google..." else "Sign in with Google"
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-                    .testTag("settings_plugin_registry_card")
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = "TIER 1 DECLARATIVE PLUGIN REGISTRY & CODEC MATRIX",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Sandboxed Extensions & Universal Media Support",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Google Play compliant declarative extensions (zero dynamic .dex/.so code loading). " +
-                            "Audio: MP3, AAC/M4A, FLAC, WAV, OGG/Opus • Video: MP4, MKV, WebM, HLS (.m3u8), DASH (.mpd).",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraSteel
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    uiState.declarativePlugins.forEach { plugin ->
-                        Surface(
-                            color = FazoraCarbonElevated,
-                            shape = RoundedCornerShape(PhiTokens.CornerRadius13),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(PhiTokens.Space13)
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "${plugin.name} (v${plugin.version})",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = FazoraIvory
-                                    )
-                                    Text(
-                                        text = "${plugin.tier} • ${plugin.capabilities.joinToString(", ")}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = FazoraSteel
-                                    )
-                                }
-                                OutlinedButton(
-                                    onClick = { onTogglePlugin(plugin.id) },
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = if (plugin.isEnabled) FazoraGold else FazoraObsidian,
-                                        contentColor = if (plugin.isEnabled) FazoraObsidian else FazoraIvory
-                                    ),
-                                    modifier = Modifier
-                                        .minimumInteractiveComponentSize()
-                                        .testTag("toggle_plugin_${plugin.id}")
-                                ) {
-                                    Text(if (plugin.isEnabled) "Active" else "Disabled")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = "ATOMIC DATASTORE SETTINGS",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Engine & Persistence Configuration",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Persisted automatically across restarts via Jetpack DataStore Preferences " +
-                            "with ReplaceFileCorruptionHandler backup recovery " +
-                            "(Corruption fallbacks triggered: ${settings.corruptionFallbackCount}).",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraSteel
-                    )
-
-                    Spacer(modifier = Modifier.height(PhiTokens.Space21))
-
-                    Text(
-                        text = "Default Video Auto-Hide Timeout: ${settings.autoHideVideoControlsMs} ms",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                        listOf(2500L, 3500L, 5000L, 8000L).forEach { timeout ->
-                            val isSelected = settings.autoHideVideoControlsMs == timeout
-                            OutlinedButton(
-                                onClick = { onSetAutoHideMs(timeout) },
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
-                                    contentColor = if (isSelected) FazoraObsidian else FazoraIvory
-                                ),
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("settings_autohide_$timeout")
-                            ) {
-                                Text("${timeout / 1000.0}s")
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                        Button(
-                            onClick = onExportBackupJson,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = FazoraGold,
-                                contentColor = FazoraObsidian
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .minimumInteractiveComponentSize()
-                                .testTag("export_backup_json_button")
-                        ) {
-                            Text(
-                                if (settings.appLanguageCode == "fa") {
-                                    "💾 ذخیره پشتیبان (Export JSON)"
-                                } else {
-                                    "💾 Export JSON Backup"
-                                }
-                            )
-                        }
-                        OutlinedButton(
-                            onClick = { showRestoreBackupDialog = true },
-                            modifier = Modifier
-                                .weight(1f)
-                                .minimumInteractiveComponentSize()
-                                .testTag("restore_backup_json_button")
-                        ) {
-                            Text(
-                                if (settings.appLanguageCode == "fa") {
-                                    "♻️ بازیابی پشتیبان (Restore)"
-                                } else {
-                                    "♻️ Restore Snapshot"
-                                },
-                                color = FazoraIvory
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space21)) {
-                    Text(
-                        text = "VELORA DESIGN SYSTEM & WCAG 2.1 AA TELEMETRY",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = FazoraGold
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    Text(
-                        text = "Adaptive Spacing: 8dp / 13dp / 21dp / 34dp / 55dp • Responsive Grid • Min Touch Target: 48dp",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = FazoraIvory
-                    )
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-                    ContrastAuditRow("Ivory (#F5F2EB) on Obsidian (#0B0B0D)", contrastIvoryObsidian)
-                    ContrastAuditRow("Ivory (#F5F2EB) on Carbon (#121216)", contrastIvoryCarbon)
-                    ContrastAuditRow("Saffron (#E5A817) on Obsidian (#0B0B0D)", contrastGoldObsidian)
-                    ContrastAuditRow("Warm Muted (#A5A29B) on Carbon (#121216)", contrastSteelCarbon)
-                }
-            }
-        }
-    }
-
-    if (showRestoreBackupDialog) {
-        AlertDialog(
-            onDismissRequest = { showRestoreBackupDialog = false },
-            containerColor = FazoraCarbonElevated,
-            title = {
-                Text(
-                    text = if (isPersian) "بازیابی پشتیبان آفلاین (Restore JSON)" else "Restore Offline JSON Backup",
-                    color = FazoraIvory
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                    Text(
-                        text = if (isPersian) {
-                            "برای بازیابی از آخرین فایل ذخیره‌شده در حافظه برنامه دکمه تایید را بزنید، یا متن JSON را در کادر زیر وارد کنید:"
-                        } else {
-                            "Leave blank to restore from the latest local snapshot file, or paste a JSON backup below:"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = FazoraSteel
-                    )
-                    OutlinedTextField(
-                        value = restoreJsonInput,
-                        onValueChange = { restoreJsonInput = it },
-                        label = { Text("Optional JSON Backup Payload") },
-                        minLines = 3,
-                        maxLines = 5,
-                        modifier = Modifier.fillMaxWidth().testTag("restore_backup_json_input")
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onRestoreBackupJson(restoreJsonInput)
-                        showRestoreBackupDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = FazoraGold, contentColor = FazoraObsidian)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (isPersian) "بازیابی" else "Restore Now")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRestoreBackupDialog = false }) {
-                    Text(if (isPersian) "انصراف" else "Cancel", color = FazoraSteel)
+                    ExperienceTier.entries.forEach { option ->
+                        VeloraSecondaryButton(
+                            text = if (isPersian) option.labelFa else option.labelEn,
+                            icon = Icons.Default.Tune,
+                            selected = tier == option,
+                            onClick = { onSetExperienceTier(option) },
+                            tag = "tier_option_${option.name}",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
-        )
+        }
+
+        item {
+            VeloraSectionCard(
+                eyebrow = if (isPersian) "پوسته و زبان" else "THEME & TYPOGRAPHY",
+                title = if (isPersian) "تم رنگی و زبان برنامه" else "Color Theme & Language",
+                subtitle = if (isPersian) "پشتیبانی کامل از فارسی راست‌به‌چپ (وزیرمتن)" else "WCAG 2.1 AA/AAA verified palettes & bilingual RTL/LTR"
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    VeloraSecondaryButton(
+                        text = "English (LTR)",
+                        icon = Icons.Default.Language,
+                        selected = !isPersian,
+                        onClick = { onSetLanguageCode("en") },
+                        tag = "language_option_en",
+                        modifier = Modifier.weight(1f)
+                    )
+                    VeloraSecondaryButton(
+                        text = "فارسی (راست‌به‌چپ)",
+                        icon = Icons.Default.Language,
+                        selected = isPersian,
+                        onClick = { onSetLanguageCode("fa") },
+                        tag = "language_option_fa",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                    items(ThemePaletteMode.entries) { palette ->
+                        VeloraSecondaryButton(
+                            text = if (isPersian) palette.labelFa else palette.labelEn,
+                            icon = Icons.Default.Palette,
+                            selected = settings.themePaletteMode == palette,
+                            onClick = { onSetThemePaletteMode(palette) },
+                            tag = "theme_palette_${palette.name}"
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            VeloraSectionCard(
+                eyebrow = if (isPersian) "موتور صوتی و اسکن" else "AUDIO & PLAYBACK ENGINE",
+                title = if (isPersian) "تنظیمات پخش، اسکن و مصرف باتری" else "Audio Route, Scanning & Power",
+                subtitle = "Active Route: ${uiState.audioRoute.deviceName} (${uiState.audioRoute.sampleRateHz}Hz)"
+            ) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                    items(AdaptiveAudioMode.entries) { mode ->
+                        VeloraSecondaryButton(
+                            text = if (isPersian) mode.labelFa else mode.labelEn,
+                            selected = settings.adaptiveAudioMode == mode,
+                            onClick = { onSetAdaptiveAudioMode(mode) },
+                            tag = "adaptive_audio_${mode.name}"
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                SettingsToggleRow(
+                    label = if (isPersian) "اسکن خودکار هنگام ورود" else "Auto-Scan Device Media on Launch",
+                    checked = settings.autoScanOnStartup,
+                    onCheckedChange = onToggleAutoScanOnStartup,
+                    tag = "settings_auto_scan_switch"
+                )
+                SettingsToggleRow(
+                    label = if (isPersian) "فقط آهنگ‌های معتبر در جستجو" else "Valid Songs Only (Filter Short Clips)",
+                    checked = settings.onlyValidMusicInSearch,
+                    onCheckedChange = onToggleOnlyValidMusic,
+                    tag = "settings_valid_music_switch"
+                )
+                SettingsToggleRow(
+                    label = if (isPersian) "پخش صدای ویدیو در پس‌زمینه" else "Background Video Audio Playback",
+                    checked = settings.backgroundVideoAudioEnabled,
+                    onCheckedChange = onToggleBackgroundVideoAudio,
+                    tag = "settings_bg_video_audio_switch"
+                )
+                SettingsToggleRow(
+                    label = if (isPersian) "حالت ذخیره باتری (کاهش بار DSP)" else "Low-Battery DSP Saver Mode",
+                    checked = settings.lowBatteryModeEnabled,
+                    onCheckedChange = onToggleLowBatteryMode,
+                    tag = "settings_low_battery_switch"
+                )
+                SettingsToggleRow(
+                    label = if (isPersian) "نمایش ترک‌های نمونه آزمایشی" else "Include Bundled Studio Demo Samples",
+                    checked = settings.includeDemoSamples,
+                    onCheckedChange = onToggleIncludeDemoSamples,
+                    tag = "settings_demo_samples_switch"
+                )
+
+                Spacer(modifier = Modifier.height(PhiTokens.Space8))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                    VeloraPrimaryButton(
+                        text = if (isPersian) "اسکن مجدد حافظه" else "Scan Device Now",
+                        icon = Icons.Default.Refresh,
+                        onClick = { permissionLauncher.launch(permissionsToRequest) },
+                        tag = "settings_scan_now_button",
+                        modifier = Modifier.weight(1f)
+                    )
+                    VeloraSecondaryButton(
+                        text = if (isPersian) "حذف ترک‌های نمونه" else "Purge Demos",
+                        icon = Icons.Default.DeleteSweep,
+                        onClick = onPurgeDemoSamples,
+                        tag = "purge_demo_samples_button",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                if (tier == ExperienceTier.PRO) {
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    Text(
+                        text = if (isPersian) {
+                            "زمان مخفی شدن کنترل‌های ویدیو: ${settings.autoHideVideoControlsMs}ms"
+                        } else {
+                            "Video Controls Auto-Hide Timeout: ${settings.autoHideVideoControlsMs}ms"
+                        },
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Slider(
+                        value = settings.autoHideVideoControlsMs.toFloat(),
+                        onValueChange = { onSetAutoHideMs(it.toLong()) },
+                        valueRange = 1500f..15000f,
+                        modifier = Modifier.testTag("video_auto_hide_slider")
+                    )
+                }
+            }
+        }
+
+        item {
+            VeloraSectionCard(
+                eyebrow = if (isPersian) "همگام‌سازی ابری و پشتیبان‌گیری" else "CLOUD CONTINUITY & BACKUP",
+                title = if (isPersian) "حساب ابری و پشتیبان JSON" else "Cloud Sync & Offline JSON Backup",
+                modifier = Modifier.testTag("firebase_sync_card")
+            ) {
+                val user = uiState.firebaseUser
+                if (user != null) {
+                    Text(
+                        text = "Signed in: ${user.displayName ?: user.email ?: user.uid}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    VeloraSecondaryButton(
+                        text = if (isPersian) "خروج از حساب" else "Sign Out",
+                        icon = Icons.Default.CloudDone,
+                        onClick = onSignOut,
+                        tag = "google_sign_out_button"
+                    )
+                } else {
+                    VeloraPrimaryButton(
+                        text = if (isPersian) "ورود با حساب گوگل" else "Sign In with Google",
+                        icon = Icons.Default.CloudQueue,
+                        onClick = onSignInWithGoogle,
+                        enabled = !uiState.isSigningIn,
+                        tag = "google_sign_in_button"
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(PhiTokens.Space13))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                    VeloraSecondaryButton(
+                        text = if (isPersian) "خروجی پشتیبان" else "Export Backup",
+                        icon = Icons.Default.SaveAlt,
+                        onClick = { backupJsonText = onExportBackupJson() },
+                        tag = "export_backup_button",
+                        modifier = Modifier.weight(1f)
+                    )
+                    VeloraSecondaryButton(
+                        text = if (isPersian) "بازگردانی" else "Restore Backup",
+                        icon = Icons.Default.Restore,
+                        onClick = {
+                            if (backupJsonText.isNotBlank()) {
+                                onRestoreBackupJson(backupJsonText)
+                            }
+                        },
+                        tag = "import_backup_button",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (backupJsonText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    OutlinedTextField(
+                        value = backupJsonText,
+                        onValueChange = { backupJsonText = it },
+                        label = { Text("Backup JSON Payload") },
+                        maxLines = 4,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("backup_json_input")
+                    )
+                }
+            }
+        }
+
+        if (tier == ExperienceTier.PRO) {
+            item {
+                VeloraSectionCard(
+                    eyebrow = if (isPersian) "پلاگین‌های سندباکس" else "DECLARATIVE PLUGINS",
+                    title = if (isPersian) {
+                        "اکوسیستم پلاگین‌ها (${uiState.declarativePlugins.size})"
+                    } else {
+                        "Sandboxed Plugins (${uiState.declarativePlugins.size})"
+                    }
+                ) {
+                    uiState.declarativePlugins.forEach { plugin ->
+                        SettingsToggleRow(
+                            label = "${plugin.name} (${plugin.version})",
+                            checked = plugin.isEnabled,
+                            onCheckedChange = { onTogglePlugin(plugin.id) },
+                            tag = "plugin_toggle_${plugin.id}"
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun ContrastAuditRow(label: String, ratio: Double) {
+private fun SettingsToggleRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    tag: String
+) {
     Row(
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = FazoraSteel
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
         )
-        Text(
-            text = String.format(Locale.US, "%.2f:1 (AA PASS)", ratio),
-            style = MaterialTheme.typography.labelLarge,
-            color = FazoraEmeraldOk
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            modifier = Modifier.testTag(tag)
         )
     }
 }

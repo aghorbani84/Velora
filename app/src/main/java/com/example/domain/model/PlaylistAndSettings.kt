@@ -82,6 +82,12 @@ enum class ThemePaletteMode(val labelEn: String, val labelFa: String) {
     HIGH_CONTRAST_MONOCHROME("OLED High Contrast", "کنتراست بی‌نهایت اولد (سیاه و سفید خالص)")
 }
 
+enum class ExperienceTier(val labelEn: String, val labelFa: String) {
+    SIMPLE("Simple", "ساده (پخش آسان)"),
+    STANDARD("Standard", "استاندارد (روزمره)"),
+    PRO("Studio Pro", "حرفه‌ای (استودیو و اکولایزر)")
+}
+
 data class AppSettings(
     val eqEnabled: Boolean = true,
     val activeEqPresetId: String = EqPreset.FLAT.id,
@@ -98,6 +104,7 @@ data class AppSettings(
     val corruptionFallbackCount: Int = 0,
     val appLanguageCode: String = "en",
     val isSimpleMode: Boolean = true,
+    val experienceTier: ExperienceTier = if (isSimpleMode) ExperienceTier.SIMPLE else ExperienceTier.PRO,
     val autoScanOnStartup: Boolean = true,
     val onlyValidMusicInSearch: Boolean = true,
     val backgroundVideoAudioEnabled: Boolean = true,

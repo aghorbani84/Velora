@@ -42,7 +42,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -74,6 +76,27 @@ class VeloraViewModel(
 
     val playbackState: StateFlow<PlaybackState> = mediaOrchestrator.playbackState
 
+    val playbackPosition: StateFlow<PlaybackPositionState> = mediaOrchestrator.playbackState
+        .map { state ->
+            PlaybackPositionState(
+                positionMs = state.positionMs,
+                durationMs = state.durationMs,
+                isPlaying = state.isPlaying
+            )
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = PlaybackPositionState()
+        )
+
+    private val structuralOrchestratorFlow = mediaOrchestrator.orchestratorState
+        .distinctUntilChanged { old, new ->
+            old.copy(engineState = old.engineState.copy(positionMs = 0L)) ==
+                new.copy(engineState = new.engineState.copy(positionMs = 0L))
+        }
+
     private val searchResultsFlow = _searchQuery
         .debounce { query -> if (query.isBlank()) 0L else 250L }
         .flatMapLatest { query ->
@@ -86,7 +109,7 @@ class VeloraViewModel(
         repository.allEqPresets,
         settingsRepository.settingsFlow,
         repository.scanProgress,
-        mediaOrchestrator.orchestratorState,
+        structuralOrchestratorFlow,
         _searchQuery,
         searchResultsFlow,
         _selectedArtist,

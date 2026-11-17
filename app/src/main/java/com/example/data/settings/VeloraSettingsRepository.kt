@@ -105,7 +105,21 @@ class VeloraSettingsRepository(
     }
 
     suspend fun updateSimpleMode(enabled: Boolean) {
-        dataStore.edit { it[KEY_SIMPLE_MODE] = enabled }
+        dataStore.edit { prefs ->
+            prefs[KEY_SIMPLE_MODE] = enabled
+            prefs[KEY_EXPERIENCE_TIER] = if (enabled) {
+                com.example.domain.model.ExperienceTier.SIMPLE.name
+            } else {
+                com.example.domain.model.ExperienceTier.PRO.name
+            }
+        }
+    }
+
+    suspend fun updateExperienceTier(tier: com.example.domain.model.ExperienceTier) {
+        dataStore.edit { prefs ->
+            prefs[KEY_EXPERIENCE_TIER] = tier.name
+            prefs[KEY_SIMPLE_MODE] = (tier == com.example.domain.model.ExperienceTier.SIMPLE)
+        }
     }
 
     suspend fun updateAutoScanOnStartup(enabled: Boolean) {
@@ -214,6 +228,15 @@ class VeloraSettingsRepository(
             ?.filter { it.isNotBlank() }
             ?: emptyList()
 
+        val isSimple = prefs[KEY_SIMPLE_MODE] ?: true
+        val resolvedTier = prefs[KEY_EXPERIENCE_TIER]?.let { raw ->
+            runCatching { com.example.domain.model.ExperienceTier.valueOf(raw) }.getOrNull()
+        } ?: if (isSimple) {
+            com.example.domain.model.ExperienceTier.SIMPLE
+        } else {
+            com.example.domain.model.ExperienceTier.PRO
+        }
+
         return AppSettings(
             eqEnabled = eqEnabled,
             activeEqPresetId = presetId,
@@ -229,7 +252,8 @@ class VeloraSettingsRepository(
             lastPositionMs = (prefs[KEY_LAST_POSITION_MS] ?: 0L).coerceAtLeast(0L),
             corruptionFallbackCount = prefs[KEY_CORRUPTION_COUNT] ?: 0,
             appLanguageCode = prefs[KEY_APP_LANGUAGE] ?: "en",
-            isSimpleMode = prefs[KEY_SIMPLE_MODE] ?: true,
+            isSimpleMode = resolvedTier == com.example.domain.model.ExperienceTier.SIMPLE,
+            experienceTier = resolvedTier,
             autoScanOnStartup = prefs[KEY_AUTO_SCAN_STARTUP] ?: true,
             onlyValidMusicInSearch = prefs[KEY_ONLY_VALID_MUSIC] ?: true,
             backgroundVideoAudioEnabled = prefs[KEY_BG_VIDEO_AUDIO] ?: true,
@@ -263,6 +287,7 @@ class VeloraSettingsRepository(
         private val KEY_CORRUPTION_COUNT = intPreferencesKey("corruption_count")
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language_code")
         private val KEY_SIMPLE_MODE = booleanPreferencesKey("is_simple_mode")
+        private val KEY_EXPERIENCE_TIER = stringPreferencesKey("experience_tier")
         private val KEY_AUTO_SCAN_STARTUP = booleanPreferencesKey("auto_scan_startup")
         private val KEY_ONLY_VALID_MUSIC = booleanPreferencesKey("only_valid_music")
         private val KEY_BG_VIDEO_AUDIO = booleanPreferencesKey("bg_video_audio")

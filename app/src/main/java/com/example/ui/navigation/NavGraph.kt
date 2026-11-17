@@ -29,6 +29,7 @@ import com.example.ui.screens.RadioScreen
 import com.example.ui.screens.SearchScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.VideoPlayerScreen
+import com.example.ui.viewmodel.PlaybackPositionState
 import com.example.ui.viewmodel.VeloraUiState
 import com.example.ui.viewmodel.VeloraViewModel
 import com.example.ui.viewmodel.addCustomRadioStation
@@ -42,11 +43,9 @@ import com.example.ui.viewmodel.executeCopilotCommand
 import com.example.ui.viewmodel.exportCurrentLyricsAsLrc
 import com.example.ui.viewmodel.exportOfflineBackupJson
 import com.example.ui.viewmodel.exportPlaylistAsM3u8
-import com.example.ui.viewmodel.importCustomLyricsOrSrt
 import com.example.ui.viewmodel.importM3u8Playlist
-import com.example.ui.viewmodel.playNetworkStream
-import com.example.ui.viewmodel.playNextInQueue
 import com.example.ui.viewmodel.playSmartPlaylist
+import com.example.ui.viewmodel.purgeDemoSamples
 import com.example.ui.viewmodel.restoreOfflineBackupJson
 import com.example.ui.viewmodel.setAbLoopPointA
 import com.example.ui.viewmodel.setAbLoopPointB
@@ -55,6 +54,8 @@ import com.example.ui.viewmodel.setAutoScanOnStartup
 import com.example.ui.viewmodel.setBackgroundVideoAudio
 import com.example.ui.viewmodel.setBassBoostPercent
 import com.example.ui.viewmodel.setCrossfadeSeconds
+import com.example.ui.viewmodel.setExperienceTier
+import com.example.ui.viewmodel.setIncludeDemoSamples
 import com.example.ui.viewmodel.setLowBatteryMode
 import com.example.ui.viewmodel.setOnlyValidMusicInSearch
 import com.example.ui.viewmodel.setPreampGainDb
@@ -110,6 +111,11 @@ fun VeloraNavGraph(
     navController: NavHostController,
     viewModel: VeloraViewModel,
     uiState: VeloraUiState,
+    positionState: PlaybackPositionState = PlaybackPositionState(
+        positionMs = uiState.engineState.positionMs,
+        durationMs = uiState.engineState.durationMs,
+        isPlaying = uiState.engineState.isPlaying
+    ),
     startDestination: VeloraDestination = VeloraDestination.MUSIC,
     modifier: Modifier = Modifier
 ) {
@@ -144,13 +150,11 @@ fun VeloraNavGraph(
                 onResumeHistory = { viewModel.resumeFromHistory(it) },
                 onClearHistory = { viewModel.clearPlaybackHistory() },
                 onPlaySmartPlaylist = { playlist, shuffle -> viewModel.playSmartPlaylist(playlist, shuffle) },
-                onPlayNetworkStream = { url, title -> viewModel.playNetworkStream(url, title) },
                 onAddCustomSmartRule = { name, br, sr, plays, favs, kw ->
                     viewModel.addCustomSmartRule(name, br, sr, plays, favs, kw)
                 },
                 onExportM3u8 = { pid -> viewModel.exportPlaylistAsM3u8(pid, context.filesDir) },
-                onImportM3u8 = { name, content -> viewModel.importM3u8Playlist(name, content) },
-                onPlayNext = { viewModel.playNextInQueue(it) }
+                onImportM3u8 = { name, content -> viewModel.importM3u8Playlist(name, content) }
             )
         }
 
@@ -197,6 +201,7 @@ fun VeloraNavGraph(
             VideoPlayerScreen(
                 uiState = uiState,
                 playerEngine = viewModel.playerEngine,
+                positionState = positionState,
                 onPlayVideoTrack = { viewModel.playTrack(it, uiState.videoTracks) },
                 onTogglePlayPause = { viewModel.togglePlayPause() },
                 onSeekTo = { viewModel.seekTo(it) },
@@ -242,6 +247,7 @@ fun VeloraNavGraph(
         composable(VeloraDestination.PLAYER.route) {
             PlayerAndEqScreen(
                 uiState = uiState,
+                positionState = positionState,
                 onTogglePlayPause = { viewModel.togglePlayPause() },
                 onStop = { viewModel.stopPlayback() },
                 onPrevious = { viewModel.skipToPrevious() },
@@ -271,8 +277,8 @@ fun VeloraNavGraph(
                 onSetLoopPointB = { viewModel.setAbLoopPointB() },
                 onClearLoop = { viewModel.clearAbLoop() },
                 onSetSleepTimerMinutes = { viewModel.setSleepTimerMinutes(it) },
-                onImportCustomLrcOrSrt = { viewModel.importCustomLyricsOrSrt(it) },
                 onToggleSimpleMode = { viewModel.setSimpleMode(it) },
+                onSetExperienceTier = { viewModel.setExperienceTier(it) },
                 onEditTrackMetadata = { id, title, artist, album ->
                     viewModel.updateTrackMetadata(id, title, artist, album)
                 },
@@ -293,13 +299,16 @@ fun VeloraNavGraph(
                 onExportBackupJson = { viewModel.exportOfflineBackupJson(context.filesDir) },
                 onRestoreBackupJson = { viewModel.restoreOfflineBackupJson(it, context.filesDir) },
                 onToggleSimpleMode = { viewModel.setSimpleMode(it) },
+                onSetExperienceTier = { viewModel.setExperienceTier(it) },
                 onToggleAutoScanOnStartup = { viewModel.setAutoScanOnStartup(it) },
                 onAutoScanMedia = { viewModel.autoScanDeviceMedia() },
                 onToggleOnlyValidMusic = { viewModel.setOnlyValidMusicInSearch(it) },
                 onToggleBackgroundVideoAudio = { viewModel.setBackgroundVideoAudio(it) },
                 onToggleLowBatteryMode = { viewModel.setLowBatteryMode(it) },
                 onSetAdaptiveAudioMode = { viewModel.setAdaptiveAudioMode(it) },
-                onSetThemePaletteMode = { viewModel.setThemePaletteMode(it) }
+                onSetThemePaletteMode = { viewModel.setThemePaletteMode(it) },
+                onToggleIncludeDemoSamples = { viewModel.setIncludeDemoSamples(it) },
+                onPurgeDemoSamples = { viewModel.purgeDemoSamples() }
             )
         }
     }

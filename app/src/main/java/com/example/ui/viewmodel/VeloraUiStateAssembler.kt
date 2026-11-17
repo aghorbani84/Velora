@@ -46,6 +46,12 @@ import kotlinx.coroutines.launch
 
 typealias FazoraUiState = VeloraUiState
 
+data class PlaybackPositionState(
+    val positionMs: Long = 0L,
+    val durationMs: Long = 0L,
+    val isPlaying: Boolean = false
+)
+
 data class VeloraUiState(
     val allTracks: List<Track> = emptyList(),
     val audioTracks: List<Track> = emptyList(),
@@ -82,6 +88,16 @@ data class VeloraUiState(
     val firebaseUser: FirebaseUser? = null,
     val isSigningIn: Boolean = false
 )
+
+fun VeloraViewModel.setExperienceTier(tier: com.example.domain.model.ExperienceTier) {
+    viewModelScope.launch {
+        settingsRepository.updateExperienceTier(tier)
+        val isFa = uiState.value.settings.appLanguageCode == "fa"
+        val label = if (isFa) tier.labelFa else tier.labelEn
+        val msg = if (isFa) "سطح کاربری به $label تغییر یافت" else "Experience tier set to $label"
+        mediaOrchestrator.postBanner(msg)
+    }
+}
 
 fun VeloraViewModel.playSmartPlaylist(smartPlaylist: SmartPlaylist, shuffle: Boolean = false) {
     mediaOrchestrator.playSmartPlaylist(smartPlaylist, shuffle)

@@ -1,116 +1,95 @@
 package com.example.ui.screens
 
-import android.content.Intent
+import android.Manifest
 import android.app.Activity
 import android.content.pm.ActivityInfo
-import androidx.activity.compose.BackHandler
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.BookmarkAdd
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.R
-import com.example.domain.engine.PlaybackStatus
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.example.domain.engine.PlayerEngine
+import com.example.domain.model.ExperienceTier
 import com.example.domain.model.FullscreenPolicy
-import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.SubtitleColorTheme
 import com.example.domain.model.SubtitleFontScale
 import com.example.domain.model.Track
+import com.example.domain.model.VeloraLyricsAndSubtitleEngine
 import com.example.domain.model.VideoAspectMode
 import com.example.domain.model.VideoControlGroup
 import com.example.ui.components.TrackRowItem
+import com.example.ui.components.VeloraEmptyState
+import com.example.ui.components.VeloraErrorBanner
+import com.example.ui.components.VeloraPrimaryButton
+import com.example.ui.components.VeloraSecondaryButton
+import com.example.ui.components.VeloraSectionCard
+import com.example.ui.components.VeloraSeekBar
 import com.example.ui.components.VeloraVideoSurface
+import com.example.ui.components.formatBadge
+import com.example.ui.components.formattedDuration
 import com.example.ui.components.veloraCinemaGestures
-import com.example.ui.theme.FazoraCarbon
-import com.example.ui.theme.FazoraCarbonBorder
-import com.example.ui.theme.FazoraCarbonElevated
-import com.example.ui.theme.FazoraGold
-import com.example.ui.theme.FazoraIvory
-import com.example.ui.theme.FazoraObsidian
-import com.example.ui.theme.FazoraSteel
 import com.example.ui.theme.PhiTokens
 import com.example.ui.viewmodel.FazoraUiState
-import kotlinx.coroutines.delay
+import com.example.ui.viewmodel.PlaybackPositionState
 
 @Composable
 fun VideoPlayerScreen(
     uiState: FazoraUiState,
     playerEngine: PlayerEngine?,
+    positionState: PlaybackPositionState = PlaybackPositionState(
+        positionMs = uiState.engineState.positionMs,
+        durationMs = uiState.engineState.durationMs,
+        isPlaying = uiState.engineState.isPlaying
+    ),
     onPlayVideoTrack: (Track) -> Unit,
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
@@ -128,535 +107,82 @@ fun VideoPlayerScreen(
     onSetSubtitleFontScale: (SubtitleFontScale) -> Unit = {},
     onSetSubtitleColorTheme: (SubtitleColorTheme) -> Unit = {},
     onAddVideoBookmark: () -> Unit = {},
-    isSimpleMode: Boolean = true,
+    isSimpleMode: Boolean = uiState.settings.isSimpleMode,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val engine = uiState.engineState
     val isPersian = uiState.settings.appLanguageCode == "fa"
-    val isCurrentTrackVideo = engine.currentTrack?.mediaType == com.example.domain.model.MediaType.VIDEO
-    val activeVideo = if (isCurrentTrackVideo) engine.currentTrack else uiState.videoTracks.firstOrNull()
+    val tier = if (isSimpleMode && uiState.settings.experienceTier == ExperienceTier.PRO) {
+        ExperienceTier.SIMPLE
+    } else {
+        uiState.settings.experienceTier
+    }
+    val engine = uiState.engineState
+    val context = LocalContext.current
 
-    var showSubtitleDialog by remember { mutableStateOf(false) }
-    var showAudioDialog by remember { mutableStateOf(false) }
-    var seekNotice by remember { mutableStateOf<String?>(null) }
-    var controlsLocked by remember { mutableStateOf(false) }
-    var controlsVisible by remember { mutableStateOf(true) }
-    var interactionNonce by remember { mutableIntStateOf(0) }
     var isFullscreen by remember { mutableStateOf(false) }
-    var isDraggingSeek by remember { mutableStateOf(false) }
-    var dragSeekFraction by remember { mutableFloatStateOf(0f) }
+    var controlsVisible by remember { mutableStateOf(true) }
+    var controlsLocked by remember { mutableStateOf(false) }
+    var gestureHudLabel by remember { mutableStateOf<String?>(null) }
+    var showSubtitleDialog by remember { mutableStateOf(false) }
+    var showAudioTrackDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(seekNotice) {
-        if (seekNotice != null) {
-            delay(900L)
-            seekNotice = null
-        }
-    }
-
-    LaunchedEffect(controlsVisible, engine.isPlaying, interactionNonce, uiState.settings.autoHideVideoControlsMs) {
-        if (controlsVisible && engine.isPlaying && !controlsLocked) {
-            delay(uiState.settings.autoHideVideoControlsMs.coerceAtLeast(3500L))
-            controlsVisible = false
-        }
-    }
-
-    val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
-            val fileName = uri.lastPathSegment
-                ?.substringAfterLast('/')
-                ?.takeIf { it.isNotBlank() } ?: "Local Video"
-            val pickedTrack = Track(
-                id = "picked_video_${System.currentTimeMillis()}",
-                mediaStoreId = System.currentTimeMillis(),
-                title = fileName,
-                artist = if (isPersian) "حافظه محلی" else "Device Storage",
-                album = if (isPersian) "ویدیوهای دستگاه" else "Local Videos",
-                durationMs = 0L,
-                uri = uri.toString(),
-                folderPath = "/storage/emulated/0/Movies",
-                mediaType = com.example.domain.model.MediaType.VIDEO
-            )
-            onPlayVideoTrack(pickedTrack)
-        }
-    }
-
-    val galleryPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            val fileName = uri.lastPathSegment
-                ?.substringAfterLast('/')
-                ?.takeIf { it.isNotBlank() } ?: "Gallery Video"
-            val pickedTrack = Track(
-                id = "gallery_video_${System.currentTimeMillis()}",
-                mediaStoreId = System.currentTimeMillis(),
-                title = fileName,
-                artist = if (isPersian) "گالری" else "Gallery",
-                album = if (isPersian) "ویدیوهای دستگاه" else "Device Videos",
-                durationMs = 0L,
-                uri = uri.toString(),
-                folderPath = "/storage/emulated/0/DCIM",
-                mediaType = com.example.domain.model.MediaType.VIDEO
-            )
-            onPlayVideoTrack(pickedTrack)
-        }
-    }
-
-    val durationMs = engine.durationMs.coerceAtLeast(activeVideo?.durationMs ?: 10_000L)
-    val currentPosMs = if (isDraggingSeek) {
-        (dragSeekFraction * durationMs).toLong()
-    } else {
-        engine.positionMs
-    }
-    val seekFraction = if (durationMs > 0L) {
-        (currentPosMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
-
-    val nativeRatio = if (engine.videoWidth > 0 && engine.videoHeight > 0) {
-        engine.videoWidth.toFloat() / engine.videoHeight.toFloat()
-    } else {
-        16f / 9f
-    }
-
-    val aspectRatioFloat = when (engine.videoAspectMode) {
-        VideoAspectMode.FIT -> nativeRatio.coerceIn(0.5f, 2.4f)
-        VideoAspectMode.FILL -> 16f / 9f
-        VideoAspectMode.GOLDEN_PHI -> PhiTokens.PHI
-        VideoAspectMode.SIXTEEN_NINE -> 16f / 9f
-    }
-
-    val resolutionLabel = when {
-        engine.videoHeight >= 2160 -> "4K UHD"
-        engine.videoHeight >= 1080 -> "1080p FHD"
-        engine.videoHeight >= 720 -> "720p HD"
-        engine.videoHeight > 0 -> "${engine.videoHeight}p"
-        else -> "HD Video"
-    }
-
-    val speedOptions = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-
-    // Req 3 — true immersive fullscreen: hide system bars + lock landscape
-    // for landscape video while fullscreen is open; restore both on exit.
-    // The landscape decision is the tested pure rule in FullscreenPolicy.
-    val activity = context as? Activity
-    DisposableEffect(isFullscreen) {
-        if (isFullscreen) {
-            val window = activity?.window
-            val insetsController = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
-            insetsController?.hide(WindowInsetsCompat.Type.systemBars())
-            insetsController?.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            val previousOrientation = activity?.requestedOrientation
-                ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            if (FullscreenPolicy.shouldLockLandscape(nativeRatio)) {
-                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            }
-            onDispose {
-                insetsController?.show(WindowInsetsCompat.Type.systemBars())
-                activity?.requestedOrientation = previousOrientation
-            }
+    val permissionsToRequest = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
         } else {
-            onDispose { }
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { onAutoScanMedia() }
 
-
-    if (isFullscreen) {
-        Dialog(
-            onDismissRequest = { isFullscreen = false },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
-            )
-        ) {
-            BackHandler { isFullscreen = false }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            ) {
-                VeloraVideoSurface(
-                    playerEngine = playerEngine,
-                    videoAspectMode = engine.videoAspectMode,
-                    surfaceTestTag = "fullscreen_media3_player_view",
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                val fullscreenDimAlpha = (1f - uiState.videoCinemaSettings.brightnessLevel).coerceIn(0f, 0.75f)
-                if (fullscreenDimAlpha > 0.02f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = fullscreenDimAlpha))
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .veloraCinemaGestures(
-                            controlsLocked = controlsLocked,
-                            positionMs = engine.positionMs,
-                            durationMs = durationMs,
-                            currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
-                            currentVolume = engine.volume,
-                            onToggleControls = { controlsVisible = !controlsVisible },
-                            onInteraction = { interactionNonce++ },
-                            onSeekTo = onSeekTo,
-                            onTogglePlayPause = onTogglePlayPause,
-                            onSetBrightness = onSetVideoBrightness,
-                            onSetVolume = onSetVolume,
-                            onHudNotice = { seekNotice = it }
-                        )
-                )
-
-                if (seekNotice != null) {
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.75f),
-                        shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .border(1.dp, FazoraGold, RoundedCornerShape(PhiTokens.CornerRadius21))
-                    ) {
-                        Text(
-                            text = seekNotice.orEmpty(),
-                            style = MaterialTheme.typography.headlineLarge,
-                            color = FazoraGold,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
-                        )
-                    }
-                }
-
-                if (engine.status == PlaybackStatus.BUFFERING) {
-                    CircularProgressIndicator(
-                        color = FazoraGold,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = controlsVisible,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.65f))
-                            .padding(PhiTokens.Space21)
-                    ) {
-                        Column(
-                            verticalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = activeVideo?.title ?: "Velora Cinema",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = FazoraIvory,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        text = "$resolutionLabel • ${engine.videoAspectMode.label}",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = FazoraGold
-                                    )
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    IconButton(
-                                        onClick = { controlsLocked = !controlsLocked },
-                                        modifier = Modifier.minimumInteractiveComponentSize()
-                                    ) {
-                                        Icon(
-                                            imageVector = if (controlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                                            contentDescription = "Lock controls",
-                                            tint = if (controlsLocked) FazoraGold else FazoraSteel
-                                        )
-                                    }
-                                    IconButton(
-                                        onClick = { isFullscreen = false },
-                                        modifier = Modifier.minimumInteractiveComponentSize()
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.FullscreenExit,
-                                            contentDescription = "Exit Fullscreen",
-                                            tint = FazoraIvory
-                                        )
-                                    }
-                                }
-                            }
-
-                            if (!controlsLocked) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                                ) {
-                                    IconButton(
-                                        onClick = {
-                                            interactionNonce++
-                                            onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
-                                            seekNotice = "-10s"
-                                        },
-                                        modifier = Modifier.size(54.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Replay10,
-                                            contentDescription = "-10s",
-                                            tint = FazoraIvory,
-                                            modifier = Modifier.size(36.dp)
-                                        )
-                                    }
-
-                                    Button(
-                                        onClick = {
-                                            interactionNonce++
-                                            if (!isCurrentTrackVideo && activeVideo != null) {
-                                                onPlayVideoTrack(activeVideo)
-                                            } else {
-                                                onTogglePlayPause()
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = FazoraGold,
-                                            contentColor = FazoraObsidian
-                                        ),
-                                        modifier = Modifier.size(68.dp),
-                                        shape = CircleShape
-                                    ) {
-                                        val icon = if (engine.isPlaying && isCurrentTrackVideo) {
-                                            Icons.Default.Pause
-                                        } else {
-                                            Icons.Default.PlayArrow
-                                        }
-                                        Icon(
-                                            imageVector = icon,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(34.dp)
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = {
-                                            interactionNonce++
-                                            onSeekTo(engine.positionMs + 10_000L)
-                                            seekNotice = "+10s"
-                                        },
-                                        modifier = Modifier.size(54.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Forward10,
-                                            contentDescription = "+10s",
-                                            tint = FazoraIvory,
-                                            modifier = Modifier.size(36.dp)
-                                        )
-                                    }
-                                }
-
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Slider(
-                                        value = seekFraction,
-                                        onValueChange = { frac ->
-                                            isDraggingSeek = true
-                                            dragSeekFraction = frac
-                                        },
-                                        onValueChangeFinished = {
-                                            isDraggingSeek = false
-                                            onSeekTo((dragSeekFraction * durationMs).toLong())
-                                        },
-                                        colors = SliderDefaults.colors(
-                                            thumbColor = FazoraGold,
-                                            activeTrackColor = FazoraGold,
-                                            inactiveTrackColor = FazoraSteel.copy(alpha = 0.4f)
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    Row(
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            text = Track.formatDurationMs(currentPosMs),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = FazoraIvory
-                                        )
-                                        Text(
-                                            text = Track.formatDurationMs(durationMs),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = FazoraSteel
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    val activeSubtitleText = remember(uiState.activeLyrics, positionState.positionMs, uiState.lyricsOffsetMs) {
+        val idx = VeloraLyricsAndSubtitleEngine.findActiveLineIndex(
+            uiState.activeLyrics,
+            positionState.positionMs,
+            uiState.lyricsOffsetMs
+        )
+        uiState.activeLyrics.getOrNull(idx)?.text.orEmpty()
     }
 
-    if (showSubtitleDialog) {
-        AlertDialog(
-            onDismissRequest = { showSubtitleDialog = false },
-            containerColor = FazoraCarbonElevated,
-            title = {
-                Text(
-                    text = if (isPersian) "تنظیمات زیرنویس ویدیو" else "Video Subtitles",
-                    color = FazoraIvory
-                )
-            },
-            text = {
-                Column {
-                    Row(
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSetSubtitlesEnabled(!engine.subtitlesEnabled) }
-                            .padding(vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = if (isPersian) "نمایش زیرنویس" else "Display Subtitles",
-                            color = FazoraIvory
-                        )
-                        RadioButton(
-                            selected = engine.subtitlesEnabled,
-                            onClick = { onSetSubtitlesEnabled(!engine.subtitlesEnabled) },
-                            colors = RadioButtonDefaults.colors(selectedColor = FazoraGold)
-                        )
-                    }
-
-                    if (engine.subtitleTracks.isEmpty()) {
-                        Text(
-                            text = if (isPersian) {
-                                "این ویدیو فاقد زیرنویس توکار است (زیرنویس هماهنگ‌شده LRC/SRT فعال است)."
-                            } else {
-                                "No embedded tracks; synchronized LRC/SRT overlay is active."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = FazoraSteel,
-                            modifier = Modifier.padding(top = 8.dp)
-                        )
-                    } else {
-                        engine.subtitleTracks.forEach { sub ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onSetSubtitlesEnabled(true)
-                                    }
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                RadioButton(
-                                    selected = sub.isSelected && engine.subtitlesEnabled,
-                                    onClick = { onSetSubtitlesEnabled(true) },
-                                    colors = RadioButtonDefaults.colors(selectedColor = FazoraGold)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "${sub.label} (${sub.language})",
-                                    color = FazoraIvory,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                    VideoSubtitleStylePickerSection(
-                        cinemaSettings = uiState.videoCinemaSettings,
-                        isPersian = isPersian,
-                        onSelectFontScale = onSetSubtitleFontScale,
-                        onSelectColorTheme = onSetSubtitleColorTheme
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showSubtitleDialog = false },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = FazoraGold,
-                        contentColor = FazoraObsidian
-                    )
-                ) {
-                    Text(if (isPersian) "تایید" else "OK")
-                }
-            }
+    if (showSubtitleDialog && FullscreenPolicy.isVideoControlVisible(tier, VideoControlGroup.SUBTITLES)) {
+        VideoSubtitlesDialog(
+            uiState = uiState,
+            isPersian = isPersian,
+            onSetSubtitlesEnabled = onSetSubtitlesEnabled,
+            onSetSubtitleFontScale = onSetSubtitleFontScale,
+            onSetSubtitleColorTheme = onSetSubtitleColorTheme,
+            onDismiss = { showSubtitleDialog = false }
         )
     }
 
-    if (showAudioDialog) {
-        AlertDialog(
-            onDismissRequest = { showAudioDialog = false },
-            containerColor = FazoraCarbonElevated,
-            title = {
-                Text(
-                    text = if (isPersian) "ترک صوتی و زبان ویدیو" else "Audio Stream / Language",
-                    color = FazoraIvory
-                )
-            },
-            text = {
-                Column {
-                    if (engine.audioTracks.isEmpty()) {
-                        Text(
-                            text = if (isPersian) "یک ترک صوتی استریو فعال است." else "Standard audio track is active.",
-                            color = FazoraSteel
-                        )
-                    } else {
-                        engine.audioTracks.forEach { aud ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { onSelectAudioTrack(aud.id) }
-                                    .padding(vertical = 6.dp)
-                            ) {
-                                RadioButton(
-                                    selected = aud.isSelected,
-                                    onClick = { onSelectAudioTrack(aud.id) },
-                                    colors = RadioButtonDefaults.colors(selectedColor = FazoraGold)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "${aud.label} (${aud.language})",
-                                    color = FazoraIvory,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showAudioDialog = false },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = FazoraGold,
-                        contentColor = FazoraObsidian
-                    )
-                ) {
-                    Text(if (isPersian) "بستن" else "Close")
-                }
-            }
+    if (showAudioTrackDialog && FullscreenPolicy.isVideoControlVisible(tier, VideoControlGroup.AUDIO_TRACK)) {
+        VideoAudioTrackDialog(
+            audioTracks = engine.audioTracks,
+            isPersian = isPersian,
+            onSelectAudioTrack = onSelectAudioTrack,
+            onDismiss = { showAudioTrackDialog = false }
+        )
+    }
+
+    if (isFullscreen) {
+        FullscreenVideoDialog(
+            context = context,
+            playerEngine = playerEngine,
+            uiState = uiState,
+            positionState = positionState,
+            controlsLocked = controlsLocked,
+            gestureHudLabel = gestureHudLabel,
+            activeSubtitleText = activeSubtitleText,
+            onToggleControls = { controlsVisible = !controlsVisible },
+            onToggleLock = { controlsLocked = !controlsLocked },
+            onExitFullscreen = { isFullscreen = false },
+            onSeekTo = onSeekTo,
+            onTogglePlayPause = onTogglePlayPause,
+            onSetBrightness = onSetVideoBrightness,
+            onSetVolume = onSetVolume,
+            onHudNotice = { gestureHudLabel = it }
         )
     }
 
@@ -665,528 +191,147 @@ fun VideoPlayerScreen(
         verticalArrangement = Arrangement.spacedBy(PhiTokens.Space21),
         modifier = modifier
             .fillMaxSize()
-            .background(FazoraObsidian)
+            .background(MaterialTheme.colorScheme.background)
             .testTag("video_player_screen")
     ) {
-        item {
-            Surface(
-                color = FazoraCarbon,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, FazoraCarbonBorder, RoundedCornerShape(PhiTokens.CornerRadius21))
-            ) {
-                Column(modifier = Modifier.padding(PhiTokens.Space13)) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(aspectRatioFloat)
-                            .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
-                            .background(Color.Black)
-                            .veloraCinemaGestures(
-                                controlsLocked = false,
-                                positionMs = engine.positionMs,
-                                durationMs = durationMs,
-                                currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
-                                currentVolume = engine.volume,
-                                onToggleControls = { controlsVisible = !controlsVisible },
-                                onInteraction = { interactionNonce++ },
-                                onSeekTo = onSeekTo,
-                                onTogglePlayPause = onTogglePlayPause,
-                                onSetBrightness = onSetVideoBrightness,
-                                onSetVolume = onSetVolume,
-                                onHudNotice = { seekNotice = it }
-                            )
-                            .testTag("video_surface_container")
-                    ) {
-                        VeloraVideoSurface(
-                            playerEngine = playerEngine,
-                            videoAspectMode = engine.videoAspectMode,
-                            surfaceTestTag = "media3_player_view",
-                            modifier = Modifier.fillMaxSize()
-                        )
-
-                        val dimAlpha = (1f - uiState.videoCinemaSettings.brightnessLevel).coerceIn(0f, 0.75f)
-                        if (dimAlpha > 0.02f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = dimAlpha))
-                            )
-                        }
-
-                        if (engine.subtitlesEnabled) {
-                            VideoSubtitleOverlay(
-                                lyrics = uiState.activeLyrics,
-                                positionMs = currentPosMs,
-                                offsetMs = uiState.lyricsOffsetMs,
-                                cinemaSettings = uiState.videoCinemaSettings,
-                                isPersian = isPersian,
-                                modifier = Modifier.align(Alignment.BottomCenter)
-                            )
-                        }
-
-                        if (!isCurrentTrackVideo && activeVideo != null) {
-                            Column(
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.85f))
-                                    .padding(PhiTokens.Space13)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = FazoraGold,
-                                    modifier = Modifier
-                                        .size(54.dp)
-                                        .clickable { onPlayVideoTrack(activeVideo) }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = activeVideo.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = FazoraIvory
-                                )
-                                Text(
-                                    text = if (isPersian) "برای پخش لمس کنید" else "Tap to Play Video",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = FazoraSteel
-                                )
-                            }
-                        }
-
-                        if (seekNotice != null) {
-                            Surface(
-                                color = Color.Black.copy(alpha = 0.75f),
-                                shape = RoundedCornerShape(PhiTokens.CornerRadius21),
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .border(1.dp, FazoraGold, RoundedCornerShape(PhiTokens.CornerRadius21))
-                            ) {
-                                Text(
-                                    text = seekNotice.orEmpty(),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = FazoraGold,
-                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-
-                        if (engine.status == PlaybackStatus.BUFFERING) {
-                            CircularProgressIndicator(
-                                color = FazoraGold,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
-                        }
-
-                        this@Column.AnimatedVisibility(
-                            visible = controlsVisible,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(FazoraObsidian.copy(alpha = 0.62f))
-                                    .padding(PhiTokens.Space13)
-                            ) {
-                                Column(
-                                    verticalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = activeVideo?.title ?: "Velora Cinema",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                color = FazoraIvory,
-                                                maxLines = 1
-                                            )
-                                            Text(
-                                                text = "$resolutionLabel • ${engine.videoAspectMode.label} • ${engine.playbackSpeed}x",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = FazoraGold
-                                            )
-                                        }
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            OutlinedButton(
-                                                onClick = { onEnterPip() },
-                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                                modifier = Modifier.testTag("video_pip_button")
-                                            ) {
-                                                Text("PiP", color = FazoraGold)
-                                            }
-                                            IconButton(
-                                                onClick = {
-                                                    isFullscreen = true
-                                                    interactionNonce++
-                                                },
-                                                modifier = Modifier
-                                                    .minimumInteractiveComponentSize()
-                                                    .testTag("video_fullscreen_button")
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Fullscreen,
-                                                    contentDescription = stringResource(R.string.cd_video_fullscreen),
-                                                    tint = FazoraGold
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                                    ) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                interactionNonce++
-                                                onSeekTo((engine.positionMs - 10_000L).coerceAtLeast(0L))
-                                                seekNotice = "-10s"
-                                            },
-                                            modifier = Modifier.testTag("video_seek_back_10s")
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Replay10,
-                                                contentDescription = "-10s",
-                                                tint = FazoraIvory
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("-10s", color = FazoraIvory)
-                                        }
-
-                                        Button(
-                                            onClick = {
-                                                interactionNonce++
-                                                if (!isCurrentTrackVideo && activeVideo != null) {
-                                                    onPlayVideoTrack(activeVideo)
-                                                } else {
-                                                    onTogglePlayPause()
-                                                }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = FazoraGold,
-                                                contentColor = FazoraObsidian
-                                            ),
-                                            modifier = Modifier
-                                                .minimumInteractiveComponentSize()
-                                                .testTag("video_play_pause_button")
-                                        ) {
-                                            val playPauseIcon = if (engine.isPlaying && isCurrentTrackVideo) {
-                                                Icons.Default.Pause
-                                            } else {
-                                                Icons.Default.PlayArrow
-                                            }
-                                            val playPauseLabel = if (engine.isPlaying && isCurrentTrackVideo) {
-                                                if (isPersian) "توقف ویدیو" else "Pause Video"
-                                            } else {
-                                                if (isPersian) "پخش ویدیو" else "Play Video"
-                                            }
-                                            Icon(
-                                                imageVector = playPauseIcon,
-                                                contentDescription = null
-                                            )
-                                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                                            Text(playPauseLabel)
-                                        }
-
-                                        OutlinedButton(
-                                            onClick = {
-                                                interactionNonce++
-                                                onSeekTo(engine.positionMs + 10_000L)
-                                                seekNotice = "+10s"
-                                            },
-                                            modifier = Modifier.testTag("video_seek_fwd_10s")
-                                        ) {
-                                            Text("+10s", color = FazoraIvory)
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Icon(
-                                                imageVector = Icons.Default.Forward10,
-                                                contentDescription = "+10s",
-                                                tint = FazoraIvory
-                                            )
-                                        }
-                                    }
-
-                                    Column(modifier = Modifier.fillMaxWidth()) {
-                                        Slider(
-                                            value = seekFraction,
-                                            onValueChange = { fraction ->
-                                                interactionNonce++
-                                                isDraggingSeek = true
-                                                dragSeekFraction = fraction.coerceIn(0f, 1f)
-                                            },
-                                            onValueChangeFinished = {
-                                                val target = PlaybackQueue.clampSeekPosition(
-                                                    (dragSeekFraction * durationMs).toLong(),
-                                                    durationMs
-                                                )
-                                                isDraggingSeek = false
-                                                onSeekTo(target)
-                                            },
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = FazoraGold,
-                                                activeTrackColor = FazoraGold,
-                                                inactiveTrackColor = FazoraCarbonElevated
-                                            ),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .testTag("video_seek_slider")
-                                        )
-                                        Row(
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Text(
-                                                text = Track.formatDurationMs(currentPosMs),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = FazoraIvory
-                                            )
-                                            Text(
-                                                text = Track.formatDurationMs(durationMs),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = FazoraSteel
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.SPEED)) {
-                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                        Text(
-                            text = if (isPersian) "سرعت پخش ویدیو" else "Playback Speed",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = FazoraGold
-                        )
-                        Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                            items(speedOptions) { speed ->
-                                val isSelected = kotlin.math.abs(engine.playbackSpeed - speed) < 0.01f
-                                OutlinedButton(
-                                    onClick = {
-                                        interactionNonce++
-                                        onSetPlaybackSpeed(speed)
-                                    },
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
-                                        contentColor = if (isSelected) FazoraObsidian else FazoraIvory
-                                    ),
-                                    modifier = Modifier
-                                        .minimumInteractiveComponentSize()
-                                        .testTag("video_speed_${speed}")
-                                ) {
-                                    Icon(Icons.Default.Speed, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("${speed}x")
-                                }
-                            }
-                        }
-                    }
-
-                    if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.ASPECT)) {
-                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                        Text(
-                            text = if (isPersian) "نسبت ابعاد تصویر" else "Aspect Ratio & Framing",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = FazoraGold
-                        )
-                        Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                            items(VideoAspectMode.entries) { mode ->
-                                val isSelected = engine.videoAspectMode == mode
-                                OutlinedButton(
-                                    onClick = {
-                                        interactionNonce++
-                                        onSetAspectMode(mode)
-                                    },
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = if (isSelected) FazoraGold else FazoraCarbonElevated,
-                                        contentColor = if (isSelected) FazoraObsidian else FazoraIvory
-                                    ),
-                                    modifier = Modifier
-                                        .minimumInteractiveComponentSize()
-                                        .testTag("video_aspect_${mode.name}")
-                                ) {
-                                    Icon(Icons.Default.AspectRatio, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(mode.label)
-                                }
-                            }
-                        }
-                    }
-
-                    if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.SUBTITLES)) {
-                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedButton(
-                                onClick = { showSubtitleDialog = true },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("video_subtitles_toggle")
-                            ) {
-                                Icon(Icons.Default.Subtitles, contentDescription = null, tint = FazoraGold)
-                                Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                                Text(
-                                    text = if (isPersian) {
-                                        if (engine.subtitlesEnabled) "زیرنویس: روشن" else "زیرنویس: خاموش"
-                                    } else {
-                                        if (engine.subtitlesEnabled) "Subtitles: ON" else "Subtitles: OFF"
-                                    },
-                                    color = FazoraIvory
-                                )
-                            }
-
-                            if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.AUDIO_TRACK)) {
-                                OutlinedButton(
-                                    onClick = { showAudioDialog = true },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .minimumInteractiveComponentSize()
-                                        .testTag("video_audio_track_button")
-                                ) {
-                                    Icon(Icons.Default.Audiotrack, contentDescription = null, tint = FazoraGold)
-                                    Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                                    Text(
-                                        text = if (isPersian) {
-                                            "ترک‌های صوتی (${engine.audioTracks.size.coerceAtLeast(1)})"
-                                        } else {
-                                            "Audio Tracks (${engine.audioTracks.size.coerceAtLeast(1)})"
-                                        },
-                                        color = FazoraIvory
-                                    )
-                                }
-                            }
-
-                            if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.BOOKMARK)) {
-                                OutlinedButton(
-                                    onClick = onAddVideoBookmark,
-                                    modifier = Modifier
-                                        .minimumInteractiveComponentSize()
-                                        .testTag("video_add_bookmark_button")
-                                ) {
-                                    Icon(Icons.Default.BookmarkAdd, contentDescription = null, tint = FazoraGold)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(if (isPersian) "بوکمارک صحنه" else "Bookmark Scene", color = FazoraIvory)
-                                }
-                            }
-                        }
-
-                        if (uiState.timeMachineBookmarks.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                                items(uiState.timeMachineBookmarks, key = { "vbm_${it.id}" }) { bm ->
-                                    OutlinedButton(
-                                        onClick = { onSeekTo(bm.timestampMs) },
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                                    ) {
-                                        Text("🔖 ${bm.formattedTimestamp} • ${bm.trackTitle}", color = FazoraGold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (FullscreenPolicy.isProControlVisible(isSimpleMode, VideoControlGroup.PICK_VIDEO)) {
-                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Button(
-                                onClick = { videoPickerLauncher.launch(arrayOf("video/*")) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = FazoraGold,
-                                    contentColor = FazoraObsidian
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("pick_video_button")
-                            ) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null)
-                                Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                                Text(if (isPersian) "انتخاب ویدیو" else "Pick Video")
-                            }
-
-                            OutlinedButton(
-                                onClick = { galleryPickerLauncher.launch("video/*") },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .minimumInteractiveComponentSize()
-                                    .testTag("gallery_video_button")
-                            ) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = FazoraGold)
-                                Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                                Text(if (isPersian) "گالری فیلم" else "From Gallery", color = FazoraIvory)
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(PhiTokens.Space8))
-
-                        OutlinedButton(
-                            onClick = onAutoScanMedia,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .minimumInteractiveComponentSize()
-                                .testTag("autoscan_video_button")
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = FazoraGold)
-                            Spacer(modifier = Modifier.width(PhiTokens.Space8))
-                            Text(
-                                text = if (isPersian) {
-                                    "🔄 جست‌وجو و اسکن خودکار ویدیوهای حافظه"
-                                } else {
-                                    "🔄 Auto-Scan Device Videos"
-                                },
-                                color = FazoraIvory
-                            )
-                        }
-                    }
-                }
+        engine.errorMessage?.let { msg ->
+            item {
+                VeloraErrorBanner(
+                    message = msg,
+                    actionLabel = if (isPersian) "تلاش مجدد" else "Retry",
+                    onAction = onTogglePlayPause
+                )
             }
         }
 
         item {
-            Text(
-                text = if (isPersian) {
-                    "ویدیوهای موجود (${uiState.videoTracks.size})"
-                } else {
-                    "Video Streams (${uiState.videoTracks.size})"
-                },
-                style = MaterialTheme.typography.headlineMedium,
-                color = FazoraIvory
-            )
+            VeloraSectionCard(
+                eyebrow = if (isPersian) "موتور سینمایی ویدیو" else "VELORA CINEMA ENGINE",
+                title = engine.currentTrack?.title ?: if (isPersian) "آماده پخش ویدیو" else "Cinema Viewport",
+                subtitle = engine.currentTrack?.let {
+                    "${it.formatBadge} • ${it.formattedDuration}"
+                } ?: if (isPersian) "یک ویدیو از فهرست پایین انتخاب کنید" else "Select a video stream below"
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(PhiTokens.VideoSurfaceHeight)
+                        .clip(RoundedCornerShape(PhiTokens.CornerRadius21))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .veloraCinemaGestures(
+                            controlsLocked = controlsLocked,
+                            positionMs = positionState.positionMs,
+                            durationMs = positionState.durationMs,
+                            currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
+                            currentVolume = engine.volume,
+                            onToggleControls = { controlsVisible = !controlsVisible },
+                            onInteraction = {},
+                            onSeekTo = onSeekTo,
+                            onTogglePlayPause = onTogglePlayPause,
+                            onSetBrightness = onSetVideoBrightness,
+                            onSetVolume = onSetVolume,
+                            onHudNotice = { gestureHudLabel = it }
+                        )
+                        .testTag("video_gesture_container")
+                ) {
+                    VeloraVideoSurface(
+                        playerEngine = playerEngine,
+                        videoAspectMode = engine.videoAspectMode,
+                        surfaceTestTag = "inline_video_surface",
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    if (engine.subtitlesEnabled && activeSubtitleText.isNotBlank()) {
+                        VideoSubtitleOverlay(
+                            text = activeSubtitleText,
+                            cinemaSettings = uiState.videoCinemaSettings,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(PhiTokens.Space13)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { controlsLocked = !controlsLocked },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .minimumInteractiveComponentSize()
+                            .testTag(if (controlsLocked) "video_unlock_controls_button" else "video_lock_controls_button")
+                    ) {
+                        Icon(
+                            imageVector = if (controlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = if (controlsLocked) "Unlock Controls" else "Lock Controls",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                if (gestureHudLabel != null) {
+                    Spacer(modifier = Modifier.height(PhiTokens.Space4))
+                    Text(
+                        text = gestureHudLabel.orEmpty(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.testTag("video_gesture_hud_label")
+                    )
+                }
+
+                if (!controlsLocked && controlsVisible) {
+                    Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    VeloraSeekBar(
+                        positionMs = positionState.positionMs,
+                        durationMs = positionState.durationMs,
+                        onSeekTo = onSeekTo,
+                        sliderTestTag = "video_seek_slider"
+                    )
+                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                    VideoControlToolbar(
+                        uiState = uiState,
+                        tier = tier,
+                        isPersian = isPersian,
+                        isPlaying = positionState.isPlaying,
+                        onTogglePlayPause = onTogglePlayPause,
+                        onEnterFullscreen = { isFullscreen = true },
+                        onEnterPip = onEnterPip,
+                        onPickVideo = { permissionLauncher.launch(permissionsToRequest) },
+                        onSetPlaybackSpeed = onSetPlaybackSpeed,
+                        onSetAspectMode = onSetAspectMode,
+                        onOpenSubtitles = { showSubtitleDialog = true },
+                        onOpenAudioTracks = { showAudioTrackDialog = true },
+                        onAddVideoBookmark = onAddVideoBookmark
+                    )
+                }
+            }
         }
 
-        items(uiState.videoTracks, key = { it.id }) { track ->
-            TrackRowItem(
-                track = track,
-                isActive = engine.currentTrack?.id == track.id,
-                playlists = uiState.playlists,
-                onPlay = { onPlayVideoTrack(track) },
-                onAddToQueue = { onAddTrackToQueue(track) },
-                onAddToPlaylist = { playlistId -> onAddTrackToPlaylist(playlistId, track.id) },
-                onToggleFavorite = { onToggleFavorite(track) }
-            )
+        if (uiState.videoTracks.isEmpty()) {
+            item {
+                VeloraEmptyState(
+                    icon = Icons.Default.Movie,
+                    title = if (isPersian) "ویدیویی یافت نشد" else "No Video Streams Indexed",
+                    subtitle = if (isPersian) {
+                        "برای اسکن ویدیوهای حافظه دستگاه دکمه اسکن را لمس کنید."
+                    } else {
+                        "Scan your device storage to discover MP4, MKV, and WebM videos."
+                    },
+                    actionLabel = if (isPersian) "اسکن ویدیوهای دستگاه" else "Scan Device Videos",
+                    actionTag = "empty_video_scan_button",
+                    onAction = { permissionLauncher.launch(permissionsToRequest) }
+                )
+            }
+        } else {
+            items(uiState.videoTracks, key = { it.id }) { video ->
+                TrackRowItem(
+                    track = video,
+                    isActive = engine.currentTrack?.id == video.id,
+                    playlists = uiState.playlists,
+                    onPlay = { onPlayVideoTrack(video) },
+                    onAddToQueue = { onAddTrackToQueue(video) },
+                    onAddToPlaylist = { pid -> onAddTrackToPlaylist(pid, video.id) },
+                    onToggleFavorite = { onToggleFavorite(video) }
+                )
+            }
         }
     }
 }

@@ -527,4 +527,35 @@ class ExampleRobolectricTest {
         )
         assertTrue(withoutDemos.isEmpty())
     }
+
+    @Test
+    fun `ExperienceTier switches instantly across SIMPLE, STANDARD, and PRO and Vazirmatn font resource resolves`() = runBlocking {
+        val testScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+        val settingsRepo = VeloraSettingsRepository(
+            context = context,
+            scope = testScope,
+            fileName = "tier_settings_${System.currentTimeMillis()}"
+        )
+
+        // Default is SIMPLE
+        assertEquals(com.example.domain.model.ExperienceTier.SIMPLE, settingsRepo.getSettingsOnce().experienceTier)
+        assertTrue(settingsRepo.getSettingsOnce().isSimpleMode)
+
+        // Switch to STANDARD
+        settingsRepo.updateExperienceTier(com.example.domain.model.ExperienceTier.STANDARD)
+        val standardSettings = settingsRepo.getSettingsOnce()
+        assertEquals(com.example.domain.model.ExperienceTier.STANDARD, standardSettings.experienceTier)
+        assertFalse(standardSettings.isSimpleMode)
+
+        // Switch to PRO
+        settingsRepo.updateExperienceTier(com.example.domain.model.ExperienceTier.PRO)
+        val proSettings = settingsRepo.getSettingsOnce()
+        assertEquals(com.example.domain.model.ExperienceTier.PRO, proSettings.experienceTier)
+        assertFalse(proSettings.isSimpleMode)
+
+        // Verify Persian Vazirmatn font resource exists and typography constructs cleanly
+        assertTrue(R.font.vazirmatn != 0)
+        val persianTypography = com.example.ui.theme.veloraTypography(isPersian = true)
+        assertEquals(com.example.ui.theme.VazirmatnFamily, persianTypography.bodyLarge.fontFamily)
+    }
 }

@@ -1,15 +1,16 @@
 package com.example
 
+import com.example.domain.model.ExperienceTier
 import com.example.domain.model.FullscreenPolicy
+import com.example.domain.model.MusicControlGroup
 import com.example.domain.model.VideoControlGroup
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Req 1 + Req 3: pure-policy tests for the video player. No device needed.
- * Failing-first: written against the verified gaps (video screen ignored
- * Simple Mode; fullscreen had no immersive/orientation behaviour).
+ * Pure-policy tests for the 3-tier UI (`SIMPLE`, `STANDARD`, `PRO`) and
+ * video fullscreen orientation locking.
  */
 class FullscreenPolicyTest {
 
@@ -47,6 +48,34 @@ class FullscreenPolicyTest {
     fun `studio mode shows every video control`() {
         for (group in VideoControlGroup.entries) {
             assertTrue(FullscreenPolicy.isProControlVisible(false, group))
+        }
+    }
+
+    @Test
+    fun `three-tier music policy hides all pro and queue controls in SIMPLE tier`() {
+        assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.SIMPLE, MusicControlGroup.BASIC_TRANSPORT))
+        assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.SIMPLE, MusicControlGroup.SEEK_VOLUME))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.SIMPLE, MusicControlGroup.QUEUE_AND_MODES))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.SIMPLE, MusicControlGroup.LYRICS_VIEWER))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.SIMPLE, MusicControlGroup.TEN_BAND_EQ))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.SIMPLE, MusicControlGroup.STUDIO_DSP_RACK))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.SIMPLE, MusicControlGroup.LRC_TIMESTAMP_STUDIO))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.SIMPLE, MusicControlGroup.TIME_MACHINE_BOOKMARKS))
+    }
+
+    @Test
+    fun `three-tier music policy enables everyday queue and lyrics in STANDARD tier while keeping EQ and DSP exclusive to PRO`() {
+        assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.STANDARD, MusicControlGroup.BASIC_TRANSPORT))
+        assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.STANDARD, MusicControlGroup.SEEK_VOLUME))
+        assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.STANDARD, MusicControlGroup.QUEUE_AND_MODES))
+        assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.STANDARD, MusicControlGroup.LYRICS_VIEWER))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.STANDARD, MusicControlGroup.TEN_BAND_EQ))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.STANDARD, MusicControlGroup.STUDIO_DSP_RACK))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.STANDARD, MusicControlGroup.LRC_TIMESTAMP_STUDIO))
+        assertFalse(FullscreenPolicy.isMusicControlVisible(ExperienceTier.STANDARD, MusicControlGroup.TIME_MACHINE_BOOKMARKS))
+
+        for (group in MusicControlGroup.entries) {
+            assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.PRO, group))
         }
     }
 }
