@@ -18,6 +18,12 @@
 > full 120-control coverage map (§12). Where a Gemini claim conflicted with the code, the
 > code wins and the discrepancy is recorded inline (see §0-a).
 >
+> **Revision 3 — 2026-11-18 (this version).** Two Phase 2 blockers closed as decisions
+> (delegated authority, code-verified): the D-3 default-tier migration (§10.1, item 1 —
+> "keep stored tier", precise rule recorded) and `backgroundVideoAudioEnabled` (§7 —
+> **WIRE**, not delete, with the wiring contract). No other section reopened; UI-AUDIT.md
+> unchanged.
+>
 > **Committed status — correction of a Gemini error.** Gemini's review stated this document
 > was "an uncommitted change on the working tree". That is wrong: Revision 1 was committed as
 > `5847f90` on branch `feature/ui-rebuild-phase0-1`, pushed to GitHub, and is under review in
@@ -65,7 +71,7 @@ fixed here — this phase writes no code):
    Fix: every screen reads `settings.experienceTier` directly, never re-derives it.
 3. **D-3 — Default tier is SIMPLE, the new default is STANDARD.** The repository defaults
    `isSimple` to `true`, so a fresh install resolves to SIMPLE. The new system defaults to
-   STANDARD (§5). Migration rule: existing installs keep their stored tier; fresh installs
+   STANDARD (§5). Migration rule (DECIDED 2026-11-18, precise form in §10.1): existing installs keep their stored tier; fresh installs
    default to STANDARD. Changing an existing user's stored tier silently is forbidden.
 
 What is genuinely new in this document (did not exist at HEAD): the unified token tables
@@ -641,15 +647,34 @@ scope for Phase 1 (no code changes here):
   bar (§4) is the in-app surface; notification + lock-screen controls are the out-of-app
   surface. For video, backgrounding keeps the **audio** playing (video surface detaches,
   audio continues).
-- **`backgroundVideoAudioEnabled` — OPEN, not verified (corrected).** Revision 1 recorded
+- **`backgroundVideoAudioEnabled` — DECIDED: WIRE (2026-11-18, code-verified).** Revision 1 recorded
   this setting (default ON) as "already-verified behavior". That was wrong: the toggle is
   **write-only** — it has no consumer in `Media3PlayerEngine` or `VeloraPlaybackService`
-  (audit §5.8), and its observable effect is unknown. Background audio works in practice
-  via the foreground `MediaSessionService` regardless of the toggle. **Phase 2 decision
-  (mandatory, before the toggle ships in the new UI): either wire it to real behaviour
-  (e.g. pause video audio when backgrounded while the toggle is off) or delete the toggle.**
-  Shipping it unwired violates the no-dead-controls rule (§4.1, §9). Until that decision,
-  the toggle stays in Settings as-is and is flagged here, not presented as working.
+  (audit §5.8); the only places it appears are the DataStore read/write
+  (`VeloraSettingsRepository.kt`: `KEY_BG_VIDEO_AUDIO`, default `true`;
+  `updateBackgroundVideoAudio()`), the `AppSettings` field
+  (`PlaylistAndSettings.kt:110`, default `true`), and the Settings toggle itself
+  (`SettingsScreen.kt:210`, tag `settings_bg_video_audio_switch`). Background audio works
+  in practice via the foreground `MediaSessionService` regardless of the toggle.
+  **Decision: wire it, do not delete it.** Deleting would remove a user-facing control for a
+  locked product requirement (background playback for BOTH music and video must never stop —
+  and the toggle's OFF state is the user's explicit opt-out of *video* audio in the
+  background). **Wiring contract (Phase 2 task):** `MediaOrchestrator` is the wiring point —
+  it already holds `VeloraSettingsRepository` (`MediaOrchestrator.kt:76`) and reads settings
+  at bootstrap (`:124`), and it exposes `pause()` (`:194-195`, delegates to
+  `playerEngine.pause()`); the current item's kind is available as `Track.mediaType`
+  (`Track.kt:17`, `MediaType.VIDEO`). No background hook exists anywhere in the code today
+  (no `ProcessLifecycleOwner` / `ON_STOP` observer) — Phase 2 adds one: on app-background
+  (`ON_STOP`), if the current item is a video AND `backgroundVideoAudioEnabled` is OFF →
+  `orchestrator.pause()`. If the toggle is ON (default) or the current item is audio → do
+  nothing; playback continues through the foreground `MediaSessionService`
+  (`VeloraPlaybackService`, whose `onTaskRemoved` only stops a non-playing service). No
+  auto-resume on return to foreground — resume is a user action, and the notification keeps
+  offering it. **Verification (Phase 3 QA, device):** video playing + toggle OFF +
+  background the app → audio stops; toggle ON + background → audio continues; audio track
+  + toggle OFF + background → keeps playing. All three are **UNTESTED** in this environment
+  (no device). Until the wiring lands, the toggle stays in Settings as-is and is flagged
+  here, not presented as working.
 - **UNTESTED in this environment:** no device exists here to confirm background behavior
   on a real build; Phase 3 QA must run the §6-a scenario "background music and video" on a
   real device/emulator.
@@ -702,9 +727,36 @@ tints (R-C4).
 
 ## 10. Open questions for the owner (not decisions — Phase 2 must not guess)
 
-1. **Default tier migration (D-3):** fresh installs default to STANDARD, but should existing
-   SIMPLE-default users (stored tier SIMPLE from the old `isSimple=true` default) be migrated
-   to STANDARD on update, or keep SIMPLE until they switch? Recommendation: keep stored tier.
+Items marked **DECIDED** were decided 2026-11-18 under delegated authority, code-verified,
+and are recorded here so Phase 2 does not re-decide them.
+
+1. **Default tier migration (D-3) — DECIDED 2026-11-18 (code-verified): keep stored tier.**
+   **Rule, by stored state** (resolution in `VeloraSettingsRepository.kt:231-237`):
+   - Stored `experience_tier` that parses → keep it verbatim (SIMPLE, STANDARD, or PRO).
+     No write, no migration step touches it.
+   - No tier stored, but `is_simple_mode` stored (legacy install) → keep the
+     boolean-derived tier (`true` → SIMPLE, `false` → PRO). The read resolution already
+     does this; the §11 one-shot migration only makes the value explicit (writes exactly
+     the derived tier) and deletes the legacy key/path — it never writes STANDARD over a
+     stored value.
+   - Neither key stored (fresh install) → **STANDARD**. This is the only behaviour that
+     changes, and it requires a code change: today `prefs[KEY_SIMPLE_MODE] ?: true`
+     (`:231`) conflates "absent" with "stored true", so a fresh install resolves to
+     SIMPLE. Phase 2 reads the boolean as nullable and falls back to STANDARD only when
+     both keys are absent. The `AppSettings` constructor default (`isSimpleMode = true`,
+     `PlaylistAndSettings.kt:106-107`) is aligned to STANDARD in the same change.
+   **Why this is safe:** the resolution reads stored values first and no code path
+   overwrites a stored tier on read; `updateExperienceTier()` writes tier + mirror
+   atomically (`:118-123`). An existing user therefore keeps their exact effective tier
+   across the update — zero DataStore writes to existing users are required for
+   correctness. **Precondition:** D-1 must land in the same change — `updateSimpleMode()`
+   is still called from `VeloraViewModel.kt:215` and maps "not simple" → PRO, so the
+   legacy boolean path must be deleted before the new default is introduced, or a legacy
+   toggle call could still erase STANDARD. D-2 (`VideoPlayerScreen.kt:114` re-derivation)
+   is fixed in the same change: screens read `settings.experienceTier` directly.
+   **Verification (Phase 2):** unit test over `mapPreferencesToSettings` for all stored
+   states (tier SIMPLE / STANDARD / PRO, boolean-only true, boolean-only false, and empty
+   prefs → STANDARD). UNTESTED here (no Gradle run in this environment).
 2. **High-Contrast mono palette:** keep as a third palette option in Settings (as today), or
    promote it to the system-accessibility follows-device setting? Recommendation: keep as an
    explicit option; it is a user choice, not a default.
@@ -914,7 +966,7 @@ the destination is hidden in that tier.
 | §2.9.4 | Adaptive-audio-mode picker | Settings (all tiers — ungated in code) | All |
 | §2.9.5 | Auto-scan-on-startup switch | Settings | All |
 | §2.9.6 | Valid-songs-only-in-search switch | Settings | All |
-| §2.9.7 | Background-video-audio switch | Settings (**decision OPEN**, §7 — wire or delete in Phase 2) | All |
+| §2.9.7 | Background-video-audio switch | Settings (decided: WIRE, §7) | All |
 | §2.9.8 | Low-battery DSP-saver switch | Settings | All |
 | §2.9.9 | Include-demo-samples switch | Settings (all tiers — ungated in code) | All |
 | §2.9.10 | Scan Device Now | Settings | All |
