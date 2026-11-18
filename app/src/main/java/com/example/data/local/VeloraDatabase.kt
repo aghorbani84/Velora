@@ -194,7 +194,10 @@ interface PlaybackHistoryDao {
         PlaybackHistoryEntity::class
     ],
     version = 4,
-    exportSchema = false
+    // P0-3: export the schema JSON for every version so MigrationTestHelper
+    // can validate migrations in CI (schemas land in app/schemas/; see the
+    // ksp block in app/build.gradle.kts). Config-only change, no behavior change.
+    exportSchema = true
 )
 abstract class VeloraDatabase : RoomDatabase() {
     abstract fun trackDao(): TrackDao

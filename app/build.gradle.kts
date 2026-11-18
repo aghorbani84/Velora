@@ -114,6 +114,15 @@ secrets {
 
 googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.WARN }
 
+// P0-3: Room schema export location. With exportSchema = true (VeloraDatabase),
+// KSP writes one JSON per database version under app/schemas/ on every build.
+// The JSONs are NOT generated on this machine (no Gradle here) and are not
+// committed by this PR; they appear after the first CI build and must be
+// checked in by a follow-up commit so MigrationTestHelper can use them.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
@@ -151,6 +160,7 @@ dependencies {
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)
   testImplementation(libs.junit)
+  testImplementation(libs.koin.test)
   testImplementation(libs.kotlinx.coroutines.test)
   testImplementation(libs.robolectric)
   androidTestImplementation(platform(libs.androidx.compose.bom))
