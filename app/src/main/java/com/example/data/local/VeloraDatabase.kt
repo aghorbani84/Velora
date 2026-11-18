@@ -194,10 +194,12 @@ interface PlaybackHistoryDao {
         PlaybackHistoryEntity::class
     ],
     version = 4,
-    // P0-3: export the schema JSON for every version so MigrationTestHelper
-    // can validate migrations in CI (schemas land in app/schemas/; see the
-    // ksp block in app/build.gradle.kts). Config-only change, no behavior change.
-    exportSchema = true
+    // P0-3: exportSchema stays FALSE. Enabling it together with the
+    // room.schemaLocation KSP argument crashed KSP in CI (run #65 on PR #4:
+    // "Cannot invoke Application.getService ... ApplicationManager
+    // .getApplication() is null", twice — no such error on main #59/#61 or
+    // PR #3). Re-enable only with the step-7 job log in hand to diagnose it.
+    exportSchema = false
 )
 abstract class VeloraDatabase : RoomDatabase() {
     abstract fun trackDao(): TrackDao

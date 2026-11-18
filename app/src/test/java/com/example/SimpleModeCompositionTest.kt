@@ -27,7 +27,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * P0-6 — `SimpleModeCompositionTest` (DESIGN-SYSTEM.md §5.1, CLEAN-CODE-PLAN.md).
+ * P0-6 — `SimpleModeCompositionTest` (DESIGN-SYSTEM.md §5.1 Revision 1,
+ * CLEAN-CODE-PLAN.md).
  *
  * The proof is STRUCTURAL, not visual: in SIMPLE, no node carrying a pro
  * test tag may exist in the composition tree at all — hiding a control with
@@ -35,26 +36,42 @@ import org.robolectric.annotation.Config
  * must not be emitted. `if (tier != SIMPLE)` gating at the call site is the
  * only accepted mechanism (VeloraTransportControls already does this).
  *
- * What this test renders: each of the 8 destinations is rendered DIRECTLY
- * (not through NavGraph/ViewModel) with a fabricated [VeloraUiState] and
- * no-op callbacks, so the test exercises the real screens' tier gating
- * without a device, a database or an engine. The video screen is rendered
- * with `playerEngine = null` — [com.example.ui.components.VeloraVideoSurface]
+ * What this test renders: each destination is rendered DIRECTLY (not through
+ * NavGraph/ViewModel) with a fabricated [VeloraUiState] and no-op callbacks,
+ * so the test exercises the real screens' tier gating without a device, a
+ * database or an engine. The video screen is rendered with
+ * `playerEngine = null` — [com.example.ui.components.VeloraVideoSurface]
  * returns early on a null engine, so no PlayerView is ever created under
  * Robolectric; the tier assertions do not depend on the surface.
  *
- * Pro-tag list (DESIGN-SYSTEM.md §5.1): `transport_shuffle_button`,
- * `transport_repeat_button`, `eq_*`, `speed_*`, `subtitle_*`,
- * `audio_track_*`, `ab_loop_*`, `pip_button`, `video_auto_hide_slider`,
- * plus `studio_dsp_rack_card` (the studio DSP rack, a PRO-only surface not
- * listed in §5.1). HONEST LIMIT: most of the `*_` tags do not exist in the
- * code yet — the rebuilt screens of Phase 2 must ADD them, and this test
- * will then start guarding them. Today those assertions pass vacuously;
- * the tags that DO exist (`transport_shuffle_button`,
- * `transport_repeat_button`, `video_auto_hide_slider`,
- * `studio_dsp_rack_card`, `subtitle_*` inside the video dialogs) are the
- * ones actually guarded, and the STANDARD control test below proves the
- * assertions can detect the tags when they are present.
+ * Contract implemented here (Revision 1 §5.1, per-destination absence
+ * lists). Every tag asserted below was verified against main 19e70bc: either
+ * it exists in the code behind a real tier gate, or it does not exist yet
+ * (in which case the assertion passes vacuously today and starts guarding
+ * the moment Phase 2 adds the tag). Where Revision 1's contract name differs
+ * from the tag the code actually uses, the REAL tag is asserted and the
+ * rename is recorded as Phase 2 work — asserting a tag that does not exist
+ * would prove nothing:
+ * - `player_stop_button` (contract) -> `transport_stop_button` (code)
+ * - `exact_seek_button` -> `open_exact_seek_button`
+ * - `tag_editor_button` -> `open_tag_editor_button`
+ * - `favorite_button` (player) -> `player_favorite_button`
+ * - `shuffle_all_button` (music) -> `music_shuffle_all_button`
+ * - `bookmark_button` (video) -> `video_bookmark_button`
+ * - `time_machine_*` -> `add_time_machine_bookmark_button`
+ * - `sleep_timer_*` / `crossfade_*` -> `dsp_sleep_timer_*` / `dsp_crossfade_*`
+ *
+ * NOT covered here, honestly: the shell navigation assertion (Revision 1
+ * §5.1 step 2 — the shell shows exactly music/video/player/settings in
+ * SIMPLE and library/artists/radio/search are absent from navigation).
+ * [com.example.ui.screens.VeloraShellScreen] already implements that
+ * filtering (VeloraShellScreen.kt:131-143), but asserting it needs the shell
+ * with a real ViewModel under `createAndroidComposeRule`, and no such test
+ * exists in this project yet — the design doc itself flags that pattern
+ * UNTESTED under Robolectric and leaves it to Phase 2 to prove (or move the
+ * test to `androidTest`). The four hidden destinations are still rendered
+ * directly below as defence in depth: if one were ever shown in SIMPLE, it
+ * would have to be pro-clean.
  *
  * `tier_option_PRO` is deliberately NOT in the pro list: it is the door out
  * of SIMPLE, not a pro control (§5.1).
@@ -106,28 +123,67 @@ class SimpleModeCompositionTest {
         )
     )
 
-    /** Exact pro tags (§5.1 + studio_dsp_rack_card). */
-    private val proTags = listOf(
+    /** Pro tags / prefixes shared by every destination (§5.1). */
+    private val commonProTags = listOf(
         "transport_shuffle_button",
         "transport_repeat_button",
-        "video_auto_hide_slider",
-        "studio_dsp_rack_card",
-        "pip_button"
+        "pip_button",
+        "pro_settings_door"
+    )
+    private val commonProPrefixes = listOf(
+        "eq_", "speed_", "subtitle_", "audio_track_", "ab_loop_"
     )
 
-    /** Pro tag prefixes (§5.1): any node whose tag starts with one of these. */
-    private val proTagPrefixes = listOf("eq_", "speed_", "subtitle_", "audio_track_", "ab_loop_")
+    /** Player-only absence list (§5.1 Revision 1, real tag names — see KDoc). */
+    private val playerProTags = listOf(
+        "video_auto_hide_slider",
+        "studio_dsp_rack_card",
+        "player_favorite_button",
+        "transport_stop_button",
+        "open_exact_seek_button",
+        "open_tag_editor_button",
+        "synchronized_lyrics_card",
+        "add_time_machine_bookmark_button"
+    )
+    private val playerProPrefixes = listOf(
+        "queue_", "remove_queue_item_", "lyric_line_",
+        "lrc_studio_", "visualizer_mode_",
+        "dsp_sleep_timer_", "dsp_crossfade_"
+    )
 
-    /** Pro content descriptions (§5.1). */
-    private val proContentDescriptions = listOf("Toggle Shuffle", "Cycle Repeat Mode")
+    /** Music-only absence list (§5.1 Revision 1, real tag names). */
+    private val musicProTags = listOf(
+        "music_shuffle_all_button",
+        "quick_filter_field",
+        "hires_filter_toggle"
+    )
 
-    private fun assertNoProNodes() {
-        for (tag in proTags) {
+    /** Video-only absence list (§5.1 Revision 1, real tag names). */
+    private val videoProTags = listOf("video_bookmark_button")
+
+    /** Settings-only absence list (§5.1 Revision 1). */
+    private val settingsProTags = listOf("video_auto_hide_slider")
+    private val settingsProPrefixes = listOf("plugin_toggle_")
+
+    /** Pro content descriptions (§5.1; only the ones that exist in code). */
+    private val proContentDescriptions = listOf(
+        "Toggle Shuffle", "Cycle Repeat Mode",
+        // Same tier gate as the buttons they describe (stage-card header /
+        // stop row); "Equalizer" has no contentDescription in the code.
+        "Toggle Favorite", "Stop Playback", "Edit Metadata Tags"
+    )
+
+    private fun assertNoNodesWithTags(tags: List<String>, prefixes: List<String>) {
+        for (tag in tags) {
             composeRule.onAllNodesWithTag(tag).assertCountEquals(0)
         }
-        for (prefix in proTagPrefixes) {
+        for (prefix in prefixes) {
             composeRule.onAllNodesWithTagPrefix(prefix).assertCountEquals(0)
         }
+    }
+
+    private fun assertNoProNodes() {
+        assertNoNodesWithTags(commonProTags, commonProPrefixes)
         for (description in proContentDescriptions) {
             composeRule.onAllNodesWithContentDescription(description).assertCountEquals(0)
         }
@@ -163,6 +219,7 @@ class SimpleModeCompositionTest {
             }
         }
         assertNoProNodes()
+        assertNoNodesWithTags(musicProTags, emptyList())
     }
 
     @Test
@@ -213,6 +270,7 @@ class SimpleModeCompositionTest {
         }
         composeRule.onNodeWithTag("video_player_screen").assertIsDisplayed()
         assertNoProNodes()
+        assertNoNodesWithTags(videoProTags, emptyList())
     }
 
     @Test
@@ -254,6 +312,7 @@ class SimpleModeCompositionTest {
         composeRule.onNodeWithTag("transport_next_button").assertIsDisplayed()
         composeRule.onNodeWithTag("player_seek_slider").assertIsDisplayed()
         assertNoProNodes()
+        assertNoNodesWithTags(playerProTags, playerProPrefixes)
     }
 
     @Test
@@ -268,6 +327,7 @@ class SimpleModeCompositionTest {
             }
         }
         assertNoProNodes()
+        assertNoNodesWithTags(settingsProTags, settingsProPrefixes)
     }
 
     /**
