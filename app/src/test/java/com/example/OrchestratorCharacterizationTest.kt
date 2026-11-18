@@ -12,6 +12,7 @@ import com.example.domain.engine.MediaOrchestrator
 import com.example.domain.model.QueueMode
 import com.example.domain.model.RepeatMode
 import com.example.domain.model.Track
+import com.example.orchestrator.IMediaOrchestrator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,7 +64,16 @@ class OrchestratorCharacterizationTest {
     private lateinit var repository: VeloraLibraryRepository
     private lateinit var settingsRepo: VeloraSettingsRepository
     private lateinit var engine: Media3PlayerEngine
-    private lateinit var orchestrator: MediaOrchestrator
+    // Typed as the IMediaOrchestrator PORT, not the concrete class — on
+    // purpose. The interface declares defaults (playTrackPool shuffle=false,
+    // play startPositionMs=0L); the MediaOrchestrator overrides declare NONE,
+    // and Kotlin does not inherit defaults into overrides, so a concrete-typed
+    // reference rejects playTrackPool(pool) / play(track, pool) at COMPILE
+    // time. That exact mistake failed CI run #68's step 7 in ~2 min (the
+    // unit-test sources did not compile, so no test ever ran). Typing the
+    // field as the port also mirrors ExampleRobolectricTest and the ViewModel,
+    // which both hold IMediaOrchestrator.
+    private lateinit var orchestrator: IMediaOrchestrator
     private lateinit var pool: List<Track>
 
     @Before

@@ -29,12 +29,11 @@ import org.robolectric.annotation.Config
  * file is reopened at version 4 with an `onUpgrade` that runs the real
  * migration objects in order, and the result is checked with `sqlite_master`
  * / `PRAGMA` queries plus row counts. No `MigrationTestHelper` is used: it
- * needs generated schema JSONs, which do not exist yet — `exportSchema = true`
- * is enabled by this PR (VeloraDatabase.kt + the `room.schemaLocation` KSP
- * argument in app/build.gradle.kts) so the first CI build generates them into
- * `app/schemas/`; they must be checked in by a follow-up commit before
- * MigrationTestHelper tests can be added. Room's own schema validation is
- * therefore NOT exercised here — only the migration SQL and data survival.
+ * needs generated schema JSONs, and enabling them (`exportSchema = true` +
+ * the `room.schemaLocation` KSP argument) CRASHED KSP in CI run #65, so that
+ * wiring was reverted — the raw-SQL approach here is the method, not a
+ * stopgap. Room's own schema validation is therefore NOT exercised here —
+ * only the migration SQL and data survival.
  *
  * UNTESTED locally: Gradle does not run on this machine. CI on the PR is the
  * verification path.
