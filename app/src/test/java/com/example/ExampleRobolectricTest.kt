@@ -557,5 +557,15 @@ class ExampleRobolectricTest {
         assertTrue(R.font.vazirmatn != 0)
         val persianTypography = com.example.ui.theme.veloraTypography(isPersian = true)
         assertEquals(com.example.ui.theme.VazirmatnFamily, persianTypography.bodyLarge.fontFamily)
+
+        // Verify SIMPLE tier navigation contract: exactly 4 destinations (Music, Video, Player, Settings), home = Music
+        val simpleDestinations = com.example.ui.navigation.VeloraDestination.visibleForTier(
+            com.example.domain.model.ExperienceTier.SIMPLE
+        )
+        assertEquals(4, simpleDestinations.size)
+        assertEquals(
+            com.example.ui.navigation.VeloraDestination.MUSIC,
+            com.example.ui.navigation.VeloraDestination.homeForTier(com.example.domain.model.ExperienceTier.SIMPLE)
+        )
     }
 }

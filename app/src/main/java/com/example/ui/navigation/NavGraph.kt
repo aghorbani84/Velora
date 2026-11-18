@@ -93,6 +93,27 @@ enum class VeloraDestination(
         fun fromRoute(route: String?): VeloraDestination {
             return entries.firstOrNull { it.route == route } ?: MUSIC
         }
+
+        fun visibleForTier(tier: com.example.domain.model.ExperienceTier): List<VeloraDestination> {
+            return when (tier) {
+                com.example.domain.model.ExperienceTier.SIMPLE -> listOf(
+                    MUSIC,
+                    VIDEO,
+                    PLAYER,
+                    SETTINGS
+                )
+                com.example.domain.model.ExperienceTier.STANDARD,
+                com.example.domain.model.ExperienceTier.PRO -> entries
+            }
+        }
+
+        fun homeForTier(tier: com.example.domain.model.ExperienceTier): VeloraDestination {
+            return if (tier == com.example.domain.model.ExperienceTier.SIMPLE) {
+                MUSIC
+            } else {
+                LIBRARY
+            }
+        }
     }
 }
 

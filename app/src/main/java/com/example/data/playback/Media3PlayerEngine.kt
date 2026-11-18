@@ -603,6 +603,7 @@ private fun applyTrackSelectionOverride(player: ExoPlayer, trackType: Int, track
         .build()
 }
 
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 private fun attachHardwareEqualizer(
     previous: Equalizer?,
     audioSessionId: Int,

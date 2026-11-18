@@ -78,4 +78,35 @@ class FullscreenPolicyTest {
             assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.PRO, group))
         }
     }
+
+    @Test
+    fun `SIMPLE tier shows exactly 4 navigation destinations with MUSIC as home while STANDARD and PRO show all 8`() {
+        val simpleVisible = com.example.ui.navigation.VeloraDestination.visibleForTier(ExperienceTier.SIMPLE)
+        org.junit.Assert.assertEquals(
+            listOf(
+                com.example.ui.navigation.VeloraDestination.MUSIC,
+                com.example.ui.navigation.VeloraDestination.VIDEO,
+                com.example.ui.navigation.VeloraDestination.PLAYER,
+                com.example.ui.navigation.VeloraDestination.SETTINGS
+            ),
+            simpleVisible
+        )
+        org.junit.Assert.assertEquals(4, simpleVisible.size)
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.LIBRARY))
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.ARTISTS))
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.RADIO))
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.SEARCH))
+        org.junit.Assert.assertEquals(
+            com.example.ui.navigation.VeloraDestination.MUSIC,
+            com.example.ui.navigation.VeloraDestination.homeForTier(ExperienceTier.SIMPLE)
+        )
+        org.junit.Assert.assertEquals(
+            8,
+            com.example.ui.navigation.VeloraDestination.visibleForTier(ExperienceTier.STANDARD).size
+        )
+        org.junit.Assert.assertEquals(
+            8,
+            com.example.ui.navigation.VeloraDestination.visibleForTier(ExperienceTier.PRO).size
+        )
+    }
 }

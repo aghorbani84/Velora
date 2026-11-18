@@ -116,22 +116,9 @@ fun VeloraShellScreen(
     }
 
     val tier = uiState.settings.experienceTier
-    val homeDestination = if (tier == ExperienceTier.SIMPLE) {
-        VeloraDestination.MUSIC
-    } else {
-        VeloraDestination.LIBRARY
-    }
-
+    val homeDestination = VeloraDestination.homeForTier(tier)
     val visibleDestinations = remember(tier) {
-        when (tier) {
-            ExperienceTier.SIMPLE -> listOf(
-                VeloraDestination.MUSIC,
-                VeloraDestination.VIDEO,
-                VeloraDestination.PLAYER,
-                VeloraDestination.SETTINGS
-            )
-            ExperienceTier.STANDARD, ExperienceTier.PRO -> VeloraDestination.entries
-        }
+        VeloraDestination.visibleForTier(tier)
     }
 
     LaunchedEffect(tier) {
