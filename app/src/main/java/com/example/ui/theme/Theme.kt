@@ -11,9 +11,19 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 import com.example.domain.model.PhiDesignMetrics
 import com.example.domain.model.ThemePaletteMode
+
+val LocalVeloraColors = staticCompositionLocalOf { VeloraSaffronColors }
+
+val MaterialTheme.veloraColors: VeloraColors
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalVeloraColors.current
 
 /**
  * Standard Velora Saffron Gold Color Scheme (High-Contrast AA/AAA Verified).
@@ -21,8 +31,8 @@ import com.example.domain.model.ThemePaletteMode
 val VeloraSaffronColorScheme: ColorScheme = darkColorScheme(
     primary = VeloraSaffron,
     onPrimary = VeloraObsidian,
-    primaryContainer = FazoraGoldMuted,
-    onPrimaryContainer = VeloraPrimaryText,
+    primaryContainer = VeloraAccentContainer,
+    onPrimaryContainer = VeloraOnAccentContainer,
     secondary = VeloraChampagneGold,
     onSecondary = VeloraObsidian,
     secondaryContainer = VeloraElevatedSurface,
@@ -161,10 +171,26 @@ fun VeloraTheme(
         ThemePaletteMode.HIGH_CONTRAST_MONOCHROME -> VeloraHighContrastColorScheme
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = veloraTypography(isPersian = isPersian),
-        shapes = VeloraShapes,
-        content = content
-    )
+    val semanticColors = when (paletteMode) {
+        ThemePaletteMode.VELORA_SAFFRON -> VeloraSaffronColors
+        ThemePaletteMode.VELORA_DAYLIGHT -> VeloraDaylightColors
+        ThemePaletteMode.HIGH_CONTRAST_MONOCHROME -> VeloraHighContrastColors
+        ThemePaletteMode.SYSTEM_DYNAMIC -> {
+            val base = if (darkTheme) VeloraSaffronColors else VeloraDaylightColors
+            base.copy(
+                accent = colorScheme.primary,
+                accentContainer = colorScheme.primaryContainer,
+                onAccentContainer = colorScheme.onPrimaryContainer
+            )
+        }
+    }
+
+    CompositionLocalProvider(LocalVeloraColors provides semanticColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = veloraTypography(isPersian = isPersian),
+            shapes = VeloraShapes,
+            content = content
+        )
+    }
 }

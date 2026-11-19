@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.AddToQueue
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Favorite
@@ -31,7 +32,6 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
@@ -60,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -67,6 +68,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import com.example.domain.engine.EnginePlaybackState
 import com.example.domain.model.ExperienceTier
 import com.example.domain.model.MediaType
@@ -75,6 +78,11 @@ import com.example.domain.model.Playlist
 import com.example.domain.model.QueueMode
 import com.example.domain.model.Track
 import com.example.ui.theme.PhiTokens
+import com.example.ui.theme.VeloraAlphaTokens
+import com.example.ui.theme.VeloraElevation
+import com.example.ui.theme.VeloraMotionTokens
+import com.example.ui.theme.mixedScriptText
+import com.example.ui.theme.veloraColors
 import com.example.ui.viewmodel.PlaybackPositionState
 import java.util.Locale
 
@@ -165,6 +173,54 @@ fun VeloraSecondaryButton(
 }
 
 @Composable
+fun VeloraLargeTitleHeader(
+    title: String,
+    eyebrow: String? = null,
+    subtitle: String? = null,
+    action: (@Composable () -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = PhiTokens.Space4)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            if (!eyebrow.isNullOrBlank()) {
+                Text(
+                    text = eyebrow,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.veloraColors.accent,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(PhiTokens.Space2))
+            }
+            Text(
+                text = mixedScriptText(title),
+                style = MaterialTheme.typography.displayLarge,
+                color = MaterialTheme.veloraColors.textPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(PhiTokens.Space4))
+                Text(
+                    text = mixedScriptText(subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.veloraColors.textMuted
+                )
+            }
+        }
+        if (action != null) {
+            Spacer(modifier = Modifier.width(PhiTokens.Space13))
+            action()
+        }
+    }
+}
+
+@Composable
 fun VeloraSectionCard(
     eyebrow: String? = null,
     title: String? = null,
@@ -206,7 +262,7 @@ fun VeloraSectionCard(
                         }
                         if (title != null) {
                             Text(
-                                text = title,
+                                text = mixedScriptText(title),
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 fontWeight = FontWeight.Bold
@@ -215,7 +271,7 @@ fun VeloraSectionCard(
                         if (subtitle != null) {
                             Spacer(modifier = Modifier.height(PhiTokens.Space4))
                             Text(
-                                text = subtitle,
+                                text = mixedScriptText(subtitle),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -306,13 +362,17 @@ fun VeloraEmptyState(
 fun VeloraLoadingSkeleton(
     rowCount: Int = 4,
     label: String = "Indexing media...",
+    reducedMotion: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val transition = rememberInfiniteTransition(label = "velora_skeleton")
     val pulseAlpha by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
+        initialValue = if (reducedMotion) 0.60f else 0.35f,
+        targetValue = if (reducedMotion) 0.60f else 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(VeloraMotionTokens.SkeletonPulseMs),
+            repeatMode = RepeatMode.Reverse
+        ),
         label = "skeleton_alpha"
     )
     Column(
@@ -347,7 +407,7 @@ fun VeloraErrorBanner(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.error.copy(alpha = 0.14f),
+        color = MaterialTheme.colorScheme.error.copy(alpha = VeloraAlphaTokens.ERROR_SURFACE_ALPHA),
         shape = RoundedCornerShape(PhiTokens.CornerRadius13),
         modifier = modifier
             .fillMaxWidth()
@@ -601,14 +661,14 @@ fun TrackRowItem(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = track.title,
+                    text = mixedScriptText(track.title),
                     style = MaterialTheme.typography.titleMedium,
                     color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${track.artist} • ${track.album}",
+                    text = mixedScriptText("${track.artist} • ${track.album}"),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -662,7 +722,7 @@ fun TrackRowItem(
                             .testTag("playlist_menu_track_${track.id}")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.PlaylistAdd,
+                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                             contentDescription = "Add to Playlist",
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -701,6 +761,7 @@ fun MiniPlayerBar(
     modifier: Modifier = Modifier
 ) {
     val track = engineState.currentTrack ?: return
+    val semantic = MaterialTheme.veloraColors
     val progress = if (positionState.durationMs > 0L) {
         (positionState.positionMs.toFloat() / positionState.durationMs.toFloat()).coerceIn(0f, 1f)
     } else {
@@ -708,15 +769,16 @@ fun MiniPlayerBar(
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+        color = semantic.surfaceElevated,
+        shadowElevation = VeloraElevation.Level3,
+        shape = RoundedCornerShape(PhiTokens.CornerRadius21),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space4)
             .border(
                 PhiTokens.BorderHairline,
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
-                RoundedCornerShape(PhiTokens.CornerRadius13)
+                semantic.accent.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA),
+                RoundedCornerShape(PhiTokens.CornerRadius21)
             )
             .clickable(onClick = onOpenPlayer)
             .testTag("mini_player_bar")
@@ -724,32 +786,46 @@ fun MiniPlayerBar(
         Column(modifier = Modifier.fillMaxWidth()) {
             LinearProgressIndicator(
                 progress = { progress },
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surface,
+                color = semantic.accent,
+                trackColor = semantic.bgSecondary,
                 modifier = Modifier.fillMaxWidth()
             )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space8)
             ) {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(PhiTokens.Space8))
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(PhiTokens.AvatarSize48)
+                        .clip(RoundedCornerShape(PhiTokens.CornerRadius8))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(semantic.accentContainer, semantic.surfaceCard)
+                            )
+                        )
+                ) {
+                    Icon(
+                        imageVector = if (track.mediaType == MediaType.VIDEO) Icons.Default.Movie else Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = semantic.accent
+                    )
+                }
+                Spacer(modifier = Modifier.width(PhiTokens.Space13))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = track.title,
+                        text = mixedScriptText(track.title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = semantic.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${track.artist} • ${Track.formatDurationMs(positionState.positionMs)}",
+                        text = mixedScriptText(
+                            "${track.artist} • ${Track.formatDurationMs(positionState.positionMs)}"
+                        ),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = semantic.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -763,7 +839,7 @@ fun MiniPlayerBar(
                     Icon(
                         imageVector = if (engineState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (engineState.isPlaying) "Pause" else "Play",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = semantic.accent
                     )
                 }
                 IconButton(
@@ -775,10 +851,146 @@ fun MiniPlayerBar(
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Skip Next",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = semantic.textPrimary
                     )
                 }
             }
         }
     }
 }
+
+@Composable
+fun VeloraHorizontalMediaShelf(
+    title: String,
+    subtitle: String? = null,
+    tracks: List<Track>,
+    activeTrackId: String?,
+    onPlayTrack: (Track) -> Unit,
+    actionLabel: String? = null,
+    actionTag: String? = null,
+    onAction: (() -> Unit)? = null,
+    shelfTag: String? = null,
+    modifier: Modifier = Modifier
+) {
+    val semantic = MaterialTheme.veloraColors
+    Column(
+        verticalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
+        modifier = (if (shelfTag != null) modifier.testTag(shelfTag) else modifier).fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = mixedScriptText(title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = semantic.textPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = mixedScriptText(subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = semantic.textMuted
+                    )
+                }
+            }
+            if (actionLabel != null && onAction != null) {
+                VeloraSecondaryButton(
+                    text = actionLabel,
+                    onClick = onAction,
+                    tag = actionTag
+                )
+            }
+        }
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13)) {
+            items(tracks, key = { it.id }) { track ->
+                VeloraMediaShelfCard(
+                    track = track,
+                    isActive = track.id == activeTrackId,
+                    onClick = { onPlayTrack(track) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun VeloraMediaShelfCard(
+    track: Track,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val semantic = MaterialTheme.veloraColors
+    Surface(
+        color = if (isActive) semantic.accentContainer else semantic.surfaceCard,
+        shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+        modifier = modifier
+            .width(PhiTokens.ShelfCardWidth)
+            .border(
+                width = PhiTokens.BorderHairline,
+                color = if (isActive) {
+                    semantic.accent.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA)
+                } else {
+                    semantic.divider
+                },
+                shape = RoundedCornerShape(PhiTokens.CornerRadius13)
+            )
+            .clickable(onClick = onClick)
+            .testTag("shelf_card_${track.id}")
+    ) {
+        Column(
+            modifier = Modifier.padding(PhiTokens.Space13)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(PhiTokens.ShelfCardArtSize)
+                    .clip(RoundedCornerShape(PhiTokens.CornerRadius8))
+                    .background(
+                        Brush.linearGradient(
+                            colors = if (isActive) {
+                                listOf(semantic.accent, semantic.accentDeep)
+                            } else {
+                                listOf(semantic.surfaceElevated, semantic.bgSecondary)
+                            }
+                        )
+                    )
+            ) {
+                Icon(
+                    imageVector = if (track.mediaType == MediaType.VIDEO) Icons.Default.Movie else Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = if (isActive) MaterialTheme.colorScheme.onPrimary else semantic.accent,
+                    modifier = Modifier.size(PhiTokens.IconSize34)
+                )
+            }
+            Spacer(modifier = Modifier.height(PhiTokens.Space8))
+            Text(
+                text = mixedScriptText(track.title),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (isActive) semantic.accentBright else semantic.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = mixedScriptText(track.artist),
+                style = MaterialTheme.typography.bodySmall,
+                color = semantic.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(PhiTokens.Space4))
+            Text(
+                text = "${track.formatBadge} • ${track.formattedDuration}",
+                style = MaterialTheme.typography.labelSmall,
+                color = semantic.textMuted,
+                maxLines = 1
+            )
+        }
+    }
+}
+

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -35,9 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,18 +52,25 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.domain.model.ExperienceTier
+import com.example.domain.model.PlaybackQueue
+import com.example.ui.components.DesktopPlayerBar
 import com.example.ui.components.MiniPlayerBar
+import com.example.ui.components.VeloraDesktopSidebar
+import com.example.ui.components.VeloraKeyboardShortcutAction
+import com.example.ui.components.veloraKeyboardShortcuts
 import com.example.ui.navigation.VeloraDestination
 import com.example.ui.navigation.VeloraNavGraph
 import com.example.ui.navigation.navigateSingleTopTo
 import com.example.ui.theme.PhiTokens
 import com.example.ui.theme.VeloraTheme
+import com.example.ui.theme.veloraColors
 import com.example.ui.viewmodel.VeloraViewModel
 import com.example.ui.viewmodel.setExperienceTier
 
@@ -81,6 +85,9 @@ fun VeloraShellScreen(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = VeloraDestination.fromRoute(backStackEntry?.destination?.route)
     val context = LocalContext.current
+
+    var selectedLibrarySubTab by rememberSaveable { mutableStateOf(LibrarySubTab.PLAYLISTS) }
+    var userCollapsedSidebar by rememberSaveable { mutableStateOf<Boolean?>(null) }
 
     val startupPermissions = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -116,30 +123,22 @@ fun VeloraShellScreen(
     }
 
     val tier = uiState.settings.experienceTier
-    val homeDestination = if (tier == ExperienceTier.SIMPLE) {
-        VeloraDestination.MUSIC
-    } else {
-        VeloraDestination.LIBRARY
-    }
-
-    val visibleDestinations = remember(tier) {
-        when (tier) {
-            ExperienceTier.SIMPLE -> listOf(
-                VeloraDestination.MUSIC,
-                VeloraDestination.VIDEO,
-                VeloraDestination.PLAYER,
-                VeloraDestination.SETTINGS
-            )
-            ExperienceTier.STANDARD, ExperienceTier.PRO -> VeloraDestination.entries
-        }
-    }
+    val homeDestination = VeloraDestination.homeForTier(tier)
+    val mobileTabs = remember(tier) { VeloraDestination.visibleForTier(tier) }
+    val desktopDestinations = remember(tier) { VeloraDestination.allReachableForTier(tier) }
+    val allReachableRoutes = remember(tier) { VeloraDestination.allReachableForTier(tier) }
 
     LaunchedEffect(tier) {
         if (tier == ExperienceTier.SIMPLE &&
-            currentDestination !in visibleDestinations &&
+            currentDestination !in allReachableRoutes &&
             navController.currentDestination != null
         ) {
             navController.navigateSingleTopTo(VeloraDestination.MUSIC)
+        } else if (tier != ExperienceTier.SIMPLE &&
+            currentDestination == VeloraDestination.MUSIC &&
+            navController.currentDestination != null
+        ) {
+            navController.navigateSingleTopTo(VeloraDestination.HOME)
         }
     }
 
@@ -158,14 +157,42 @@ fun VeloraShellScreen(
             BoxWithConstraints(
                 modifier = modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
+                    .background(MaterialTheme.veloraColors.bg)
+                    .veloraKeyboardShortcuts { action ->
+                        when (action) {
+                            VeloraKeyboardShortcutAction.TOGGLE_PLAY_PAUSE -> viewModel.togglePlayPause()
+                            VeloraKeyboardShortcutAction.SEEK_FORWARD_5S -> {
+                                val target = PlaybackQueue.clampSeekPosition(
+                                    positionState.positionMs + 5_000L,
+                                    positionState.durationMs.coerceAtLeast(positionState.positionMs + 5_000L)
+                                )
+                                viewModel.seekTo(target)
+                            }
+                            VeloraKeyboardShortcutAction.SEEK_BACKWARD_5S -> {
+                                val target = (positionState.positionMs - 5_000L).coerceAtLeast(0L)
+                                viewModel.seekTo(target)
+                            }
+                            VeloraKeyboardShortcutAction.VOLUME_UP -> {
+                                viewModel.setVolume((uiState.engineState.volume + 0.05f).coerceIn(0f, 1f))
+                            }
+                            VeloraKeyboardShortcutAction.VOLUME_DOWN -> {
+                                viewModel.setVolume((uiState.engineState.volume - 0.05f).coerceIn(0f, 1f))
+                            }
+                            VeloraKeyboardShortcutAction.TOGGLE_MUTE -> viewModel.toggleMute()
+                            VeloraKeyboardShortcutAction.TOGGLE_VIDEO_FULLSCREEN -> {
+                                navController.navigateSingleTopTo(VeloraDestination.VIDEO)
+                            }
+                        }
+                    }
                     .testTag("velora_shell_root")
             ) {
                 val isWideScreen = maxWidth >= PhiTokens.WideScreenBreakpoint
+                val effectiveSidebarCollapsed = userCollapsedSidebar
+                    ?: (maxWidth < PhiTokens.DesktopSidebarBreakpoint)
 
                 Scaffold(
                     contentWindowInsets = WindowInsets.safeDrawing,
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MaterialTheme.veloraColors.bg,
                     topBar = {
                         VeloraTopHeaderBar(
                             trackCount = uiState.allTracks.size,
@@ -180,30 +207,63 @@ fun VeloraShellScreen(
                         )
                     },
                     bottomBar = {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            MiniPlayerBar(
+                        if (isWideScreen) {
+                            DesktopPlayerBar(
                                 engineState = uiState.engineState,
                                 positionState = positionState,
+                                queueMode = uiState.queue.mode,
+                                repeatMode = uiState.queue.repeatMode,
+                                tier = tier,
                                 onTogglePlayPause = { viewModel.togglePlayPause() },
-                                onSkipNext = { viewModel.skipToNext() },
-                                onOpenPlayer = {
+                                onPrevious = { viewModel.skipToPrevious() },
+                                onNext = { viewModel.skipToNext() },
+                                onSeekTo = { viewModel.seekTo(it) },
+                                onToggleShuffle = { viewModel.toggleShuffle() },
+                                onCycleRepeat = { viewModel.cycleRepeatMode() },
+                                onVolumeChange = { viewModel.setVolume(it) },
+                                onToggleMute = { viewModel.toggleMute() },
+                                onOpenNowPlaying = {
                                     navController.navigateSingleTopTo(VeloraDestination.PLAYER)
                                 }
                             )
-                            if (!isWideScreen) {
+                        } else {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                if (currentDestination != VeloraDestination.PLAYER) {
+                                    MiniPlayerBar(
+                                        engineState = uiState.engineState,
+                                        positionState = positionState,
+                                        onTogglePlayPause = { viewModel.togglePlayPause() },
+                                        onSkipNext = { viewModel.skipToNext() },
+                                        onOpenPlayer = {
+                                            navController.navigateSingleTopTo(VeloraDestination.PLAYER)
+                                        }
+                                    )
+                                }
                                 NavigationBar(
                                     containerColor = MaterialTheme.colorScheme.surface,
                                     contentColor = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.testTag("bottom_nav_bar")
                                 ) {
-                                    visibleDestinations.forEach { dest ->
-                                        val selected = currentDestination == dest
+                                    mobileTabs.forEach { dest ->
+                                        val selected = currentDestination == dest ||
+                                            (dest == VeloraDestination.LIBRARY &&
+                                                currentDestination in setOf(
+                                                    VeloraDestination.MUSIC,
+                                                    VeloraDestination.ARTISTS,
+                                                    VeloraDestination.RADIO
+                                                ))
                                         val label = if (isPersian) dest.labelFa else dest.label
                                         NavigationBarItem(
                                             selected = selected,
                                             onClick = { navController.navigateSingleTopTo(dest) },
                                             icon = { Icon(dest.icon, contentDescription = label) },
-                                            label = { Text(label, maxLines = 1) },
+                                            label = {
+                                                Text(
+                                                    text = label,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            },
                                             colors = NavigationBarItemDefaults.colors(
                                                 selectedIconColor = MaterialTheme.colorScheme.onPrimary,
                                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -225,40 +285,29 @@ fun VeloraShellScreen(
                             .padding(innerPadding)
                     ) {
                         if (isWideScreen) {
-                            NavigationRail(
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .testTag("side_nav_rail")
-                            ) {
-                                visibleDestinations.forEach { dest ->
-                                    val selected = currentDestination == dest
-                                    val label = if (isPersian) dest.labelFa else dest.label
-                                    NavigationRailItem(
-                                        selected = selected,
-                                        onClick = { navController.navigateSingleTopTo(dest) },
-                                        icon = { Icon(dest.icon, contentDescription = label) },
-                                        label = { Text(label) },
-                                        colors = NavigationRailItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            indicatorColor = MaterialTheme.colorScheme.primary,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        modifier = Modifier.testTag("nav_${dest.route}")
-                                    )
-                                }
-                            }
+                            VeloraDesktopSidebar(
+                                destinations = desktopDestinations,
+                                currentDestination = currentDestination,
+                                playlists = uiState.playlists,
+                                tier = tier,
+                                isPersian = isPersian,
+                                collapsed = effectiveSidebarCollapsed,
+                                onToggleCollapse = {
+                                    userCollapsedSidebar = !effectiveSidebarCollapsed
+                                },
+                                onNavigate = { dest -> navController.navigateSingleTopTo(dest) },
+                                onPlayPlaylist = { pl -> viewModel.playPlaylist(pl, shuffle = false) }
+                            )
                         }
-                        Box(modifier = Modifier.fillMaxSize()) {
+                        Box(modifier = Modifier.weight(1f).fillMaxSize()) {
                             VeloraNavGraph(
                                 navController = navController,
                                 viewModel = viewModel,
                                 uiState = uiState,
                                 positionState = positionState,
-                                startDestination = homeDestination
+                                startDestination = homeDestination,
+                                librarySubTab = selectedLibrarySubTab,
+                                onSelectLibrarySubTab = { selectedLibrarySubTab = it }
                             )
                         }
                     }
