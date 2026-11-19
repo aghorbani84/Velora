@@ -83,11 +83,25 @@ import org.robolectric.annotation.Config
  * controls by design, and the video screen's inline controls carry no
  * `transport_*` tags.
  *
+ * Harness, and its CI history (no silence about it): the first version of
+ * this class ran `@Config(sdk = [36])` with the manifest Application. CI run
+ * #75 gave 9 x AppNotIdleException (60s each). Run #76 proved the
+ * `application` half of that diagnosis WRONG — switching to a bare
+ * `Application::class` changed nothing except the unrelated test count — so
+ * the configuration now mirrors, in full, the only `createComposeRule()`
+ * class that is green in this repository (`HybridUiShellRobolectricTest`
+ * line 40: `@Config(sdk = [35], application = Application::class)`, with no
+ * `@GraphicsMode` and no `robolectric.properties` anywhere). SDK 35 is
+ * therefore a pinned, evidence-based choice and NOT a statement that the app
+ * is tested against its real targetSdk 36: this class proves tier gating on
+ * an API 35 runtime. If API 36 composition behaviour must be guarded, that
+ * belongs in `androidTest` on a device/emulator (Phase 2), not here.
+ *
  * UNTESTED locally: Gradle does not run on this machine. CI on the PR is the
  * verification path.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36], application = Application::class)
+@Config(sdk = [35], application = Application::class)
 class SimpleModeCompositionTest {
 
     @get:Rule
