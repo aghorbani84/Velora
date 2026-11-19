@@ -256,8 +256,12 @@ class OrchestratorCharacterizationTest {
         assertEquals(0, queue().currentIndex)
     }
 
+    // `<Unit>` is load-bearing: JUnit4 only accepts public void test methods,
+    // and an expression body whose last statement is withTimeout { first {} }
+    // would type the method as AppSettings / List<PlaybackHistoryEntry>,
+    // failing class validation (CI run #75 initializationError).
     @Test
-    fun `toggleShuffle toggles the mode and persists it to settings`() = runBlocking {
+    fun `toggleShuffle toggles the mode and persists it to settings`() = runBlocking<Unit> {
         orchestrator.playTrackPool(pool)
         orchestrator.toggleShuffle()
         assertEquals(QueueMode.SHUFFLE, queue().mode)
@@ -272,7 +276,7 @@ class OrchestratorCharacterizationTest {
     }
 
     @Test
-    fun `cycleRepeatMode cycles OFF ALL ONE OFF and persists each step`() = runBlocking {
+    fun `cycleRepeatMode cycles OFF ALL ONE OFF and persists each step`() = runBlocking<Unit> {
         orchestrator.playTrackPool(pool)
         orchestrator.cycleRepeatMode()
         assertEquals(RepeatMode.ALL, queue().repeatMode)
@@ -296,7 +300,7 @@ class OrchestratorCharacterizationTest {
     }
 
     @Test
-    fun `stop halts playback and play records the track in history`() = runBlocking {
+    fun `stop halts playback and play records the track in history`() = runBlocking<Unit> {
         orchestrator.play(pool[0], pool)
         orchestrator.stop()
         assertFalse(orchestrator.playbackState.value.isPlaying)

@@ -1,5 +1,6 @@
 package com.example
 
+import android.app.Application
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertCountEquals
@@ -86,7 +87,7 @@ import org.robolectric.annotation.Config
  * verification path.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
+@Config(sdk = [36], application = Application::class)
 class SimpleModeCompositionTest {
 
     @get:Rule
