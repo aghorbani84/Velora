@@ -23,6 +23,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -567,5 +568,18 @@ class ExampleRobolectricTest {
             com.example.ui.navigation.VeloraDestination.MUSIC,
             com.example.ui.navigation.VeloraDestination.homeForTier(com.example.domain.model.ExperienceTier.SIMPLE)
         )
+    }
+
+    companion object {
+        @JvmStatic
+        @AfterClass
+        fun tearDownKoinSingletons() {
+            org.koin.core.context.GlobalContext.getOrNull()?.let { koin ->
+                runCatching { koin.getOrNull<com.example.domain.engine.MediaOrchestrator>()?.close() }
+                runCatching { koin.getOrNull<com.example.domain.engine.PlayerEngine>()?.release() }
+                runCatching { koin.getOrNull<VeloraDatabase>()?.close() }
+            }
+            org.koin.core.context.stopKoin()
+        }
     }
 }

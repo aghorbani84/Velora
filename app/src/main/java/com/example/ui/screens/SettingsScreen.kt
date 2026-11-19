@@ -269,10 +269,10 @@ fun SettingsScreen(
                 title = if (isPersian) "حساب ابری و پشتیبان JSON" else "Cloud Sync & Offline JSON Backup",
                 modifier = Modifier.testTag("firebase_sync_card")
             ) {
-                val user = uiState.firebaseUser
-                if (user != null) {
+                val profile = uiState.cloudProfile
+                if (profile != null && profile.isSignedIn) {
                     Text(
-                        text = "Signed in: ${user.displayName ?: user.email ?: user.uid}",
+                        text = "Signed in: ${profile.displayLabel}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.primary
                     )

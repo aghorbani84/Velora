@@ -36,6 +36,7 @@ import com.example.domain.model.ExperienceTier
 import com.example.domain.model.Track
 import com.example.ui.components.TrackRowItem
 import com.example.ui.components.VeloraEmptyState
+import com.example.ui.components.VeloraLargeTitleHeader
 import com.example.ui.components.VeloraPrimaryButton
 import com.example.ui.components.VeloraSecondaryButton
 import com.example.ui.components.VeloraSectionCard
@@ -66,6 +67,17 @@ fun SearchScreen(
             .background(MaterialTheme.colorScheme.background)
             .testTag("search_screen")
     ) {
+        item {
+            VeloraLargeTitleHeader(
+                eyebrow = if (isPersian) "جستجوی یکپارچه" else "OMNISEARCH & COPILOT",
+                title = if (isPersian) "جستجو" else "Search",
+                subtitle = if (isPersian) {
+                    "یافتن فوری آهنگ، هنرمند، متن و فرمان‌های هوشمند"
+                } else {
+                    "Instant discovery across tracks, artists, synced lyrics, and Copilot"
+                }
+            )
+        }
         item {
             VeloraSectionCard(
                 eyebrow = if (isPersian) "موتور جستجوی هوشمند ولورا" else "VELORA OMNISEARCH",

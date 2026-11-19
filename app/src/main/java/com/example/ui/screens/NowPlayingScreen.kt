@@ -1,8 +1,11 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,36 +13,38 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.BookmarkAdd
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,21 +52,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.example.domain.model.EqPreset
 import com.example.domain.model.ExperienceTier
 import com.example.domain.model.FullscreenPolicy
 import com.example.domain.model.MusicControlGroup
-import com.example.domain.model.PlaybackQueue
-import com.example.domain.model.SyncedLyricLine
-import com.example.domain.model.TimeMachineBookmark
 import com.example.domain.model.Track
-import com.example.domain.model.VeloraLyricsAndSubtitleEngine
 import com.example.domain.model.VisualizerMode
 import com.example.ui.components.SpectrumAnalyzerCanvas
-import com.example.ui.components.VeloraEmptyState
 import com.example.ui.components.VeloraErrorBanner
 import com.example.ui.components.VeloraPrimaryButton
 import com.example.ui.components.VeloraSecondaryButton
@@ -71,9 +74,13 @@ import com.example.ui.components.VeloraTransportControls
 import com.example.ui.components.formatBadge
 import com.example.ui.components.veloraCinemaGestures
 import com.example.ui.theme.PhiTokens
+import com.example.ui.theme.VeloraAlphaTokens
+import com.example.ui.theme.mixedScriptText
+import com.example.ui.theme.veloraColors
 import com.example.ui.viewmodel.FazoraUiState
 import com.example.ui.viewmodel.PlaybackPositionState
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerAndEqScreen(
     uiState: FazoraUiState,
@@ -127,6 +134,8 @@ fun PlayerAndEqScreen(
     val track = engine.currentTrack
     var showExactSeekDialog by remember { mutableStateOf(false) }
     var showTagEditorDialog by remember { mutableStateOf(false) }
+    var showQueueSheet by remember { mutableStateOf(false) }
+    var showLyricsSheet by remember { mutableStateOf(false) }
     var gestureHudNotice by remember { mutableStateOf<String?>(null) }
 
     if (showExactSeekDialog) {
@@ -147,6 +156,67 @@ fun PlayerAndEqScreen(
             onDismiss = { showTagEditorDialog = false },
             onEditTrackMetadata = onEditTrackMetadata
         )
+    }
+
+    if (showQueueSheet && FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.QUEUE_AND_MODES)) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showQueueSheet = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.veloraColors.surfaceElevated
+        ) {
+            LazyColumn(
+                contentPadding = PaddingValues(PhiTokens.Space21),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("now_playing_queue_sheet")
+            ) {
+                item {
+                    QueueSectionCard(
+                        uiState = uiState,
+                        isPersian = isPersian,
+                        onSelectQueueTrack = {
+                            onSelectQueueTrack(it)
+                            showQueueSheet = false
+                        },
+                        onRemoveFromQueue = onRemoveFromQueue
+                    )
+                }
+            }
+        }
+    }
+
+    if (showLyricsSheet && FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.LYRICS_VIEWER)) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showLyricsSheet = false },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.veloraColors.surfaceElevated
+        ) {
+            LazyColumn(
+                contentPadding = PaddingValues(PhiTokens.Space21),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("now_playing_lyrics_sheet")
+            ) {
+                item {
+                    SynchronizedLyricsAndBookmarksSection(
+                        lyrics = uiState.activeLyrics,
+                        positionMs = positionState.positionMs,
+                        lyricsOffsetMs = uiState.lyricsOffsetMs,
+                        bookmarks = uiState.timeMachineBookmarks,
+                        tier = tier,
+                        isPersian = isPersian,
+                        onAdjustOffset = onAdjustLyricsOffset,
+                        onSeekTo = onSeekTo,
+                        onAddBookmark = onAddBookmark,
+                        onStampLyricLine = onStampLyricLine,
+                        onAddNewLyricLineAtPos = onAddNewLyricLineAtPos,
+                        onExportLrc = onExportLrc
+                    )
+                }
+            }
+        }
     }
 
     LazyColumn(
@@ -187,7 +257,9 @@ fun PlayerAndEqScreen(
                 onSetVisualizerMode = onSetVisualizerMode,
                 onToggleFavorite = onToggleFavorite,
                 onOpenExactSeek = { showExactSeekDialog = true },
-                onOpenTagEditor = { showTagEditorDialog = true }
+                onOpenTagEditor = { showTagEditorDialog = true },
+                onOpenQueueSheet = { showQueueSheet = true },
+                onOpenLyricsSheet = { showLyricsSheet = true }
             )
         }
 
@@ -284,16 +356,19 @@ private fun NowPlayingStageCard(
     onSetVisualizerMode: (VisualizerMode) -> Unit,
     onToggleFavorite: (Track) -> Unit,
     onOpenExactSeek: () -> Unit,
-    onOpenTagEditor: () -> Unit
+    onOpenTagEditor: () -> Unit,
+    onOpenQueueSheet: () -> Unit,
+    onOpenLyricsSheet: () -> Unit
 ) {
     val engine = uiState.engineState
     val track = engine.currentTrack
+    val semantic = MaterialTheme.veloraColors
 
     VeloraSectionCard(
         eyebrow = if (isPersian) "پخش‌کننده استودیویی ولورا" else "VELORA NOW PLAYING",
         title = track?.title ?: if (isPersian) "هیچ رسانه‌ای انتخاب نشده" else "No Active Track",
         subtitle = track?.let {
-            "${it.artist} • ${it.album} • ${it.formatBadge} ${it.sampleRateHz / 1000.0}kHz"
+            mixedScriptText("${it.artist} • ${it.album} • ${it.formatBadge} ${it.sampleRateHz / 1000.0}kHz")
         } ?: if (isPersian) "یک آهنگ از کتابخانه انتخاب کنید" else "Select a track from your library",
         headerAction = if (track != null && tier != ExperienceTier.SIMPLE) {
             {
@@ -307,7 +382,7 @@ private fun NowPlayingStageCard(
                         Icon(
                             imageVector = if (track.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Toggle Favorite",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = semantic.accent
                         )
                     }
                     IconButton(
@@ -319,7 +394,7 @@ private fun NowPlayingStageCard(
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit Metadata Tags",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = semantic.textSecondary
                         )
                     }
                 }
@@ -331,33 +406,100 @@ private fun NowPlayingStageCard(
         val normalizedSpectrum = remember(engine.spectrumBandsDb) {
             engine.spectrumBandsDb.map { ((it + 60f) / 60f).coerceIn(0.05f, 1f) }
         }
-        SpectrumAnalyzerCanvas(
-            spectrumBands = normalizedSpectrum,
-            eqBandGainsDb = engine.eqBandGainsDb,
-            isPlaying = positionState.isPlaying,
-            visualizerMode = engine.visualizerMode,
-            modifier = Modifier.veloraCinemaGestures(
-                controlsLocked = false,
-                positionMs = positionState.positionMs,
-                durationMs = positionState.durationMs,
-                currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
-                currentVolume = engine.volume,
-                onToggleControls = {},
-                onInteraction = {},
-                onSeekTo = onSeekTo,
-                onTogglePlayPause = onTogglePlayPause,
-                onSetBrightness = {},
-                onSetVolume = onVolumeChange,
-                onHudNotice = onHudNotice
-            )
-        )
+        // Apple Music cover stage capped strictly <= PhiTokens.ARTWORK_STAGE_MAX_FRACTION (0.618f) of width
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val stageHeightCap = (maxWidth * PhiTokens.ARTWORK_STAGE_MAX_FRACTION).coerceAtLeast(PhiTokens.SpectrumHeight)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = stageHeightCap + PhiTokens.SpectrumHeight)
+            ) {
+                Surface(
+                    color = semantic.surfaceElevated,
+                    shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            PhiTokens.BorderHairline,
+                            semantic.accent.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA),
+                            RoundedCornerShape(PhiTokens.CornerRadius21)
+                        )
+                        .testTag("now_playing_artwork_stage")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
+                        modifier = Modifier.padding(PhiTokens.Space13)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(PhiTokens.Space55 + PhiTokens.Space21)
+                                .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(semantic.accentContainer, semantic.surfaceCard)
+                                    )
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = track?.album ?: "Album Artwork",
+                                tint = semantic.accent,
+                                modifier = Modifier.size(PhiTokens.IconSize34)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = mixedScriptText(track?.album ?: "VELORA Hi-Res Studio"),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = semantic.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = track?.let {
+                                    "${it.formatBadge} • ${it.sampleRateHz}Hz • ${it.bitrateKbps} kbps"
+                                } ?: "Ready for studio playback",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = semantic.accentGold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                SpectrumAnalyzerCanvas(
+                    spectrumBands = normalizedSpectrum,
+                    eqBandGainsDb = engine.eqBandGainsDb,
+                    isPlaying = positionState.isPlaying,
+                    visualizerMode = engine.visualizerMode,
+                    modifier = Modifier.veloraCinemaGestures(
+                        controlsLocked = false,
+                        positionMs = positionState.positionMs,
+                        durationMs = positionState.durationMs,
+                        currentBrightness = uiState.videoCinemaSettings.brightnessLevel,
+                        currentVolume = engine.volume,
+                        onToggleControls = {},
+                        onInteraction = {},
+                        onSeekTo = onSeekTo,
+                        onTogglePlayPause = onTogglePlayPause,
+                        onSetBrightness = {},
+                        onSetVolume = onVolumeChange,
+                        onHudNotice = onHudNotice
+                    )
+                )
+            }
+        }
 
         if (gestureHudNotice != null) {
             Spacer(modifier = Modifier.height(PhiTokens.Space4))
             Text(
                 text = gestureHudNotice,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = semantic.accent,
                 modifier = Modifier.testTag("player_gesture_hud_label")
             )
         }
@@ -399,6 +541,29 @@ private fun NowPlayingStageCard(
             onCycleRepeat = onCycleRepeat
         )
 
+        if (tier != ExperienceTier.SIMPLE) {
+            Spacer(modifier = Modifier.height(PhiTokens.Space13))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                VeloraSecondaryButton(
+                    text = if (isPersian) "صف پخش (${uiState.queue.tracks.size})" else "Queue (${uiState.queue.tracks.size})",
+                    icon = Icons.AutoMirrored.Filled.QueueMusic,
+                    onClick = onOpenQueueSheet,
+                    tag = "open_queue_sheet_button",
+                    modifier = Modifier.weight(1f)
+                )
+                VeloraSecondaryButton(
+                    text = if (isPersian) "متن همگام" else "Lyrics",
+                    icon = Icons.Default.Lyrics,
+                    onClick = onOpenLyricsSheet,
+                    tag = "open_lyrics_sheet_button",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(PhiTokens.Space13))
 
         Row(
@@ -419,7 +584,7 @@ private fun NowPlayingStageCard(
                         Icons.AutoMirrored.Filled.VolumeUp
                     },
                     contentDescription = if (engine.isMuted) "Unmute" else "Mute",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = semantic.accent
                 )
             }
             Slider(
@@ -427,9 +592,9 @@ private fun NowPlayingStageCard(
                 onValueChange = onVolumeChange,
                 valueRange = 0f..1f,
                 colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    thumbColor = semantic.accent,
+                    activeTrackColor = semantic.accent,
+                    inactiveTrackColor = semantic.surfaceCard
                 ),
                 modifier = Modifier
                     .weight(1f)
@@ -445,7 +610,7 @@ private fun NowPlayingStageCard(
                     Icon(
                         imageVector = Icons.Default.Stop,
                         contentDescription = "Stop Playback",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = semantic.textSecondary
                     )
                 }
                 VeloraSecondaryButton(

@@ -52,6 +52,12 @@ data class PlaybackPositionState(
     val isPlaying: Boolean = false
 )
 
+data class CloudAccountProfile(
+    val uid: String,
+    val displayLabel: String,
+    val isSignedIn: Boolean = true
+)
+
 data class VeloraUiState(
     val allTracks: List<Track> = emptyList(),
     val audioTracks: List<Track> = emptyList(),
@@ -86,6 +92,7 @@ data class VeloraUiState(
     val scanProgress: ScanProgress = ScanProgress(),
     val statusBannerMessage: String? = null,
     val firebaseUser: FirebaseUser? = null,
+    val cloudProfile: CloudAccountProfile? = null,
     val isSigningIn: Boolean = false
 )
 
@@ -458,6 +465,13 @@ internal fun assembleVeloraUiState(values: Array<Any?>): VeloraUiState {
         scanProgress = scanProgress,
         statusBannerMessage = orchestrator.lastBannerMessage,
         firebaseUser = firebaseUser,
+        cloudProfile = firebaseUser?.let {
+            CloudAccountProfile(
+                uid = it.uid,
+                displayLabel = it.displayName ?: it.email ?: it.uid,
+                isSignedIn = true
+            )
+        },
         isSigningIn = isSigningIn
     )
 }
