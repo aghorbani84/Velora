@@ -78,4 +78,55 @@ class FullscreenPolicyTest {
             assertTrue(FullscreenPolicy.isMusicControlVisible(ExperienceTier.PRO, group))
         }
     }
+
+    @Test
+    fun `SIMPLE tier shows exactly 4 navigation destinations with MUSIC as home while STANDARD and PRO use 5 mobile tabs with all 9 routes reachable`() {
+        val simpleVisible = com.example.ui.navigation.VeloraDestination.visibleForTier(ExperienceTier.SIMPLE)
+        org.junit.Assert.assertEquals(
+            listOf(
+                com.example.ui.navigation.VeloraDestination.MUSIC,
+                com.example.ui.navigation.VeloraDestination.VIDEO,
+                com.example.ui.navigation.VeloraDestination.PLAYER,
+                com.example.ui.navigation.VeloraDestination.SETTINGS
+            ),
+            simpleVisible
+        )
+        org.junit.Assert.assertEquals(4, simpleVisible.size)
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.HOME))
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.LIBRARY))
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.ARTISTS))
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.RADIO))
+        assertFalse(simpleVisible.contains(com.example.ui.navigation.VeloraDestination.SEARCH))
+        org.junit.Assert.assertEquals(
+            com.example.ui.navigation.VeloraDestination.MUSIC,
+            com.example.ui.navigation.VeloraDestination.homeForTier(ExperienceTier.SIMPLE)
+        )
+
+        val standardTabs = com.example.ui.navigation.VeloraDestination.visibleForTier(ExperienceTier.STANDARD)
+        val proTabs = com.example.ui.navigation.VeloraDestination.visibleForTier(ExperienceTier.PRO)
+        org.junit.Assert.assertEquals(
+            listOf(
+                com.example.ui.navigation.VeloraDestination.HOME,
+                com.example.ui.navigation.VeloraDestination.SEARCH,
+                com.example.ui.navigation.VeloraDestination.LIBRARY,
+                com.example.ui.navigation.VeloraDestination.VIDEO,
+                com.example.ui.navigation.VeloraDestination.SETTINGS
+            ),
+            standardTabs
+        )
+        org.junit.Assert.assertEquals(5, standardTabs.size)
+        org.junit.Assert.assertEquals(5, proTabs.size)
+        org.junit.Assert.assertEquals(
+            com.example.ui.navigation.VeloraDestination.HOME,
+            com.example.ui.navigation.VeloraDestination.homeForTier(ExperienceTier.STANDARD)
+        )
+        org.junit.Assert.assertEquals(
+            9,
+            com.example.ui.navigation.VeloraDestination.allReachableForTier(ExperienceTier.STANDARD).size
+        )
+        org.junit.Assert.assertEquals(
+            9,
+            com.example.ui.navigation.VeloraDestination.allReachableForTier(ExperienceTier.PRO).size
+        )
+    }
 }

@@ -2,6 +2,4 @@
 <full-backup-content>
     <include domain="file" path="datastore" />
     <include domain="database" path="velora_library.db" />
-    <exclude domain="file" path="fazora_studio_masters" />
-    <exclude domain="file" path="velora_studio_masters" />
 </full-backup-content>

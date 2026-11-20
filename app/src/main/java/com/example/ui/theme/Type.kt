@@ -36,9 +36,27 @@ val JetBrainsMonoFamily = FontFamily(
     Font(R.font.jetbrains_mono, FontWeight.Bold)
 )
 
+private val mixedLtrSegmentRegex = Regex("[A-Za-z0-9][A-Za-z0-9._:/+-]*(?:\\s+[A-Za-z0-9][A-Za-z0-9._:/+-]*)*")
+private val persianCharRegex = Regex("[\\u0600-\\u06FF\\u0750-\\u077F\\uFB50-\\uFDFF\\uFE70-\\uFEFF]")
+
+/**
+ * Isolates embedded Latin/numeric tokens inside Persian/RTL strings using Unicode FSI/PDI
+ * markers (\u2068 ... \u2069) so mixed-script track titles, codecs (FLAC 24-bit), and artists
+ * keep natural reading order without scrambled punctuation.
+ */
+fun mixedScriptText(raw: String): String {
+    if (raw.isEmpty()) return raw
+    val hasPersian = persianCharRegex.containsMatchIn(raw)
+    if (!hasPersian) return raw
+    return mixedLtrSegmentRegex.replace(raw) { match ->
+        "\u2066${match.value}\u2069"
+    }
+}
+
 /**
  * Golden Ratio (Phi = 1.618) modular typography scale (16 * phi^(n/3)).
- * Automatically selects bundled Vazirmatn for Persian RTL ("fa") and SpaceGrotesk/Inter/JetBrainsMono for English ("en").
+ * Automatically selects bundled Vazirmatn for Persian RTL ("fa") and SpaceGrotesk/Inter/JetBrainsMono
+ * with tabular numerals (`tnum`) for English ("en").
  */
 fun veloraTypography(isPersian: Boolean = false): Typography {
     val displayFont = if (isPersian) VazirmatnFamily else SpaceGroteskFamily
@@ -101,13 +119,15 @@ fun veloraTypography(isPersian: Boolean = false): Typography {
             fontFamily = numericFont,
             fontWeight = FontWeight.Medium,
             fontSize = 12.5.sp,
-            lineHeight = 18.sp
+            lineHeight = 18.sp,
+            fontFeatureSettings = "tnum"
         ),
         labelSmall = TextStyle(
             fontFamily = numericFont,
             fontWeight = FontWeight.Medium,
             fontSize = 11.5.sp,
-            lineHeight = 16.sp
+            lineHeight = 16.sp,
+            fontFeatureSettings = "tnum"
         )
     )
 }

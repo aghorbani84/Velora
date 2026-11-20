@@ -46,6 +46,7 @@ import com.example.ui.components.VeloraSecondaryButton
 import com.example.ui.components.VeloraSectionCard
 import com.example.ui.components.formattedDuration
 import com.example.ui.theme.PhiTokens
+import com.example.ui.theme.mixedScriptText
 import com.example.ui.viewmodel.FazoraUiState
 
 @Composable
@@ -125,8 +126,9 @@ internal fun SynchronizedLyricsAndBookmarksSection(
                     .testTag("lyric_line_$idx")
             ) {
                 Column(modifier = Modifier.padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space8)) {
+                    val lineText = if (isPersian && line.translationFa.isNotBlank()) line.translationFa else line.text
                     Text(
-                        text = if (isPersian && line.translationFa.isNotBlank()) line.translationFa else line.text,
+                        text = mixedScriptText(lineText),
                         style = if (isCurrent) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                         color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
@@ -201,12 +203,12 @@ internal fun QueueSectionCard(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = item.title,
+                            text = mixedScriptText(item.title),
                             style = MaterialTheme.typography.titleMedium,
                             color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "${item.artist} • ${item.formattedDuration}",
+                            text = mixedScriptText("${item.artist} • ${item.formattedDuration}"),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

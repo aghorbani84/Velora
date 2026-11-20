@@ -6,6 +6,7 @@ import android.util.Rational
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
@@ -20,9 +21,12 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.domain.model.ExperienceTier
 import com.example.domain.model.MediaType
 import com.example.ui.screens.ArtistScreen
-import com.example.ui.screens.LibraryScreen
+import com.example.ui.screens.HomeScreen
+import com.example.ui.screens.LibraryHubScreen
+import com.example.ui.screens.LibrarySubTab
 import com.example.ui.screens.MusicScreen
 import com.example.ui.screens.PlayerAndEqScreen
 import com.example.ui.screens.RadioScreen
@@ -33,7 +37,6 @@ import com.example.ui.viewmodel.PlaybackPositionState
 import com.example.ui.viewmodel.VeloraUiState
 import com.example.ui.viewmodel.VeloraViewModel
 import com.example.ui.viewmodel.addCustomRadioStation
-import com.example.ui.viewmodel.addCustomSmartRule
 import com.example.ui.viewmodel.addNewSyncedLyricLineAtCurrentPosition
 import com.example.ui.viewmodel.addRadioStationToQueue
 import com.example.ui.viewmodel.addTimeMachineBookmark
@@ -42,8 +45,6 @@ import com.example.ui.viewmodel.clearAbLoop
 import com.example.ui.viewmodel.executeCopilotCommand
 import com.example.ui.viewmodel.exportCurrentLyricsAsLrc
 import com.example.ui.viewmodel.exportOfflineBackupJson
-import com.example.ui.viewmodel.exportPlaylistAsM3u8
-import com.example.ui.viewmodel.importM3u8Playlist
 import com.example.ui.viewmodel.playSmartPlaylist
 import com.example.ui.viewmodel.purgeDemoSamples
 import com.example.ui.viewmodel.restoreOfflineBackupJson
@@ -80,18 +81,58 @@ enum class VeloraDestination(
     val labelFa: String,
     val icon: ImageVector
 ) {
+    HOME("home", "Home", "خانه", Icons.Default.Home),
+    SEARCH("search", "Search", "جستجو", Icons.Default.Search),
     LIBRARY("library", "Library", "کتابخانه", Icons.Default.LibraryMusic),
     MUSIC("music", "Music", "موسیقی", Icons.Default.MusicNote),
     RADIO("radio", "Radio", "رادیو", Icons.Default.Radio),
     ARTISTS("artists", "Artists", "هنرمندان", Icons.Default.Album),
     VIDEO("video", "Video", "ویدیو", Icons.Default.Movie),
-    SEARCH("search", "Search", "جستجو", Icons.Default.Search),
     PLAYER("player", "Player & EQ", "پخش و اکولایزر", Icons.Default.GraphicEq),
     SETTINGS("settings", "Settings", "تنظیمات", Icons.Default.Settings);
 
     companion object {
         fun fromRoute(route: String?): VeloraDestination {
             return entries.firstOrNull { it.route == route } ?: MUSIC
+        }
+
+        /**
+         * Primary bottom-bar tabs shown on compact screens:
+         * - SIMPLE tier: strictly 4 destinations (Music, Video, Player, Settings)
+         * - STANDARD & PRO tiers: 5 hybrid bottom tabs (Home, Search, Library [Music/Artists/Radio], Video, Settings)
+         */
+        fun visibleForTier(tier: ExperienceTier): List<VeloraDestination> {
+            return when (tier) {
+                ExperienceTier.SIMPLE -> listOf(
+                    MUSIC,
+                    VIDEO,
+                    PLAYER,
+                    SETTINGS
+                )
+                ExperienceTier.STANDARD,
+                ExperienceTier.PRO -> listOf(
+                    HOME,
+                    SEARCH,
+                    LIBRARY,
+                    VIDEO,
+                    SETTINGS
+                )
+            }
+        }
+
+        /**
+         * All routes reachable via bottom tabs, segmented Library hub, or desktop sidebar.
+         */
+        fun allReachableForTier(tier: ExperienceTier): List<VeloraDestination> {
+            return when (tier) {
+                ExperienceTier.SIMPLE -> visibleForTier(tier)
+                ExperienceTier.STANDARD,
+                ExperienceTier.PRO -> entries
+            }
+        }
+
+        fun homeForTier(tier: ExperienceTier): VeloraDestination {
+            return if (tier == ExperienceTier.SIMPLE) MUSIC else HOME
         }
     }
 }
@@ -117,6 +158,8 @@ fun VeloraNavGraph(
         isPlaying = uiState.engineState.isPlaying
     ),
     startDestination: VeloraDestination = VeloraDestination.MUSIC,
+    librarySubTab: LibrarySubTab = LibrarySubTab.PLAYLISTS,
+    onSelectLibrarySubTab: (LibrarySubTab) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -126,35 +169,35 @@ fun VeloraNavGraph(
         startDestination = startDestination.route,
         modifier = modifier
     ) {
-        composable(VeloraDestination.LIBRARY.route) {
-            LibraryScreen(
+        composable(VeloraDestination.HOME.route) {
+            HomeScreen(
                 uiState = uiState,
-                onScanLibrary = { viewModel.scanLibrary() },
-                onAddFolderUri = { viewModel.addFolderUri(it) },
-                onCreateCustomFolder = { viewModel.createAndScanCustomFolder(it) },
-                onRemoveFolder = { viewModel.removeFolder(it) },
-                onCreatePlaylist = { viewModel.createPlaylist(it) },
-                onDeletePlaylist = { viewModel.deletePlaylist(it) },
-                onPlayPlaylist = { playlist, shuffle -> viewModel.playPlaylist(playlist, shuffle) },
-                onPlayTrack = { track ->
-                    viewModel.playTrack(track, uiState.allTracks)
+                onPlayTrack = { track, pool ->
+                    viewModel.playTrack(track, pool)
                     if (track.mediaType == MediaType.VIDEO) {
                         navController.navigateSingleTopTo(VeloraDestination.VIDEO)
                     }
                 },
-                onAddTrackToQueue = { viewModel.addTrackToQueue(it) },
-                onAddTrackToPlaylist = { pid, tid -> viewModel.addTrackToPlaylist(pid, tid) },
-                onToggleFavorite = { viewModel.toggleFavorite(it) },
-                onSelectSortOrder = { viewModel.setSortOrder(it) },
-                onSelectFilterMode = { viewModel.setFilterMode(it) },
-                onResumeHistory = { viewModel.resumeFromHistory(it) },
-                onClearHistory = { viewModel.clearPlaybackHistory() },
-                onPlaySmartPlaylist = { playlist, shuffle -> viewModel.playSmartPlaylist(playlist, shuffle) },
-                onAddCustomSmartRule = { name, br, sr, plays, favs, kw ->
-                    viewModel.addCustomSmartRule(name, br, sr, plays, favs, kw)
+                onPlayAll = { shuffle -> viewModel.playAllMusic(shuffle = shuffle) },
+                onPlaySmartPlaylist = { smart, shuffle -> viewModel.playSmartPlaylist(smart, shuffle) },
+                onResumeHistory = { entry -> viewModel.resumeFromHistory(entry) },
+                onTuneRadio = { station -> viewModel.tuneRadioStation(station) },
+                onOpenLibrarySubTab = { subTab ->
+                    onSelectLibrarySubTab(subTab)
+                    navController.navigateSingleTopTo(VeloraDestination.LIBRARY)
                 },
-                onExportM3u8 = { pid -> viewModel.exportPlaylistAsM3u8(pid, context.filesDir) },
-                onImportM3u8 = { name, content -> viewModel.importM3u8Playlist(name, content) }
+                onOpenNowPlaying = { navController.navigateSingleTopTo(VeloraDestination.PLAYER) },
+                onAutoScanMedia = { viewModel.autoScanDeviceMedia() }
+            )
+        }
+
+        composable(VeloraDestination.LIBRARY.route) {
+            LibraryHubScreen(
+                uiState = uiState,
+                viewModel = viewModel,
+                selectedSubTab = librarySubTab,
+                onSelectSubTab = onSelectLibrarySubTab,
+                onOpenVideoDestination = { navController.navigateSingleTopTo(VeloraDestination.VIDEO) }
             )
         }
 

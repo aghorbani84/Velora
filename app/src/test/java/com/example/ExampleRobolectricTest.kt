@@ -23,6 +23,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -557,5 +558,28 @@ class ExampleRobolectricTest {
         assertTrue(R.font.vazirmatn != 0)
         val persianTypography = com.example.ui.theme.veloraTypography(isPersian = true)
         assertEquals(com.example.ui.theme.VazirmatnFamily, persianTypography.bodyLarge.fontFamily)
+
+        // Verify SIMPLE tier navigation contract: exactly 4 destinations (Music, Video, Player, Settings), home = Music
+        val simpleDestinations = com.example.ui.navigation.VeloraDestination.visibleForTier(
+            com.example.domain.model.ExperienceTier.SIMPLE
+        )
+        assertEquals(4, simpleDestinations.size)
+        assertEquals(
+            com.example.ui.navigation.VeloraDestination.MUSIC,
+            com.example.ui.navigation.VeloraDestination.homeForTier(com.example.domain.model.ExperienceTier.SIMPLE)
+        )
+    }
+
+    companion object {
+        @JvmStatic
+        @AfterClass
+        fun tearDownKoinSingletons() {
+            org.koin.core.context.GlobalContext.getOrNull()?.let { koin ->
+                runCatching { koin.getOrNull<com.example.domain.engine.MediaOrchestrator>()?.close() }
+                runCatching { koin.getOrNull<com.example.domain.engine.PlayerEngine>()?.release() }
+                runCatching { koin.getOrNull<VeloraDatabase>()?.close() }
+            }
+            org.koin.core.context.stopKoin()
+        }
     }
 }
