@@ -1,20 +1,16 @@
 package com.example.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.platform.LocalContext
 import com.example.domain.model.PhiDesignMetrics
 import com.example.domain.model.ThemePaletteMode
 
@@ -145,27 +141,15 @@ val VeloraShapes = Shapes(
     large = RoundedCornerShape(PhiTokens.CornerRadius21)
 )
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun VeloraTheme(
-    paletteMode: ThemePaletteMode = ThemePaletteMode.SYSTEM_DYNAMIC,
+    paletteMode: ThemePaletteMode = ThemePaletteMode.VELORA_SAFFRON,
     darkTheme: Boolean = isSystemInDarkTheme(),
     isPersian: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val context = LocalContext.current
     val colorScheme = when (paletteMode) {
-        ThemePaletteMode.SYSTEM_DYNAMIC -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val dynamicScheme = if (darkTheme) {
-                    dynamicDarkColorScheme(context)
-                } else {
-                    dynamicLightColorScheme(context)
-                }
-                balanceDynamicColorScheme(dynamicScheme, isDark = darkTheme)
-            } else {
-                if (darkTheme) VeloraSaffronColorScheme else VeloraDaylightColorScheme
-            }
-        }
         ThemePaletteMode.VELORA_SAFFRON -> VeloraSaffronColorScheme
         ThemePaletteMode.VELORA_DAYLIGHT -> VeloraDaylightColorScheme
         ThemePaletteMode.HIGH_CONTRAST_MONOCHROME -> VeloraHighContrastColorScheme
@@ -175,14 +159,6 @@ fun VeloraTheme(
         ThemePaletteMode.VELORA_SAFFRON -> VeloraSaffronColors
         ThemePaletteMode.VELORA_DAYLIGHT -> VeloraDaylightColors
         ThemePaletteMode.HIGH_CONTRAST_MONOCHROME -> VeloraHighContrastColors
-        ThemePaletteMode.SYSTEM_DYNAMIC -> {
-            val base = if (darkTheme) VeloraSaffronColors else VeloraDaylightColors
-            base.copy(
-                accent = colorScheme.primary,
-                accentContainer = colorScheme.primaryContainer,
-                onAccentContainer = colorScheme.onPrimaryContainer
-            )
-        }
     }
 
     CompositionLocalProvider(LocalVeloraColors provides semanticColors) {

@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -177,7 +179,8 @@ internal fun QueueSectionCard(
     uiState: FazoraUiState,
     isPersian: Boolean,
     onSelectQueueTrack: (Track) -> Unit,
-    onRemoveFromQueue: (String) -> Unit
+    onRemoveFromQueue: (String) -> Unit,
+    onMoveQueueItem: (Int, Int) -> Unit = { _, _ -> }
 ) {
     val queueItems = uiState.queue.tracks
     VeloraSectionCard(
@@ -213,17 +216,53 @@ internal fun QueueSectionCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    IconButton(
-                        onClick = { onRemoveFromQueue(item.id) },
-                        modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .testTag("remove_queue_item_$index")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Remove from Queue",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { onMoveQueueItem(index, index - 1) },
+                            enabled = index > 0,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("move_queue_up_$index")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowUp,
+                                contentDescription = if (isPersian) "انتقال به بالا" else "Move Up",
+                                tint = if (index > 0) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                }
+                            )
+                        }
+                        IconButton(
+                            onClick = { onMoveQueueItem(index, index + 1) },
+                            enabled = index < queueItems.lastIndex,
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("move_queue_down_$index")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (isPersian) "انتقال به پایین" else "Move Down",
+                                tint = if (index < queueItems.lastIndex) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.outline
+                                }
+                            )
+                        }
+                        IconButton(
+                            onClick = { onRemoveFromQueue(item.id) },
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("remove_queue_item_$index")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = "Remove from Queue",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

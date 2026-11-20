@@ -140,13 +140,18 @@ fun MusicScreen(
                             },
                             trailingIcon = {
                                 if (quickFilterQuery.isNotEmpty()) {
-                                    IconButton(onClick = { quickFilterQuery = "" }) {
+                                    IconButton(
+                                        onClick = { quickFilterQuery = "" },
+                                        modifier = Modifier.testTag("music_quick_filter_clear_button")
+                                    ) {
                                         Icon(Icons.Default.Clear, contentDescription = "Clear")
                                     }
                                 }
                             },
                             singleLine = true,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("music_quick_filter_input")
                         )
                         VeloraSecondaryButton(
                             text = "HI-RES",

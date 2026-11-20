@@ -64,6 +64,8 @@ import com.example.ui.components.VeloraSeekBar
 import com.example.ui.components.VeloraVideoSurface
 import com.example.ui.components.veloraCinemaGestures
 import com.example.ui.theme.PhiTokens
+import com.example.ui.theme.VeloraAlphaTokens
+import com.example.ui.theme.veloraColors
 import com.example.ui.viewmodel.FazoraUiState
 import com.example.ui.viewmodel.PlaybackPositionState
 
@@ -129,7 +131,7 @@ internal fun VideoControlToolbar(
 
         if (FullscreenPolicy.isVideoControlVisible(tier, VideoControlGroup.SPEED)) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                items(listOf(0.5f, 1.0f, 1.25f, 1.5f, 2.0f)) { speed ->
+                items(listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)) { speed ->
                     VeloraSecondaryButton(
                         text = "${speed}x",
                         icon = Icons.Default.Speed,
@@ -338,7 +340,7 @@ fun VideoSubtitleOverlay(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+        color = MaterialTheme.veloraColors.bg.copy(alpha = VeloraAlphaTokens.SCRIM_BACKGROUND_ALPHA),
         shape = RoundedCornerShape(PhiTokens.CornerRadius8),
         modifier = modifier.testTag("video_subtitle_overlay")
     ) {

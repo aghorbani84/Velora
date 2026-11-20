@@ -361,7 +361,9 @@ fun DesktopPlayerBar(
                     if (tier != ExperienceTier.SIMPLE) {
                         IconButton(
                             onClick = onToggleShuffle,
-                            modifier = Modifier.minimumInteractiveComponentSize()
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("desktop_player_shuffle")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Shuffle,
@@ -372,7 +374,9 @@ fun DesktopPlayerBar(
                     }
                     IconButton(
                         onClick = onPrevious,
-                        modifier = Modifier.minimumInteractiveComponentSize()
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .testTag("desktop_player_prev")
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
@@ -412,7 +416,9 @@ fun DesktopPlayerBar(
                     if (tier != ExperienceTier.SIMPLE) {
                         IconButton(
                             onClick = onCycleRepeat,
-                            modifier = Modifier.minimumInteractiveComponentSize()
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .testTag("desktop_player_repeat")
                         ) {
                             Icon(
                                 imageVector = if (repeatMode == RepeatMode.ONE) Icons.Default.RepeatOne else Icons.Default.Repeat,
@@ -476,7 +482,9 @@ fun DesktopPlayerBar(
                 }
                 IconButton(
                     onClick = onToggleMute,
-                    modifier = Modifier.minimumInteractiveComponentSize()
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("desktop_player_mute")
                 ) {
                     Icon(
                         imageVector = if (engineState.isMuted) {

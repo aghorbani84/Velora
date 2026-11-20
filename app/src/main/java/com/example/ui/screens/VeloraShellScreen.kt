@@ -233,6 +233,7 @@ fun VeloraShellScreen(
                                         engineState = uiState.engineState,
                                         positionState = positionState,
                                         onTogglePlayPause = { viewModel.togglePlayPause() },
+                                        onSkipPrevious = { viewModel.skipToPrevious() },
                                         onSkipNext = { viewModel.skipToNext() },
                                         onOpenPlayer = {
                                             navController.navigateSingleTopTo(VeloraDestination.PLAYER)

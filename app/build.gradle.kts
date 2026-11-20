@@ -28,11 +28,11 @@ android {
     val fileVersion =
       if (versionFile.exists()) versionFile.readText().trim().removePrefix("v") else ""
     versionCode =
-      providers.gradleProperty("velora.versionCode").getOrElse("6").trim().toIntOrNull() ?: 6
+      providers.gradleProperty("velora.versionCode").getOrElse("15").trim().toIntOrNull() ?: 15
     versionName =
       providers
         .gradleProperty("velora.versionName")
-        .orElse(providers.provider { fileVersion.ifEmpty { "2.5.3" } })
+        .orElse(providers.provider { fileVersion.ifEmpty { "2.6.0" } })
         .get()
         .trim()
         .removePrefix("v")

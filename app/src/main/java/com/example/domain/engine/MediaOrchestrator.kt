@@ -236,6 +236,13 @@ class MediaOrchestrator(
         persistQueueState(updated, playerEngine.playbackState.value.positionMs)
     }
 
+    override fun moveQueueTrack(fromIndex: Int, toIndex: Int) {
+        val updated = queueFlow.value.moveTrack(fromIndex, toIndex)
+        if (updated == queueFlow.value) return
+        queueFlow.value = updated
+        persistQueueState(updated, playerEngine.playbackState.value.positionMs)
+    }
+
     override fun selectQueueTrack(track: Track) {
         if (queueFlow.value.tracks.none { it.id == track.id }) {
             postBanner("Track '${track.title}' is not in the active queue")

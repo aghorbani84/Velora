@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,7 +74,8 @@ internal fun EqualizerAndStudioDspSection(
     onSetLoopPointA: () -> Unit,
     onSetLoopPointB: () -> Unit,
     onClearLoop: () -> Unit,
-    onSetSleepTimerMinutes: (Int) -> Unit
+    onSetSleepTimerMinutes: (Int) -> Unit,
+    onSetPlaybackSpeed: (Float) -> Unit = {}
 ) {
     val engine = uiState.engineState
     val dsp = uiState.studioDspState
@@ -141,7 +143,9 @@ internal fun EqualizerAndStudioDspSection(
                         if (!preset.isBuiltIn) {
                             IconButton(
                                 onClick = { onDeleteCustomPreset(preset.id) },
-                                modifier = Modifier.minimumInteractiveComponentSize()
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("eq_delete_preset_${preset.id}")
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.DeleteOutline,
@@ -259,6 +263,28 @@ internal fun EqualizerAndStudioDspSection(
                     onClick = onClearLoop,
                     tag = "dsp_ab_clear_button"
                 )
+            }
+
+            Spacer(modifier = Modifier.height(PhiTokens.Space8))
+            Text(
+                text = if (isPersian) {
+                    "سرعت پخش صوتی (${engine.playbackSpeed}×)"
+                } else {
+                    "Playback Speed (${engine.playbackSpeed}x)"
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
+                items(listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)) { speed ->
+                    VeloraSecondaryButton(
+                        text = "${speed}x",
+                        icon = Icons.Default.Speed,
+                        selected = engine.playbackSpeed == speed,
+                        onClick = { onSetPlaybackSpeed(speed) },
+                        tag = "dsp_speed_$speed"
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(PhiTokens.Space8))

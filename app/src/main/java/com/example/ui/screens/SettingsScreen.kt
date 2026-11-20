@@ -315,18 +315,25 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
-                if (backupJsonText.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(PhiTokens.Space8))
-                    OutlinedTextField(
-                        value = backupJsonText,
-                        onValueChange = { backupJsonText = it },
-                        label = { Text("Backup JSON Payload") },
-                        maxLines = 4,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("backup_json_input")
-                    )
-                }
+                Spacer(modifier = Modifier.height(PhiTokens.Space8))
+                OutlinedTextField(
+                    value = backupJsonText,
+                    onValueChange = { backupJsonText = it },
+                    label = { Text(if (isPersian) "محتوای JSON پشتیبان" else "Backup JSON Payload") },
+                    placeholder = {
+                        Text(
+                            if (isPersian) {
+                                "متن JSON پشتیبان را اینجا وارد یا خروجی بگیرید..."
+                            } else {
+                                "Paste backup JSON here to restore or tap Export..."
+                            }
+                        )
+                    },
+                    maxLines = 4,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("backup_json_input")
+                )
             }
         }
 

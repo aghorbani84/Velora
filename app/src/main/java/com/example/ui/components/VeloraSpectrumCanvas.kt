@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.testTag
 import com.example.domain.model.BiquadEqDsp
 import com.example.domain.model.VisualizerMode
 import com.example.ui.theme.PhiTokens
+import com.example.ui.theme.VeloraAlphaTokens
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -126,7 +127,11 @@ fun SpectrumAnalyzerCanvas(
                     val top = height - barHeight
                     drawRoundRect(
                         brush = Brush.verticalGradient(
-                            colors = listOf(tertiaryColor, primaryColor, secondaryColor.copy(alpha = 0.45f)),
+                            colors = listOf(
+                                tertiaryColor,
+                                primaryColor,
+                                secondaryColor.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA)
+                            ),
                             startY = top,
                             endY = height
                         ),

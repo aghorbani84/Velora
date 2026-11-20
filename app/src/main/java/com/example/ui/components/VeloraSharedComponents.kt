@@ -756,6 +756,7 @@ fun MiniPlayerBar(
         isPlaying = engineState.isPlaying
     ),
     onTogglePlayPause: () -> Unit,
+    onSkipPrevious: () -> Unit = {},
     onSkipNext: () -> Unit,
     onOpenPlayer: () -> Unit,
     modifier: Modifier = Modifier
@@ -831,14 +832,26 @@ fun MiniPlayerBar(
                     )
                 }
                 IconButton(
+                    onClick = onSkipPrevious,
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("mini_player_prev")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Skip Previous",
+                        tint = semantic.textPrimary
+                    )
+                }
+                IconButton(
                     onClick = onTogglePlayPause,
                     modifier = Modifier
                         .minimumInteractiveComponentSize()
                         .testTag("mini_player_play_pause")
                 ) {
                     Icon(
-                        imageVector = if (engineState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (engineState.isPlaying) "Pause" else "Play",
+                        imageVector = if (positionState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (positionState.isPlaying) "Pause" else "Play",
                         tint = semantic.accent
                     )
                 }

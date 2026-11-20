@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [2.6.0] - 2026-11-19
+
+### Added
+- **VELORA Hybrid UI (Stages 2–5):** Added Apple Music–style `HomeScreen` discovery (`Listen Now`, `Top Mixes`, `Made for You`, `Recently Played`, `Featured Radio`), consolidated `LibraryHubScreen` (`Collections/Playlists`, `Music`, `Artists`, `Radio`), glassy `MiniPlayerBar`, and 1-tap Queue & Synced Lyrics `ModalBottomSheet`s with a φ-capped artwork stage (`<= 0.618f`).
+- **Wide / Desktop Adaptive Shell (`>= 600.dp`):** Added auto-collapsing `VeloraDesktopSidebar`, `DesktopPlayerBar`, and global keyboard shortcuts (`Space`, `←/→`, `↑/↓`, `M`, `F`).
+- **Architecture & Review Docs:** Added P2b Desktop Playback Backend Open Decision (`docs/decisions/0003-desktop-playback-backend-and-hybrid-ui-review.md`, `VLCJ` candidate + pinned Compose Multiplatform `1.10.3` migration reference scripts) and hostile review ledger (`HYBRID-UI-INTEGRATION-REVIEW.md`).
+
+### Changed
+- **Design Tokens & Accessibility:** Upgraded muted text to WCAG AA `#8F8B83`, formalized R-C4 3-alpha tokens (`0.14f`, `0.45f`, `0.60f`), added `LocalVeloraColors` across all 4 `ThemePaletteMode` palettes, added tabular numerals (`tnum`), and applied `mixedScriptText()` BiDi isolation for mixed Persian/Latin strings.
+- **Navigation & Decoupling:** Enforced strict 4-tab `SIMPLE` tier (`MUSIC`, `VIDEO`, `PLAYER`, `SETTINGS`) and 5-tab `STANDARD/PRO` mobile layout (`HOME`, `SEARCH`, `LIBRARY`, `VIDEO`, `SETTINGS`), and decoupled `FirebaseUser` from `SettingsScreen` via `CloudAccountProfile`.
+- **Release Packaging:** Bumped canonical version to `2.6.0` and `versionCode` to `15` for seamless in-place updates over `2.5.3`.
+
+### Fixed
+- **Build & Test Reliability:** Upgraded KSP `2.3.5` → `2.3.6` with `-Djava.awt.headless=true` to eliminate KSP issue `#2763` (`AWT-EventQueue-0` `NullPointerException`), and isolated Robolectric Compose sandboxes / Koin teardown (`HybridUiTokensAndShortcutsTest`, `HybridUiShellRobolectricTest`, `ExampleRobolectricTest`).
+
 ## [2.3.2] - 2026-11-14
 
 ### Fixed

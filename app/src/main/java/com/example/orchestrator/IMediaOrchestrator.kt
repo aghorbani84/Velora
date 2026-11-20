@@ -128,6 +128,7 @@ interface IMediaOrchestrator {
     fun addTrackToQueue(track: Track)
     fun playNextInQueue(track: Track)
     fun removeTrackFromQueue(trackId: String)
+    fun moveQueueTrack(fromIndex: Int, toIndex: Int) {}
     fun selectQueueTrack(track: Track)
     fun toggleShuffle()
     fun cycleRepeatMode()

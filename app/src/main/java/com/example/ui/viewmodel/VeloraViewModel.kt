@@ -531,3 +531,7 @@ fun VeloraViewModel.purgeDemoSamples() {
         mediaOrchestrator.postBanner("Removed $removed studio demo sample tracks")
     }
 }
+
+fun VeloraViewModel.moveQueueTrack(fromIndex: Int, toIndex: Int) {
+    mediaOrchestrator.moveQueueTrack(fromIndex, toIndex)
+}

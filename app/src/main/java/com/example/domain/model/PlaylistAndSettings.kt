@@ -76,7 +76,6 @@ enum class TrackFilterMode(val labelEn: String, val labelFa: String) {
 }
 
 enum class ThemePaletteMode(val labelEn: String, val labelFa: String) {
-    SYSTEM_DYNAMIC("Dynamic (System M3)", "پویا بر اساس تم گوشی (M3)"),
     VELORA_SAFFRON("Velora Saffron Gold", "طلای زعفرانی ولورا (پیش‌فرض)"),
     VELORA_DAYLIGHT("Velora Daylight Ivory", "روشن روزانه (عاجی و زعفرانی)"),
     HIGH_CONTRAST_MONOCHROME("OLED High Contrast", "کنتراست بی‌نهایت اولد (سیاه و سفید خالص)")
@@ -110,8 +109,8 @@ data class AppSettings(
     val backgroundVideoAudioEnabled: Boolean = true,
     val lowBatteryModeEnabled: Boolean = false,
     val adaptiveAudioMode: AdaptiveAudioMode = AdaptiveAudioMode.ADAPTIVE_AI,
-    val dynamicColorEnabled: Boolean = true,
-    val themePaletteMode: ThemePaletteMode = ThemePaletteMode.SYSTEM_DYNAMIC,
+    val dynamicColorEnabled: Boolean = false,
+    val themePaletteMode: ThemePaletteMode = ThemePaletteMode.VELORA_SAFFRON,
     val includeDemoSamples: Boolean = false
 )
 

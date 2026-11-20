@@ -261,10 +261,10 @@ class VeloraSettingsRepository(
             adaptiveAudioMode = prefs[KEY_ADAPTIVE_AUDIO]?.let {
                 runCatching { com.example.domain.model.AdaptiveAudioMode.valueOf(it) }.getOrNull()
             } ?: com.example.domain.model.AdaptiveAudioMode.ADAPTIVE_AI,
-            dynamicColorEnabled = prefs[KEY_DYNAMIC_COLOR_ENABLED] ?: true,
+            dynamicColorEnabled = prefs[KEY_DYNAMIC_COLOR_ENABLED] ?: false,
             themePaletteMode = prefs[KEY_THEME_PALETTE_MODE]?.let {
                 runCatching { com.example.domain.model.ThemePaletteMode.valueOf(it) }.getOrNull()
-            } ?: com.example.domain.model.ThemePaletteMode.SYSTEM_DYNAMIC,
+            } ?: com.example.domain.model.ThemePaletteMode.VELORA_SAFFRON,
             includeDemoSamples = prefs[KEY_INCLUDE_DEMO_SAMPLES] ?: false
         )
     }

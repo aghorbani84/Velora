@@ -60,9 +60,9 @@ fun LibraryHubScreen(
                 eyebrow = if (isPersian) "مرکز کتابخانه یکپارچه" else "YOUR COLLECTION",
                 title = if (isPersian) "کتابخانه" else "Library",
                 subtitle = if (isPersian) {
-                    "پلی‌لیست‌ها، آهنگ‌ها، هنرمندان و رادیو زنده در یک مکان"
+                    "پلی‌لیست‌ها، آهنگ‌ها، هنرمندان، رادیو زنده و پوشه‌ها در یک مکان"
                 } else {
-                    "Playlists, music tracks, artists, and live radio in one unified hub"
+                    "Playlists, music tracks, artists, live radio, and folders in one unified hub"
                 }
             )
             LazyRow(
@@ -151,6 +151,24 @@ fun LibraryHubScreen(
                         onAddCustomStation = { name, url, genre ->
                             viewModel.addCustomRadioStation(name, url, genre)
                         }
+                    )
+                }
+                LibrarySubTab.FOLDERS -> {
+                    FoldersScreen(
+                        uiState = uiState,
+                        onPlayTrack = { track, folderPool ->
+                            viewModel.playTrack(track, folderPool)
+                            if (track.mediaType == MediaType.VIDEO) {
+                                onOpenVideoDestination()
+                            }
+                        },
+                        onPlayFolder = { folderTracks, shuffle ->
+                            viewModel.mediaOrchestrator.playTrackPool(folderTracks, shuffle)
+                        },
+                        onAddTrackToQueue = { viewModel.addTrackToQueue(it) },
+                        onAddTrackToPlaylist = { pid, tid -> viewModel.addTrackToPlaylist(pid, tid) },
+                        onToggleFavorite = { viewModel.toggleFavorite(it) },
+                        onScanLibrary = { viewModel.scanLibrary() }
                     )
                 }
             }

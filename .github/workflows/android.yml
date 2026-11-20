@@ -164,7 +164,7 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           VERSION="${VERSION#v}"
-          ./gradlew detekt lintDebug :app:testDebugUnitTest assembleDebug -Pvelora.versionName="${VERSION:-2.5.3}" --parallel
+          ./gradlew detekt lintDebug :app:testDebugUnitTest assembleDebug -Pvelora.versionName="${VERSION:-2.6.0}" --parallel
 
       - name: Assemble Release APK (real keystore only)
         if: steps.keystore.outputs.release_ready == 'true'
@@ -174,7 +174,7 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           VERSION="${VERSION#v}"
-          ./gradlew assembleRelease -Pvelora.versionName="${VERSION:-2.5.3}" --parallel
+          ./gradlew assembleRelease -Pvelora.versionName="${VERSION:-2.6.0}" --parallel
 
       - name: Verify & Package Release APK (upload keystore only)
         if: steps.keystore.outputs.release_ready == 'true'
@@ -183,7 +183,7 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           VERSION="${VERSION#v}"
-          VERSION="${VERSION:-2.5.3}"
+          VERSION="${VERSION:-2.6.0}"
           mkdir -p build-artifacts
           APK="app/build/outputs/apk/release/app-release.apk"
           if [ ! -f "$APK" ]; then
@@ -213,7 +213,7 @@ jobs:
         run: |
           VERSION=$(tr -d '[:space:]' < VERSION)
           VERSION="${VERSION#v}"
-          VERSION="${VERSION:-2.5.3}"
+          VERSION="${VERSION:-2.6.0}"
           mkdir -p build-artifacts
           cp app/build/outputs/apk/debug/app-debug.apk "build-artifacts/VELORA-v${VERSION}-debug.apk"
           cd build-artifacts

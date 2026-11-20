@@ -126,6 +126,8 @@ fun PlayerAndEqScreen(
     onStampLyricLine: (Int) -> Unit = {},
     onAddNewLyricLineAtPos: (String) -> Unit = {},
     onExportLrc: () -> String = { "" },
+    onMoveQueueItem: (Int, Int) -> Unit = { _, _ -> },
+    onSetPlaybackSpeed: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isPersian = uiState.settings.appLanguageCode == "fa"
@@ -179,7 +181,8 @@ fun PlayerAndEqScreen(
                             onSelectQueueTrack(it)
                             showQueueSheet = false
                         },
-                        onRemoveFromQueue = onRemoveFromQueue
+                        onRemoveFromQueue = onRemoveFromQueue,
+                        onMoveQueueItem = onMoveQueueItem
                     )
                 }
             }
@@ -280,7 +283,8 @@ fun PlayerAndEqScreen(
                     onSetLoopPointA = onSetLoopPointA,
                     onSetLoopPointB = onSetLoopPointB,
                     onClearLoop = onClearLoop,
-                    onSetSleepTimerMinutes = onSetSleepTimerMinutes
+                    onSetSleepTimerMinutes = onSetSleepTimerMinutes,
+                    onSetPlaybackSpeed = onSetPlaybackSpeed
                 )
             }
         } else {
@@ -329,7 +333,8 @@ fun PlayerAndEqScreen(
                     uiState = uiState,
                     isPersian = isPersian,
                     onSelectQueueTrack = onSelectQueueTrack,
-                    onRemoveFromQueue = onRemoveFromQueue
+                    onRemoveFromQueue = onRemoveFromQueue,
+                    onMoveQueueItem = onMoveQueueItem
                 )
             }
         }

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
@@ -323,6 +324,14 @@ private fun HomeQuickActionsRow(
                 tag = "home_jump_playlists_button"
             )
         }
+        item {
+            VeloraSecondaryButton(
+                text = if (isPersian) "پوشه‌ها" else "Folders",
+                icon = Icons.Default.Folder,
+                onClick = { onOpenLibrarySubTab(LibrarySubTab.FOLDERS) },
+                tag = "home_jump_folders_button"
+            )
+        }
     }
 }
 
@@ -413,7 +422,6 @@ private fun HomeRadioHighlightsShelf(
     onTuneRadio: (RadioStation) -> Unit,
     onSeeAllRadio: () -> Unit
 ) {
-    val semantic = MaterialTheme.veloraColors
     VeloraSectionCard(
         eyebrow = if (isPersian) "پخش زنده جهانی" else "LIVE STREAMING TUNER",
         title = if (isPersian) "ایستگاه‌های برگزیده" else "Featured Radio Channels",
