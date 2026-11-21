@@ -1,11 +1,14 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,10 +55,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -62,16 +72,20 @@ import com.example.domain.model.ExperienceTier
 import com.example.domain.model.PlaybackQueue
 import com.example.ui.components.DesktopPlayerBar
 import com.example.ui.components.MiniPlayerBar
+import com.example.ui.components.VeloraAnimatedReveal
 import com.example.ui.components.VeloraDesktopSidebar
 import com.example.ui.components.VeloraKeyboardShortcutAction
+import com.example.ui.components.VeloraRollingLabel
 import com.example.ui.components.veloraKeyboardShortcuts
 import com.example.ui.navigation.VeloraDestination
 import com.example.ui.navigation.VeloraNavGraph
 import com.example.ui.navigation.navigateSingleTopTo
 import com.example.ui.theme.PhiTokens
+import com.example.ui.theme.VeloraMotionTokens
 import com.example.ui.theme.VeloraTheme
 import com.example.ui.theme.veloraColors
 import com.example.ui.viewmodel.VeloraViewModel
+import com.example.ui.viewmodel.onAppBackgrounded
 import com.example.ui.viewmodel.setExperienceTier
 
 @Composable
@@ -85,6 +99,20 @@ fun VeloraShellScreen(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = VeloraDestination.fromRoute(backStackEntry?.destination?.route)
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                val isConfigChange = (context as? Activity)?.isChangingConfigurations == true
+                if (!isConfigChange) {
+                    viewModel.onAppBackgrounded()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     var selectedLibrarySubTab by rememberSaveable { mutableStateOf(LibrarySubTab.PLAYLISTS) }
     var userCollapsedSidebar by rememberSaveable { mutableStateOf<Boolean?>(null) }
@@ -233,7 +261,6 @@ fun VeloraShellScreen(
                                         engineState = uiState.engineState,
                                         positionState = positionState,
                                         onTogglePlayPause = { viewModel.togglePlayPause() },
-                                        onSkipPrevious = { viewModel.skipToPrevious() },
                                         onSkipNext = { viewModel.skipToNext() },
                                         onOpenPlayer = {
                                             navController.navigateSingleTopTo(VeloraDestination.PLAYER)
@@ -319,7 +346,7 @@ fun VeloraShellScreen(
 }
 
 @Composable
-private fun VeloraTopHeaderBar(
+internal fun VeloraTopHeaderBar(
     trackCount: Int,
     tier: ExperienceTier,
     isPersian: Boolean,
@@ -355,7 +382,7 @@ private fun VeloraTopHeaderBar(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
+                    VeloraRollingLabel(
                         text = if (isPersian) tier.labelFa else tier.labelEn,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
@@ -435,7 +462,84 @@ private fun VeloraTopHeaderBar(
             }
         }
 
-        if (!bannerMessage.isNullOrBlank()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = PhiTokens.Space21,
+                    end = PhiTokens.Space21,
+                    bottom = PhiTokens.Space8
+                )
+        ) {
+            ExperienceTier.entries.forEach { option ->
+                val isSelected = option == tier
+                val pillBg by animateColorAsState(
+                    targetValue = if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    animationSpec = tween(
+                        durationMillis = VeloraMotionTokens.FeedbackMs,
+                        easing = VeloraMotionTokens.TouchResponseEasing
+                    ),
+                    label = "tier_bg_${option.name}"
+                )
+                val pillText by animateColorAsState(
+                    targetValue = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    animationSpec = tween(
+                        durationMillis = VeloraMotionTokens.FeedbackMs,
+                        easing = VeloraMotionTokens.TouchResponseEasing
+                    ),
+                    label = "tier_fg_${option.name}"
+                )
+                Surface(
+                    color = pillBg,
+                    shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+                    modifier = Modifier
+                        .weight(1f)
+                        .minimumInteractiveComponentSize()
+                        .then(
+                            if (isSelected) {
+                                Modifier.border(
+                                    PhiTokens.BorderHairline,
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(PhiTokens.CornerRadius13)
+                                )
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .semantics { selected = isSelected }
+                        .clickable { onSelectTier(option) }
+                        .testTag("tier_selector_${option.name}")
+                ) {
+                    Text(
+                        text = compactTierLabel(option, isPersian),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = pillText,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PhiTokens.Space8, vertical = PhiTokens.Space8)
+                    )
+                }
+            }
+        }
+
+        VeloraAnimatedReveal(
+            visible = !bannerMessage.isNullOrBlank(),
+            label = "shell_status_banner_reveal"
+        ) {
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 modifier = Modifier
@@ -449,7 +553,7 @@ private fun VeloraTopHeaderBar(
                     modifier = Modifier.padding(horizontal = PhiTokens.Space21, vertical = PhiTokens.Space8)
                 ) {
                     Text(
-                        text = bannerMessage,
+                        text = bannerMessage.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f)
@@ -470,4 +574,10 @@ private fun VeloraTopHeaderBar(
             }
         }
     }
+}
+
+private fun compactTierLabel(tier: ExperienceTier, isPersian: Boolean): String = when (tier) {
+    ExperienceTier.SIMPLE -> if (isPersian) "ساده" else "Simple"
+    ExperienceTier.STANDARD -> if (isPersian) "استاندارد" else "Standard"
+    ExperienceTier.PRO -> if (isPersian) "حرفه‌ای" else "Pro"
 }

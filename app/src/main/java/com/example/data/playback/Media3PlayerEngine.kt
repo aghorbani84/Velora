@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -150,7 +151,15 @@ class Media3PlayerEngine(
 
                 override fun onTracksChanged(tracks: Tracks) {
                     val (subtitles, audios) = parseAvailableTracks(tracks)
-                    _playbackState.update { it.copy(subtitleTracks = subtitles, audioTracks = audios) }
+                    val (bitDepth, channelCount) = extractAudioSpecFromTracks(tracks, player.audioFormat)
+                    _playbackState.update {
+                        it.copy(
+                            subtitleTracks = subtitles,
+                            audioTracks = audios,
+                            audioBitDepth = bitDepth,
+                            audioChannelCount = channelCount
+                        )
+                    }
                 }
 
                 override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -243,6 +252,8 @@ class Media3PlayerEngine(
                 positionMs = clampedStart,
                 durationMs = track.durationMs.coerceAtLeast(0L),
                 status = PlaybackStatus.BUFFERING,
+                audioBitDepth = 0,
+                audioChannelCount = 0,
                 errorMessage = null
             )
         }
@@ -585,6 +596,35 @@ private fun parseAvailableTracks(tracks: Tracks): Pair<List<SubtitleTrackInfo>, 
         }
     }
     return subtitles to audios
+}
+
+@OptIn(UnstableApi::class)
+private fun extractAudioSpecFromTracks(tracks: Tracks, activeFormat: Format?): Pair<Int, Int> {
+    var selectedAudioFormat: Format? = null
+    for (group in tracks.groups) {
+        if (group.type == C.TRACK_TYPE_AUDIO) {
+            for (idx in 0 until group.length) {
+                if (group.isTrackSelected(idx)) {
+                    selectedAudioFormat = group.getTrackFormat(idx)
+                    break
+                }
+            }
+            if (selectedAudioFormat != null) break
+        }
+    }
+    val fmt = selectedAudioFormat ?: activeFormat
+    val bitDepth = pcmEncodingToBitDepth(fmt?.pcmEncoding ?: Format.NO_VALUE)
+    val channels = (fmt?.channelCount ?: Format.NO_VALUE).takeIf { it > 0 } ?: 0
+    return bitDepth to channels
+}
+
+@OptIn(UnstableApi::class)
+private fun pcmEncodingToBitDepth(pcmEncoding: Int): Int = when (pcmEncoding) {
+    C.ENCODING_PCM_8BIT -> 8
+    C.ENCODING_PCM_16BIT, C.ENCODING_PCM_16BIT_BIG_ENDIAN -> 16
+    C.ENCODING_PCM_24BIT, C.ENCODING_PCM_24BIT_BIG_ENDIAN -> 24
+    C.ENCODING_PCM_32BIT, C.ENCODING_PCM_32BIT_BIG_ENDIAN, C.ENCODING_PCM_FLOAT -> 32
+    else -> 0
 }
 
 @OptIn(UnstableApi::class)

@@ -2,9 +2,12 @@ package com.example.ui.components
 
 import android.view.LayoutInflater
 import androidx.annotation.OptIn
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -67,8 +70,10 @@ fun VeloraVideoSurface(
 }
 
 /**
- * Shared cinema gesture modifier for both inline and fullscreen video surfaces (F16).
+ * Shared cinema gesture modifier for Now Playing, inline Video, and Fullscreen Video surfaces (F16).
+ * Handles tap/double-tap seek, vertical brightness/volume swipe, and horizontal timeline drag scrub.
  */
+@Composable
 fun Modifier.veloraCinemaGestures(
     controlsLocked: Boolean,
     positionMs: Long,
@@ -82,59 +87,115 @@ fun Modifier.veloraCinemaGestures(
     onSetBrightness: (Float) -> Unit,
     onSetVolume: (Float) -> Unit,
     onHudNotice: (String) -> Unit
-): Modifier = this
-    .pointerInput(controlsLocked, positionMs, durationMs) {
-        detectTapGestures(
-            onDoubleTap = { offset ->
-                if (!controlsLocked) {
-                    onInteraction()
-                    val res = VeloraGestureEngine.resolveDoubleTapGesture(
-                        tapX = offset.x,
-                        surfaceWidth = size.width.toFloat(),
-                        currentPositionMs = positionMs,
-                        durationMs = durationMs
-                    )
-                    when (res.action) {
-                        GestureActionType.SEEK_BACKWARD,
-                        GestureActionType.SEEK_FORWARD -> {
-                            onSeekTo(res.targetPositionMs)
-                            onHudNotice(res.hudLabel)
-                        }
-                        else -> {
-                            onTogglePlayPause()
-                            onHudNotice(res.hudLabel)
+): Modifier {
+    val lockedState by rememberUpdatedState(controlsLocked)
+    val positionState by rememberUpdatedState(positionMs)
+    val durationState by rememberUpdatedState(durationMs)
+    val brightnessState by rememberUpdatedState(currentBrightness)
+    val volumeState by rememberUpdatedState(currentVolume)
+    val toggleControlsState by rememberUpdatedState(onToggleControls)
+    val interactionState by rememberUpdatedState(onInteraction)
+    val seekToState by rememberUpdatedState(onSeekTo)
+    val togglePlayPauseState by rememberUpdatedState(onTogglePlayPause)
+    val setBrightnessState by rememberUpdatedState(onSetBrightness)
+    val setVolumeState by rememberUpdatedState(onSetVolume)
+    val hudNoticeState by rememberUpdatedState(onHudNotice)
+
+    return this
+        .pointerInput(Unit) {
+            detectTapGestures(
+                onDoubleTap = { offset ->
+                    if (!lockedState) {
+                        interactionState()
+                        val res = VeloraGestureEngine.resolveDoubleTapGesture(
+                            tapX = offset.x,
+                            surfaceWidth = size.width.toFloat(),
+                            currentPositionMs = positionState,
+                            durationMs = durationState
+                        )
+                        when (res.action) {
+                            GestureActionType.SEEK_BACKWARD,
+                            GestureActionType.SEEK_FORWARD -> {
+                                seekToState(res.targetPositionMs)
+                                hudNoticeState(res.hudLabel)
+                            }
+                            else -> {
+                                togglePlayPauseState()
+                                hudNoticeState(res.hudLabel)
+                            }
                         }
                     }
+                },
+                onTap = {
+                    toggleControlsState()
+                    interactionState()
                 }
-            },
-            onTap = {
-                onToggleControls()
-                onInteraction()
-            }
-        )
-    }
-    .pointerInput(controlsLocked, currentBrightness, currentVolume) {
-        var dragStartX = 0f
-        detectVerticalDragGestures(
-            onDragStart = { offset -> dragStartX = offset.x },
-            onVerticalDrag = { change, dragAmount ->
-                if (!controlsLocked) {
-                    change.consume()
-                    val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
-                        startX = dragStartX,
-                        surfaceWidth = size.width.toFloat(),
-                        surfaceHeight = size.height.toFloat(),
-                        dragDeltaY = dragAmount,
-                        currentBrightness = currentBrightness,
-                        currentVolume = currentVolume
-                    )
-                    if (swipe.action == GestureActionType.ADJUST_BRIGHTNESS) {
-                        onSetBrightness(swipe.newValue)
-                    } else {
-                        onSetVolume(swipe.newValue)
+            )
+        }
+        .pointerInput(Unit) {
+            var dragStartX = 0f
+            detectVerticalDragGestures(
+                onDragStart = { offset -> dragStartX = offset.x },
+                onVerticalDrag = { change, dragAmount ->
+                    if (!lockedState) {
+                        change.consume()
+                        val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
+                            startX = dragStartX,
+                            surfaceWidth = size.width.toFloat(),
+                            surfaceHeight = size.height.toFloat(),
+                            dragDeltaY = dragAmount,
+                            currentBrightness = brightnessState,
+                            currentVolume = volumeState
+                        )
+                        if (swipe.action == GestureActionType.ADJUST_BRIGHTNESS) {
+                            setBrightnessState(swipe.newValue)
+                        } else {
+                            setVolumeState(swipe.newValue)
+                        }
+                        hudNoticeState(swipe.hudLabel)
                     }
-                    onHudNotice(swipe.hudLabel)
                 }
-            }
-        )
-    }
+            )
+        }
+        .pointerInput(Unit) {
+            var scrubAnchorMs = 0L
+            var totalDragX = 0f
+            var pendingTargetMs: Long? = null
+            detectHorizontalDragGestures(
+                onDragStart = {
+                    if (!lockedState) {
+                        interactionState()
+                        scrubAnchorMs = positionState
+                        totalDragX = 0f
+                        pendingTargetMs = null
+                    }
+                },
+                onHorizontalDrag = { change, dragAmount ->
+                    if (!lockedState && durationState > 0L) {
+                        change.consume()
+                        totalDragX += dragAmount
+                        val scrub = VeloraGestureEngine.resolveHorizontalScrubGesture(
+                            dragDeltaX = totalDragX,
+                            surfaceWidth = size.width.toFloat(),
+                            currentPositionMs = scrubAnchorMs,
+                            durationMs = durationState
+                        )
+                        pendingTargetMs = scrub.targetPositionMs
+                        hudNoticeState(scrub.hudLabel)
+                    }
+                },
+                onDragEnd = {
+                    val target = pendingTargetMs
+                    if (!lockedState && target != null) {
+                        seekToState(target)
+                    }
+                    totalDragX = 0f
+                    pendingTargetMs = null
+                },
+                onDragCancel = {
+                    totalDragX = 0f
+                    pendingTargetMs = null
+                }
+            )
+        }
+}

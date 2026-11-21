@@ -75,26 +75,10 @@ class Step1AuditVerificationTest {
     }
 
     @Test
-    fun `PlaybackQueue moveTrack reorders tracks while tracking currentIndex`() {
-        val t1 = sampleTrack("t1", "Alpha")
-        val t2 = sampleTrack("t2", "Beta")
-        val t3 = sampleTrack("t3", "Gamma")
-        val queue = PlaybackQueue().setQueue(listOf(t1, t2, t3), startIndex = 1)
-
-        val movedUp = queue.moveTrack(fromIndex = 1, toIndex = 0)
-        assertEquals(listOf("t2", "t1", "t3"), movedUp.tracks.map { it.id })
-        assertEquals(0, movedUp.currentIndex)
-        assertEquals("t2", movedUp.currentTrack?.id)
-
-        val movedDown = movedUp.moveTrack(fromIndex = 0, toIndex = 2)
-        assertEquals(listOf("t1", "t3", "t2"), movedDown.tracks.map { it.id })
-        assertEquals(2, movedDown.currentIndex)
-    }
-
-    @Test
-    fun `MiniPlayerBar exposes Previous button wired to onSkipPrevious`() {
+    fun `MiniPlayerBar omits mini_player_prev while keeping play_pause and next active`() {
         val track = sampleTrack("mp_1", "Obsidian Echo")
-        var previousClicked = false
+        var playPauseClicked = false
+        var nextClicked = false
 
         composeRule.setContent {
             VeloraTheme {
@@ -108,17 +92,19 @@ class Step1AuditVerificationTest {
                         durationMs = 180_000L,
                         isPlaying = true
                     ),
-                    onTogglePlayPause = {},
-                    onSkipPrevious = { previousClicked = true },
-                    onSkipNext = {},
+                    onTogglePlayPause = { playPauseClicked = true },
+                    onSkipNext = { nextClicked = true },
                     onOpenPlayer = {}
                 )
             }
         }
 
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("mini_player_prev").assertIsDisplayed().performClick()
-        assertTrue(previousClicked)
+        composeRule.onNodeWithTag("mini_player_prev").assertDoesNotExist()
+        composeRule.onNodeWithTag("mini_player_play_pause").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("mini_player_next").assertIsDisplayed().performClick()
+        assertTrue(playPauseClicked)
+        assertTrue(nextClicked)
     }
 
     @Test
@@ -196,11 +182,9 @@ class Step1AuditVerificationTest {
 
     @Test
     @Config(qualifiers = "w412dp-h1400dp")
-    fun `PlayerAndEqScreen PRO exposes dsp_speed_0_75 and queue move buttons`() {
+    fun `PlayerAndEqScreen PRO defers #77 queue reorder and #88 dsp_speed chips to next step`() {
         val t1 = sampleTrack("q1", "First Track")
         val t2 = sampleTrack("q2", "Second Track")
-        var chosenAudioSpeed = 0f
-        var movedPair: Pair<Int, Int>? = null
 
         composeRule.setContent {
             VeloraTheme {
@@ -230,9 +214,7 @@ class Step1AuditVerificationTest {
                     onDeleteCustomPreset = {},
                     onSelectQueueTrack = {},
                     onRemoveFromQueue = {},
-                    onClearError = {},
-                    onMoveQueueItem = { from, to -> movedPair = from to to },
-                    onSetPlaybackSpeed = { chosenAudioSpeed = it }
+                    onClearError = {}
                 )
             }
         }
@@ -240,21 +222,17 @@ class Step1AuditVerificationTest {
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("player_and_eq_screen")
             .performScrollToNode(hasTestTag("studio_dsp_rack_card"))
-        composeRule.onNodeWithTag("dsp_speed_0.75").performScrollTo().performClick()
-        assertEquals(0.75f, chosenAudioSpeed, 0.001f)
+        composeRule.onNodeWithTag("dsp_speed_0.75").assertDoesNotExist()
 
         composeRule.onNodeWithTag("player_and_eq_screen")
             .performScrollToNode(hasTestTag("queue_list_section"))
-        composeRule.onNodeWithTag("move_queue_down_0").performScrollTo().performClick()
-        assertEquals(0 to 1, movedPair)
+        composeRule.onNodeWithTag("move_queue_up_0").assertDoesNotExist()
+        composeRule.onNodeWithTag("move_queue_down_0").assertDoesNotExist()
+        composeRule.onNodeWithTag("remove_queue_item_0").assertIsDisplayed()
     }
 
     @Test
-    fun `SettingsScreen shows backup_json_input before export and SearchScreen categorizes results`() {
-        val audio = sampleTrack("s1", "Velora Anthem", artist = "Velora Band", mediaType = MediaType.AUDIO)
-        val video = sampleTrack("s2", "Velora Live Clip", artist = "Velora Band", mediaType = MediaType.VIDEO)
-        val playlist = Playlist(id = 42L, name = "Velora Mix", createdAtMs = 1L, tracks = listOf(audio))
-
+    fun `SettingsScreen keeps backup_json_input visible before export`() {
         composeRule.setContent {
             VeloraTheme {
                 SettingsScreen(
@@ -277,7 +255,7 @@ class Step1AuditVerificationTest {
     }
 
     @Test
-    fun `SearchScreen renders categorized sections for artists, playlists, audio, and video`() {
+    fun `SearchScreen renders flat results while deferring #106 categorized grouping to next step`() {
         val audio = sampleTrack("s1", "Velora Anthem", artist = "Velora Band", mediaType = MediaType.AUDIO)
         val video = sampleTrack("s2", "Velora Live Clip", artist = "Velora Band", mediaType = MediaType.VIDEO)
         val playlist = Playlist(id = 42L, name = "Velora Mix", createdAtMs = 1L, tracks = listOf(audio))
@@ -301,17 +279,15 @@ class Step1AuditVerificationTest {
         }
 
         composeRule.waitForIdle()
+        composeRule.onNodeWithTag("search_section_artists").assertDoesNotExist()
+        composeRule.onNodeWithTag("search_section_playlists").assertDoesNotExist()
+        composeRule.onNodeWithTag("search_section_audio").assertDoesNotExist()
+        composeRule.onNodeWithTag("search_section_video").assertDoesNotExist()
         composeRule.onNodeWithTag("search_screen")
-            .performScrollToNode(hasTestTag("search_section_artists"))
-        composeRule.onNodeWithTag("search_section_artists").assertIsDisplayed()
+            .performScrollToNode(hasTestTag("track_row_s1"))
+        composeRule.onNodeWithTag("track_row_s1").assertIsDisplayed()
         composeRule.onNodeWithTag("search_screen")
-            .performScrollToNode(hasTestTag("search_section_playlists"))
-        composeRule.onNodeWithTag("search_section_playlists").assertIsDisplayed()
-        composeRule.onNodeWithTag("search_screen")
-            .performScrollToNode(hasTestTag("search_section_audio"))
-        composeRule.onNodeWithTag("search_section_audio").assertIsDisplayed()
-        composeRule.onNodeWithTag("search_screen")
-            .performScrollToNode(hasTestTag("search_section_video"))
-        composeRule.onNodeWithTag("search_section_video").assertIsDisplayed()
+            .performScrollToNode(hasTestTag("track_row_s2"))
+        composeRule.onNodeWithTag("track_row_s2").assertIsDisplayed()
     }
 }

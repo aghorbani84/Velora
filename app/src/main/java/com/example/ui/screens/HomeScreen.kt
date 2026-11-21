@@ -26,8 +26,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
@@ -61,7 +61,6 @@ import com.example.ui.components.VeloraPrimaryButton
 import com.example.ui.components.VeloraSecondaryButton
 import com.example.ui.components.VeloraSectionCard
 import com.example.ui.theme.PhiTokens
-import com.example.ui.theme.VeloraAlphaTokens
 import com.example.ui.theme.mixedScriptText
 import com.example.ui.theme.veloraColors
 import com.example.ui.viewmodel.VeloraUiState
@@ -286,7 +285,7 @@ private fun HomeQuickActionsRow(
             item {
                 VeloraSecondaryButton(
                     text = if (isPersian) "در حال پخش" else "Now Playing",
-                    icon = Icons.Default.AutoAwesome,
+                    icon = Icons.Default.GraphicEq,
                     onClick = onOpenNowPlaying,
                     tag = "home_open_player_button"
                 )
@@ -364,10 +363,16 @@ private fun HomeSmartMixesShelf(
                     shape = RoundedCornerShape(PhiTokens.CornerRadius13),
                     modifier = Modifier
                         .width(PhiTokens.CardWidthCompact)
-                        .border(
-                            PhiTokens.BorderHairline,
-                            semantic.accent.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA),
-                            RoundedCornerShape(PhiTokens.CornerRadius13)
+                        .then(
+                            if (!semantic.isDark) {
+                                Modifier.border(
+                                    PhiTokens.BorderHairline,
+                                    semantic.divider,
+                                    RoundedCornerShape(PhiTokens.CornerRadius13)
+                                )
+                            } else {
+                                Modifier
+                            }
                         )
                         .clickable { onPlaySmartPlaylist(smart, false) }
                         .testTag("home_mix_card_$mixId")

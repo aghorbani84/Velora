@@ -71,7 +71,7 @@
     <string name="player_exact_seek_label">Exact Millisecond Seek</string>
     <string name="player_lyrics_header">Synchronized Lyrics &amp; Subtitle Studio</string>
     <string name="player_add_bookmark">Add Time-Machine Bookmark</string>
-    <string name="player_gesture_hint">Double-tap left/right to seek ±10s • Swipe vertically for Brightness &amp; Volume</string>
+    <string name="player_gesture_hint">Drag horizontally to scrub • Double-tap left/right to seek ±10s • Swipe vertically for Brightness &amp; Volume</string>
 
     <!-- Library, Music & Smart Playlists -->
     <string name="library_scan_device">Auto-Scan Device Media</string>

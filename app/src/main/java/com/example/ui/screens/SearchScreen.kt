@@ -15,11 +15,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,10 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import com.example.domain.model.ExperienceTier
-import com.example.domain.model.MediaType
-import com.example.domain.model.Playlist
 import com.example.domain.model.Track
 import com.example.ui.components.TrackRowItem
 import com.example.ui.components.VeloraEmptyState
@@ -46,7 +42,6 @@ import com.example.ui.components.VeloraPrimaryButton
 import com.example.ui.components.VeloraSecondaryButton
 import com.example.ui.components.VeloraSectionCard
 import com.example.ui.theme.PhiTokens
-import com.example.ui.theme.veloraColors
 import com.example.ui.viewmodel.FazoraUiState
 
 @Composable
@@ -59,37 +54,12 @@ fun SearchScreen(
     onToggleFavorite: (Track) -> Unit = {},
     onExecuteCopilotCommand: (String) -> Unit = {},
     onToggleOnlyValidMusic: (Boolean) -> Unit = {},
-    onPlayPlaylist: (Playlist) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isPersian = uiState.settings.appLanguageCode == "fa"
     val tier = uiState.settings.experienceTier
     var copilotInput by remember { mutableStateOf("") }
     val trimmedQuery = uiState.searchQuery.trim()
-    val audioResults = remember(uiState.searchResults) {
-        uiState.searchResults.filter { it.mediaType == MediaType.AUDIO }
-    }
-    val videoResults = remember(uiState.searchResults) {
-        uiState.searchResults.filter { it.mediaType == MediaType.VIDEO }
-    }
-    val matchingArtists = remember(trimmedQuery, uiState.artistsMap) {
-        if (trimmedQuery.isBlank()) {
-            emptyList()
-        } else {
-            uiState.artistsMap.entries.filter { (artist, _) ->
-                artist.contains(trimmedQuery, ignoreCase = true)
-            }
-        }
-    }
-    val matchingPlaylists = remember(trimmedQuery, uiState.playlists) {
-        if (trimmedQuery.isBlank()) {
-            emptyList()
-        } else {
-            uiState.playlists.filter { playlist ->
-                playlist.name.contains(trimmedQuery, ignoreCase = true)
-            }
-        }
-    }
     val semanticHighlights = remember(trimmedQuery, uiState.omniSearchMatches) {
         if (trimmedQuery.isBlank()) {
             emptyList()
@@ -97,10 +67,6 @@ fun SearchScreen(
             uiState.omniSearchMatches.take(5)
         }
     }
-    val hasAnyMatches = audioResults.isNotEmpty() ||
-        videoResults.isNotEmpty() ||
-        matchingArtists.isNotEmpty() ||
-        matchingPlaylists.isNotEmpty()
 
     LazyColumn(
         contentPadding = PaddingValues(PhiTokens.Space21),
@@ -233,7 +199,7 @@ fun SearchScreen(
                         )
                         VeloraPrimaryButton(
                             text = if (isPersian) "اجرا" else "Run",
-                            icon = Icons.Default.AutoAwesome,
+                            icon = Icons.Default.Tune,
                             onClick = {
                                 if (copilotInput.isNotBlank()) {
                                     onExecuteCopilotCommand(copilotInput.trim())
@@ -247,7 +213,7 @@ fun SearchScreen(
             }
         }
 
-        if (!hasAnyMatches) {
+        if (uiState.searchResults.isEmpty()) {
             item {
                 VeloraEmptyState(
                     icon = Icons.Default.Search,
@@ -271,56 +237,6 @@ fun SearchScreen(
                 )
             }
         } else {
-            if (matchingArtists.isNotEmpty()) {
-                item {
-                    VeloraSectionCard(
-                        eyebrow = if (isPersian) "دسته‌بندی هنرمندان" else "MATCHING ARTISTS",
-                        title = if (isPersian) {
-                            "هنرمندان (${matchingArtists.size})"
-                        } else {
-                            "Artists (${matchingArtists.size})"
-                        },
-                        modifier = Modifier.testTag("search_section_artists")
-                    ) {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                            items(matchingArtists, key = { it.key }) { (artist, tracks) ->
-                                VeloraSecondaryButton(
-                                    text = "$artist (${tracks.size})",
-                                    icon = Icons.Default.Album,
-                                    onClick = { tracks.firstOrNull()?.let(onPlayTrack) },
-                                    tag = "search_artist_chip_${artist.hashCode()}"
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (matchingPlaylists.isNotEmpty()) {
-                item {
-                    VeloraSectionCard(
-                        eyebrow = if (isPersian) "دسته‌بندی پلی‌لیست‌ها" else "MATCHING PLAYLISTS",
-                        title = if (isPersian) {
-                            "پلی‌لیست‌ها (${matchingPlaylists.size})"
-                        } else {
-                            "Playlists (${matchingPlaylists.size})"
-                        },
-                        modifier = Modifier.testTag("search_section_playlists")
-                    ) {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
-                            items(matchingPlaylists, key = { it.id }) { playlist ->
-                                VeloraSecondaryButton(
-                                    text = "${playlist.name} (${playlist.trackCount})",
-                                    icon = Icons.Default.LibraryMusic,
-                                    onClick = { onPlayPlaylist(playlist) },
-                                    tag = "search_playlist_card_${playlist.id}"
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             if (semanticHighlights.isNotEmpty()) {
                 item {
                     VeloraSectionCard(
@@ -329,15 +245,14 @@ fun SearchScreen(
                             "برگزیده‌های هوشمند (${semanticHighlights.size})"
                         } else {
                             "Smart Matches (${semanticHighlights.size})"
-                        },
-                        modifier = Modifier.testTag("search_section_lyrics")
+                        }
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(PhiTokens.Space8)) {
                             semanticHighlights.forEach { match ->
                                 val reason = if (isPersian) match.matchReasonFa else match.matchReasonEn
                                 VeloraSecondaryButton(
                                     text = "${match.track.title} • $reason",
-                                    icon = Icons.Default.AutoAwesome,
+                                    icon = Icons.Default.Subtitles,
                                     onClick = { onPlayTrack(match.track) },
                                     tag = "search_semantic_match_${match.track.id}",
                                     modifier = Modifier.fillMaxWidth()
@@ -348,58 +263,16 @@ fun SearchScreen(
                 }
             }
 
-            if (audioResults.isNotEmpty()) {
-                item {
-                    Text(
-                        text = if (isPersian) {
-                            "موسیقی و قطعات صوتی (${audioResults.size})"
-                        } else {
-                            "Audio Tracks (${audioResults.size})"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.veloraColors.accent,
-                        modifier = Modifier.testTag("search_section_audio")
-                    )
-                }
-                items(audioResults, key = { "audio_${it.id}" }) { track ->
-                    TrackRowItem(
-                        track = track,
-                        isActive = uiState.engineState.currentTrack?.id == track.id,
-                        playlists = uiState.playlists,
-                        onPlay = { onPlayTrack(track) },
-                        onAddToQueue = { onAddTrackToQueue(track) },
-                        onAddToPlaylist = { pid -> onAddTrackToPlaylist(pid, track.id) },
-                        onToggleFavorite = { onToggleFavorite(track) }
-                    )
-                }
-            }
-
-            if (videoResults.isNotEmpty()) {
-                item {
-                    Text(
-                        text = if (isPersian) {
-                            "ویدیوها (${videoResults.size})"
-                        } else {
-                            "Videos (${videoResults.size})"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.veloraColors.accentGold,
-                        modifier = Modifier.testTag("search_section_video")
-                    )
-                }
-                items(videoResults, key = { "video_${it.id}" }) { track ->
-                    TrackRowItem(
-                        track = track,
-                        isActive = uiState.engineState.currentTrack?.id == track.id,
-                        playlists = uiState.playlists,
-                        onPlay = { onPlayTrack(track) },
-                        onAddToQueue = { onAddTrackToQueue(track) },
-                        onAddToPlaylist = { pid -> onAddTrackToPlaylist(pid, track.id) },
-                        onToggleFavorite = { onToggleFavorite(track) }
-                    )
-                }
+            items(uiState.searchResults, key = { it.id }) { track ->
+                TrackRowItem(
+                    track = track,
+                    isActive = uiState.engineState.currentTrack?.id == track.id,
+                    playlists = uiState.playlists,
+                    onPlay = { onPlayTrack(track) },
+                    onAddToQueue = { onAddTrackToQueue(track) },
+                    onAddToPlaylist = { pid -> onAddTrackToPlaylist(pid, track.id) },
+                    onToggleFavorite = { onToggleFavorite(track) }
+                )
             }
         }
     }

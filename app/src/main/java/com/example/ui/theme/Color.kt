@@ -1,5 +1,6 @@
 package com.example.ui.theme
 
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -104,8 +105,23 @@ object VeloraMotionTokens {
     const val SkeletonPulseMs = 250
     const val TransitionFastMs = 150
     const val TransitionMediumMs = 250
+
+    // Stageshow choreography & two-curve motion tokens translated to Jetpack Compose
+    const val FeedbackMs = 150
+    const val ContentSwapMs = 220
+    const val StaggerStepMs = 55
+    const val SheetSettleMs = 340
     const val SheetSpringStiffness = 420f
     const val SheetSpringDamping = 0.85f
+
+    /** Departure -> clear travel -> soft arrival without bounce (Stageshow Travel curve). */
+    val TravelEasing = CubicBezierEasing(0.45f, 0f, 0.1f, 1f)
+
+    /** Arrival from nowhere / retained-frame content settle (Stageshow Arrival curve). */
+    val ArrivalEasing = CubicBezierEasing(0.25f, 0.8f, 0.25f, 1f)
+
+    /** Immediate touch-response easing for pills, tabs, and active row transitions. */
+    val TouchResponseEasing = CubicBezierEasing(0.3f, 0.75f, 0.1f, 1f)
 }
 
 @Immutable
@@ -129,7 +145,9 @@ data class VeloraColors(
     val divider: Color,
     val error: Color,
     val ok: Color,
-    val isDark: Boolean
+    val isDark: Boolean,
+    val surfaceWell: Color = bgSecondary,
+    val surfaceRaised: Color = surfaceElevated
 )
 
 val VeloraSaffronColors = VeloraColors(
@@ -152,7 +170,9 @@ val VeloraSaffronColors = VeloraColors(
     divider = VeloraDivider,
     error = FazoraCrimsonError,
     ok = FazoraEmeraldOk,
-    isDark = true
+    isDark = true,
+    surfaceWell = Color(0xFF15151B),
+    surfaceRaised = Color(0xFF24242D)
 )
 
 val VeloraDaylightColors = VeloraColors(
@@ -175,7 +195,9 @@ val VeloraDaylightColors = VeloraColors(
     divider = VeloraDaylightBorder,
     error = VeloraDaylightError,
     ok = Color(0xFF15803D),
-    isDark = false
+    isDark = false,
+    surfaceWell = Color(0xFFF2ECE1),
+    surfaceRaised = VeloraDaylightSurface
 )
 
 val VeloraHighContrastColors = VeloraColors(
@@ -198,7 +220,9 @@ val VeloraHighContrastColors = VeloraColors(
     divider = VeloraOledBorder,
     error = VeloraOledError,
     ok = Color(0xFF4ADE80),
-    isDark = true
+    isDark = true,
+    surfaceWell = VeloraOledSurface,
+    surfaceRaised = VeloraOledCard
 )
 
 /**

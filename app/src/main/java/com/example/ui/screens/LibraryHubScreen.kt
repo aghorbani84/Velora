@@ -2,7 +2,6 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import com.example.domain.model.MediaType
 import com.example.ui.components.VeloraLargeTitleHeader
+import com.example.ui.components.VeloraRetainedContentSwap
 import com.example.ui.components.VeloraSecondaryButton
 import com.example.ui.theme.PhiTokens
 import com.example.ui.theme.veloraColors
@@ -84,8 +84,12 @@ fun LibraryHubScreen(
             }
         }
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (selectedSubTab) {
+        VeloraRetainedContentSwap(
+            targetState = selectedSubTab,
+            label = "library_subtab_swap",
+            modifier = Modifier.weight(1f).fillMaxWidth()
+        ) { activeTab ->
+            when (activeTab) {
                 LibrarySubTab.PLAYLISTS -> {
                     LibraryScreen(
                         uiState = uiState,

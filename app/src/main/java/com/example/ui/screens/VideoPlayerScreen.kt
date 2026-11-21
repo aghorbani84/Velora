@@ -67,6 +67,7 @@ import com.example.domain.model.VeloraLyricsAndSubtitleEngine
 import com.example.domain.model.VideoAspectMode
 import com.example.domain.model.VideoControlGroup
 import com.example.ui.components.TrackRowItem
+import com.example.ui.components.VeloraAnimatedReveal
 import com.example.ui.components.VeloraEmptyState
 import com.example.ui.components.VeloraErrorBanner
 import com.example.ui.components.VeloraPrimaryButton
@@ -267,14 +268,19 @@ fun VideoPlayerScreen(
                     }
                 }
 
-                if (gestureHudLabel != null) {
-                    Spacer(modifier = Modifier.height(PhiTokens.Space4))
-                    Text(
-                        text = gestureHudLabel.orEmpty(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.testTag("video_gesture_hud_label")
-                    )
+                VeloraAnimatedReveal(
+                    visible = gestureHudLabel != null,
+                    label = "video_hud_reveal"
+                ) {
+                    Column {
+                        Spacer(modifier = Modifier.height(PhiTokens.Space4))
+                        Text(
+                            text = gestureHudLabel.orEmpty(),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.testTag("video_gesture_hud_label")
+                        )
+                    }
                 }
 
                 if (!controlsLocked && controlsVisible) {

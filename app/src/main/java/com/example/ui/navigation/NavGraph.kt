@@ -45,7 +45,6 @@ import com.example.ui.viewmodel.clearAbLoop
 import com.example.ui.viewmodel.executeCopilotCommand
 import com.example.ui.viewmodel.exportCurrentLyricsAsLrc
 import com.example.ui.viewmodel.exportOfflineBackupJson
-import com.example.ui.viewmodel.moveQueueTrack
 import com.example.ui.viewmodel.playSmartPlaylist
 import com.example.ui.viewmodel.purgeDemoSamples
 import com.example.ui.viewmodel.restoreOfflineBackupJson
@@ -284,8 +283,7 @@ fun VeloraNavGraph(
                 onAddTrackToPlaylist = { pid, tid -> viewModel.addTrackToPlaylist(pid, tid) },
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
                 onExecuteCopilotCommand = { cmd -> viewModel.executeCopilotCommand(cmd) },
-                onToggleOnlyValidMusic = { viewModel.setOnlyValidMusicInSearch(it) },
-                onPlayPlaylist = { viewModel.playPlaylist(it, shuffle = false) }
+                onToggleOnlyValidMusic = { viewModel.setOnlyValidMusicInSearch(it) }
             )
         }
 
@@ -329,9 +327,7 @@ fun VeloraNavGraph(
                 },
                 onStampLyricLine = { viewModel.stampLyricLineAtCurrentPosition(it) },
                 onAddNewLyricLineAtPos = { viewModel.addNewSyncedLyricLineAtCurrentPosition(it) },
-                onExportLrc = { viewModel.exportCurrentLyricsAsLrc(context.filesDir) },
-                onMoveQueueItem = { from, to -> viewModel.moveQueueTrack(from, to) },
-                onSetPlaybackSpeed = { viewModel.setPlaybackSpeed(it) }
+                onExportLrc = { viewModel.exportCurrentLyricsAsLrc(context.filesDir) }
             )
         }
 

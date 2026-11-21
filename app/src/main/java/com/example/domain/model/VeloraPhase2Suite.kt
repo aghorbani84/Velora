@@ -227,6 +227,7 @@ data class GestureSwipeResult(
 
 object VeloraGestureEngine {
     const val DEFAULT_SEEK_STEP_MS: Long = 10_000L
+    const val DEFAULT_HORIZONTAL_SCRUB_WINDOW_MS: Long = 90_000L
     const val LEFT_PHI_ZONE_RATIO: Float = 0.382f
     const val RIGHT_PHI_ZONE_RATIO: Float = 0.618f
 
@@ -270,6 +271,36 @@ object VeloraGestureEngine {
                 )
             }
         }
+    }
+
+    fun resolveHorizontalScrubGesture(
+        dragDeltaX: Float,
+        surfaceWidth: Float,
+        currentPositionMs: Long,
+        durationMs: Long,
+        fullWidthScrubWindowMs: Long = DEFAULT_HORIZONTAL_SCRUB_WINDOW_MS
+    ): GestureSeekResult {
+        val safeWidth = surfaceWidth.coerceAtLeast(1f)
+        val effectiveMax = if (durationMs > 0L) durationMs else Long.MAX_VALUE
+        val scrubWindowMs = if (durationMs > 0L) {
+            minOf(durationMs, fullWidthScrubWindowMs)
+        } else {
+            fullWidthScrubWindowMs
+        }
+        val normalizedDelta = (dragDeltaX / safeWidth).coerceIn(-1f, 1f)
+        val deltaMs = (normalizedDelta * scrubWindowMs).toLong()
+        val target = (currentPositionMs + deltaMs).coerceIn(0L, effectiveMax)
+        val actualDeltaSec = ((target - currentPositionMs) / 1000L).toInt()
+        val isBackward = actualDeltaSec < 0
+        val sign = if (actualDeltaSec >= 0) "+" else ""
+        val icon = if (isBackward) "⏪" else "⏩"
+
+        return GestureSeekResult(
+            action = if (isBackward) GestureActionType.SEEK_BACKWARD else GestureActionType.SEEK_FORWARD,
+            targetPositionMs = target,
+            deltaSeconds = actualDeltaSec,
+            hudLabel = "$icon ${Track.formatDurationMs(target)} ($sign${actualDeltaSec}s)"
+        )
     }
 
     fun resolveVerticalSwipeGesture(

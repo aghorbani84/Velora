@@ -532,6 +532,6 @@ fun VeloraViewModel.purgeDemoSamples() {
     }
 }
 
-fun VeloraViewModel.moveQueueTrack(fromIndex: Int, toIndex: Int) {
-    mediaOrchestrator.moveQueueTrack(fromIndex, toIndex)
+fun VeloraViewModel.onAppBackgrounded() {
+    mediaOrchestrator.onAppBackgrounded(uiState.value.settings.backgroundVideoAudioEnabled)
 }

@@ -65,6 +65,7 @@ import com.example.domain.model.MusicControlGroup
 import com.example.domain.model.Track
 import com.example.domain.model.VisualizerMode
 import com.example.ui.components.SpectrumAnalyzerCanvas
+import com.example.ui.components.VeloraAnimatedReveal
 import com.example.ui.components.VeloraErrorBanner
 import com.example.ui.components.VeloraPrimaryButton
 import com.example.ui.components.VeloraSecondaryButton
@@ -126,8 +127,6 @@ fun PlayerAndEqScreen(
     onStampLyricLine: (Int) -> Unit = {},
     onAddNewLyricLineAtPos: (String) -> Unit = {},
     onExportLrc: () -> String = { "" },
-    onMoveQueueItem: (Int, Int) -> Unit = { _, _ -> },
-    onSetPlaybackSpeed: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isPersian = uiState.settings.appLanguageCode == "fa"
@@ -181,8 +180,7 @@ fun PlayerAndEqScreen(
                             onSelectQueueTrack(it)
                             showQueueSheet = false
                         },
-                        onRemoveFromQueue = onRemoveFromQueue,
-                        onMoveQueueItem = onMoveQueueItem
+                        onRemoveFromQueue = onRemoveFromQueue
                     )
                 }
             }
@@ -283,8 +281,7 @@ fun PlayerAndEqScreen(
                     onSetLoopPointA = onSetLoopPointA,
                     onSetLoopPointB = onSetLoopPointB,
                     onClearLoop = onClearLoop,
-                    onSetSleepTimerMinutes = onSetSleepTimerMinutes,
-                    onSetPlaybackSpeed = onSetPlaybackSpeed
+                    onSetSleepTimerMinutes = onSetSleepTimerMinutes
                 )
             }
         } else {
@@ -333,8 +330,7 @@ fun PlayerAndEqScreen(
                     uiState = uiState,
                     isPersian = isPersian,
                     onSelectQueueTrack = onSelectQueueTrack,
-                    onRemoveFromQueue = onRemoveFromQueue,
-                    onMoveQueueItem = onMoveQueueItem
+                    onRemoveFromQueue = onRemoveFromQueue
                 )
             }
         }
@@ -465,12 +461,13 @@ private fun NowPlayingStageCard(
                             )
                             Text(
                                 text = track?.let {
-                                    "${it.formatBadge} • ${it.sampleRateHz}Hz • ${it.bitrateKbps} kbps"
+                                    mixedScriptText(engine.audioSpecSummary(it, it.formatBadge))
                                 } ?: "Ready for studio playback",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = semantic.accentGold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.testTag("now_playing_audio_spec_badge")
                             )
                         }
                     }
@@ -499,14 +496,19 @@ private fun NowPlayingStageCard(
             }
         }
 
-        if (gestureHudNotice != null) {
-            Spacer(modifier = Modifier.height(PhiTokens.Space4))
-            Text(
-                text = gestureHudNotice,
-                style = MaterialTheme.typography.labelMedium,
-                color = semantic.accent,
-                modifier = Modifier.testTag("player_gesture_hud_label")
-            )
+        VeloraAnimatedReveal(
+            visible = gestureHudNotice != null,
+            label = "now_playing_hud_reveal"
+        ) {
+            Column {
+                Spacer(modifier = Modifier.height(PhiTokens.Space4))
+                Text(
+                    text = gestureHudNotice.orEmpty(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = semantic.accent,
+                    modifier = Modifier.testTag("player_gesture_hud_label")
+                )
+            }
         }
 
         if (tier == ExperienceTier.PRO) {
@@ -529,7 +531,9 @@ private fun NowPlayingStageCard(
         VeloraSeekBar(
             positionMs = positionState.positionMs,
             durationMs = positionState.durationMs,
-            onSeekTo = onSeekTo
+            onSeekTo = onSeekTo,
+            loopStartMs = uiState.studioDspState.loopStartMs,
+            loopEndMs = uiState.studioDspState.loopEndMs
         )
 
         Spacer(modifier = Modifier.height(PhiTokens.Space8))

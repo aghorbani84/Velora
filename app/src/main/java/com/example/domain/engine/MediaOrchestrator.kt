@@ -8,6 +8,7 @@ import com.example.domain.model.DeclarativePluginManifest
 import com.example.domain.model.EqPreset
 import com.example.domain.model.EqSpecification
 import com.example.domain.model.MediaFormatDescriptor
+import com.example.domain.model.MediaType
 import com.example.domain.model.PlaybackHistoryEntry
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.Playlist
@@ -236,13 +237,6 @@ class MediaOrchestrator(
         persistQueueState(updated, playerEngine.playbackState.value.positionMs)
     }
 
-    override fun moveQueueTrack(fromIndex: Int, toIndex: Int) {
-        val updated = queueFlow.value.moveTrack(fromIndex, toIndex)
-        if (updated == queueFlow.value) return
-        queueFlow.value = updated
-        persistQueueState(updated, playerEngine.playbackState.value.positionMs)
-    }
-
     override fun selectQueueTrack(track: Track) {
         if (queueFlow.value.tracks.none { it.id == track.id }) {
             postBanner("Track '${track.title}' is not in the active queue")
@@ -271,6 +265,14 @@ class MediaOrchestrator(
 
     override fun stop() {
         playerEngine.stop()
+    }
+
+    override fun onAppBackgrounded(backgroundVideoAudioEnabled: Boolean) {
+        if (backgroundVideoAudioEnabled) return
+        val engine = playerEngine.playbackState.value
+        if (engine.isPlaying && engine.currentTrack?.mediaType == MediaType.VIDEO) {
+            pause()
+        }
     }
 
     fun stopPlayback() {

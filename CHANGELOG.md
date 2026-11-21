@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [2.6.1] - 2026-11-21
+
+### Added
+- **Folder Browsing (`LibrarySubTab.FOLDERS`):** Added a 5th `Folders` sub-tab inside `LibraryHubScreen` (`FoldersScreen` with adaptive compact/wide layout, folder Play/Shuffle actions, and `HomeScreen` quick jump) while keeping the 5-tab (`STANDARD`/`PRO`) and 4-tab (`SIMPLE`) bottom bar untouched.
+- **Horizontal Drag Timeline Scrubbing:** Added `VeloraGestureEngine.resolveHorizontalScrubGesture` and wired `detectHorizontalDragGestures` into the shared `veloraCinemaGestures` modifier across `NowPlayingScreen`, inline `VideoPlayerScreen`, and `FullscreenVideoDialog` with `rememberUpdatedState` + `controlsLocked` protection.
+- **A–B Loop Visual Seekbar Markers:** Extended `VeloraSeekBar` with optional `loopStartMs` / `loopEndMs` Saffron range markers (`seekbar_ab_markers`) and merged accessibility range badge (`seekbar_ab_loop_badge`), wired to `StudioDspState`.
+- **Real Audio Bit-Depth & Channel Display:** Extracted active ExoPlayer `pcmEncoding` bit-depth and `channelCount` (`Mono`/`Stereo`/`5.1`/`7.1`) into `EnginePlaybackState` and surfaced it in `NowPlayingScreen` (`now_playing_audio_spec_badge`) without fabricating codec data.
+- **Direct 3-Tier Header Selector:** Added direct `Simple` / `Standard` / `Pro` selector chips (`tier_selector_SIMPLE`, `tier_selector_STANDARD`, `tier_selector_PRO`) in `VeloraTopHeaderBar` alongside `shell_mode_toggle_button`.
+- **Video 0.75× Playback Speed:** Added `0.75×` playback speed chip (`video_speed_chip_0.75`) in `VideoPlayerScreen` / `VideoPlayerDialogs` (queue reordering `#77`, audio DSP speed chips `#88`, and categorized OmniSearch `#106` are explicitly deferred to the next step).
+- **Stageshow Compose/M3 Craft & Choreography:** Translated Stageshow craft principles, two-curve motion tokens (`TravelEasing`, `ArrivalEasing`, `TouchResponseEasing`), surface-step depth ladder (`surfaceWell`, `surfaceRaised`), and retained-frame choreography primitives (`VeloraChoreography.kt`: `VeloraRetainedContentSwap`, `VeloraAnimatedReveal`, `VeloraRollingLabel`) natively into Kotlin + Jetpack Compose + Material 3 (φ ≈ 1.618, zero React code); replaced generic sparkle icons with audio-studio marks, centered optical play triangles, and upgraded `VeloraLoadingSkeleton` to realistic track-row geometry.
+- **Music Album Grouping Filter:** Added horizontal album filter chips (`music_album_filter_row`, `music_album_chip_all`, `music_album_chip_*`) inside `MusicScreen` for `STANDARD`/`PRO` tiers when multiple albums exist.
+
+### Changed
+- **R-C3 Palette Retirement:** Retired `SYSTEM_DYNAMIC` from `ThemePaletteMode` and `Theme.kt`; defaulted all installations and legacy settings fallback to `VELORA_SAFFRON`.
+- **Release Packaging:** Bumped canonical version to `2.6.1` and `versionCode` to `16` for seamless in-place APK upgrades over `2.6.0`.
+
+### Fixed
+- **Background Video Audio Lifecycle Wiring:** Wired `Lifecycle.Event.ON_STOP` (excluding configuration changes) in `VeloraShellScreen` → `VeloraViewModel.onAppBackgrounded()` → `MediaOrchestrator.onAppBackgrounded()` so active `VIDEO` playback respects `backgroundVideoAudioEnabled` without interrupting background audio playback.
+- **R-C4 Alpha Compliance & Backup Restore UX:** Replaced remaining ad-hoc translucent alphas in `VeloraSpectrumCanvas` and `VideoPlayerDialogs` with `VeloraAlphaTokens`; rendered `SettingsScreen` `backup_json_input` immediately for direct paste-and-restore without requiring a prior export.
+- **Verification Coverage:** Added `Step1AuditVerificationTest`, `Step2AuditVerificationTest`, and `StageshowCraftAndPlaybackTest` (85 total unit/Robolectric tests across 11 suites: 82 passed, 3 emulator-skipped, 0 failed; 0 Detekt & Lint errors).
+
 ## [2.6.0] - 2026-11-19
 
 ### Added

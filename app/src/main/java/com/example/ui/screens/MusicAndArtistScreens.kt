@@ -66,6 +66,7 @@ fun MusicScreen(
     val tier = uiState.settings.experienceTier
     var quickFilterQuery by remember { mutableStateOf("") }
     var showOnlyHiRes by remember { mutableStateOf(false) }
+    var selectedAlbum by remember { mutableStateOf<String?>(null) }
 
     val permissionsToRequest = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -87,14 +88,23 @@ fun MusicScreen(
         uiState.audioTracks.count { it.sampleRateHz >= 48_000 }
     }
 
-    val displayedTracks = remember(uiState.audioTracks, quickFilterQuery, showOnlyHiRes) {
+    val albums = remember(uiState.audioTracks) {
+        uiState.audioTracks
+            .map { it.album.ifBlank { "Unknown Album" } }
+            .distinct()
+            .sorted()
+    }
+
+    val displayedTracks = remember(uiState.audioTracks, quickFilterQuery, showOnlyHiRes, selectedAlbum) {
         uiState.audioTracks.filter { track ->
             val matchesHiRes = !showOnlyHiRes || track.sampleRateHz >= 48_000
+            val matchesAlbum = selectedAlbum == null ||
+                track.album.ifBlank { "Unknown Album" } == selectedAlbum
             val matchesQuery = quickFilterQuery.isBlank() ||
                 track.title.contains(quickFilterQuery, ignoreCase = true) ||
                 track.artist.contains(quickFilterQuery, ignoreCase = true) ||
                 track.album.contains(quickFilterQuery, ignoreCase = true)
-            matchesHiRes && matchesQuery
+            matchesHiRes && matchesAlbum && matchesQuery
         }
     }
 
@@ -161,6 +171,35 @@ fun MusicScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    if (albums.size > 1) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("music_album_filter_row")
+                        ) {
+                            item {
+                                VeloraSecondaryButton(
+                                    text = if (isPersian) "همه آلبوم‌ها" else "All Albums",
+                                    icon = Icons.Default.Album,
+                                    selected = selectedAlbum == null,
+                                    onClick = { selectedAlbum = null },
+                                    tag = "music_album_chip_all"
+                                )
+                            }
+                            items(albums, key = { it }) { albumName ->
+                                VeloraSecondaryButton(
+                                    text = albumName,
+                                    selected = selectedAlbum == albumName,
+                                    onClick = {
+                                        selectedAlbum = if (selectedAlbum == albumName) null else albumName
+                                    },
+                                    tag = "music_album_chip_${albumName.hashCode()}"
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(PhiTokens.Space13))
+                    }
                 }
 
                 Row(

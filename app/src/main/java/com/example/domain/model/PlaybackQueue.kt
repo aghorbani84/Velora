@@ -140,31 +140,6 @@ data class PlaybackQueue(
         )
     }
 
-    fun moveTrack(fromIndex: Int, toIndex: Int, random: Random = Random.Default): PlaybackQueue {
-        if (fromIndex == toIndex) return this
-        if (fromIndex !in tracks.indices || toIndex !in tracks.indices) return this
-        val activeTrackId = currentTrack?.id
-        val updatedTracks = tracks.toMutableList().apply {
-            val moved = removeAt(fromIndex)
-            add(toIndex, moved)
-        }
-        val updatedCurrent = if (activeTrackId != null) {
-            updatedTracks.indexOfFirst { it.id == activeTrackId }.takeIf { it >= 0 } ?: currentIndex
-        } else {
-            currentIndex
-        }
-        val updatedOrder = if (mode == QueueMode.SHUFFLE) {
-            buildShuffledOrder(updatedTracks.size, updatedCurrent, random)
-        } else {
-            updatedTracks.indices.toList()
-        }
-        return copy(
-            tracks = updatedTracks,
-            currentIndex = updatedCurrent,
-            shuffledOrder = updatedOrder
-        )
-    }
-
     fun toggleShuffle(random: Random = Random.Default): PlaybackQueue {
         val nextMode = if (mode == QueueMode.NORMAL) QueueMode.SHUFFLE else QueueMode.NORMAL
         return setMode(nextMode, random)

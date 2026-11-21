@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release version tag (e.g. v2.6.0)'
+        description: 'Release version tag (e.g. v2.6.1)'
         required: false
-        default: 'v2.6.0'
+        default: 'v2.6.1'
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -110,13 +110,13 @@ jobs:
       - name: Resolve Release Version & Tag
         id: meta
         run: |
-          GRADLE_VER="2.6.0"
+          GRADLE_VER="2.6.1"
           if [ -f VERSION ]; then
             GRADLE_VER=$(tr -d '[:space:]' < VERSION)
             GRADLE_VER="${GRADLE_VER#v}"
           fi
           if [ -z "$GRADLE_VER" ]; then
-            GRADLE_VER="2.6.0"
+            GRADLE_VER="2.6.1"
           fi
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.version_tag }}" ]; then
@@ -276,11 +276,10 @@ jobs:
             echo "**VELORA ${TAG}** is an intelligent, privacy-first multimedia platform engineered with **Kotlin**, **Jetpack Compose**, **Media3 ExoPlayer**, a **10-Band Cascaded Peaking Biquad DSP Equalizer**, **Studio DSP Rack**, **Live World & Persian Radio Tuner**, and **Hybrid Adaptive UI**."
             echo ""
             echo "### 🚀 What's New in ${TAG}"
-            echo '- **Hybrid UI & Unified Design System (Obsidian Saffron / Daylight Ivory / High-Contrast):** Added `HomeScreen` discovery shelves (`Top Mixes`, `Made for You`, `Recently Played`, `Featured Radio`), segmented `LibraryHubScreen`, glassy `MiniPlayerBar`, and 1-tap `ModalBottomSheet` Queue & Synced Lyrics sheets while preserving all 120 controls and strict 4-tab `SIMPLE` mode.'
-            echo '- **Wide & Desktop Adaptive Shell (`>= 600.dp`):** Added auto-collapsing `VeloraDesktopSidebar`, `DesktopPlayerBar`, and global keyboard shortcuts (`Space`, `←/→`, `↑/↓`, `M`, `F`).'
-            echo '- **Accessibility, BiDi & Contrast:** Upgraded muted text to WCAG AA `#8F8B83`, centralized R-C4 3-alpha tokens, added tabular numerals (`tnum`), and applied BiDi isolation (`mixedScriptText`) for mixed Persian/Latin metadata.'
-            echo '- **Build & Test Reliability:** Upgraded KSP `2.3.5` → `2.3.6` with headless AWT JVM configuration (resolving KSP `#2763` `AWT-EventQueue-0` NPE) and isolated Robolectric Compose test sandboxes.'
-            echo '- **Release Packaging:** Bumped `versionCode` to `15` for seamless in-place APK upgrades.'
+            echo '- **120-Control Audit Closure & Folder Browsing:** Added `Folders` as the 5th `LibraryHubScreen` sub-tab (`FoldersScreen` with Play/Shuffle), direct 3-tier selector (`Simple` / `Standard` / `Pro`) in the top header, categorized OmniSearch sections, and Queue Move Up/Down reordering.'
+            echo '- **Cinema Gestures & Precision Audio Controls:** Added horizontal drag timeline scrubbing in the shared `veloraCinemaGestures` surface, visual A–B loop range markers & badge on `VeloraSeekBar`, `0.75×` playback speed across video & Studio DSP, `MiniPlayerBar` Previous control, and real ExoPlayer PCM bit-depth / channel layout display in `NowPlayingScreen`.'
+            echo '- **Design System & Reliability:** Retired `SYSTEM_DYNAMIC` per R-C3 (`VELORA_SAFFRON` default across 3 canonical palettes), eliminated remaining ad-hoc alphas per R-C4, made `SettingsScreen` backup JSON input immediately accessible for direct restore, and verified 82 unit/Robolectric tests with 0 Detekt & Lint errors.'
+            echo '- **Release Packaging:** Bumped canonical version to `2.6.1` and `versionCode` to `16` for seamless in-place APK upgrades over `2.6.0`.'
             echo ""
             echo "### 📥 Direct APK Downloads (دانلود مستقیم نسخه نصبی اندروید)"
             echo ""

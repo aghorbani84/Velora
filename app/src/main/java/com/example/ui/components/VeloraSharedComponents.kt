@@ -1,10 +1,13 @@
 package com.example.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -60,7 +63,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -135,22 +141,52 @@ fun VeloraSecondaryButton(
     enabled: Boolean = true,
     tag: String? = null
 ) {
+    val semantic = MaterialTheme.veloraColors
     val taggedModifier = if (tag != null) modifier.testTag(tag) else modifier
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        animationSpec = tween(
+            durationMillis = VeloraMotionTokens.FeedbackMs,
+            easing = VeloraMotionTokens.TouchResponseEasing
+        ),
+        label = "secondary_btn_bg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        animationSpec = tween(
+            durationMillis = VeloraMotionTokens.FeedbackMs,
+            easing = VeloraMotionTokens.TouchResponseEasing
+        ),
+        label = "secondary_btn_fg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = when {
+            selected -> MaterialTheme.colorScheme.primary.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA)
+            semantic.isDark -> semantic.surfaceCard
+            else -> MaterialTheme.colorScheme.outline
+        },
+        animationSpec = tween(
+            durationMillis = VeloraMotionTokens.FeedbackMs,
+            easing = VeloraMotionTokens.TouchResponseEasing
+        ),
+        label = "secondary_btn_border"
+    )
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+        border = BorderStroke(PhiTokens.BorderHairline, borderColor),
         colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-            contentColor = if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
+            containerColor = containerColor,
+            contentColor = contentColor
         ),
         contentPadding = PaddingValues(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space8),
         modifier = taggedModifier.minimumInteractiveComponentSize()
@@ -229,15 +265,24 @@ fun VeloraSectionCard(
     headerAction: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val semantic = MaterialTheme.veloraColors
+    val cardShape = RoundedCornerShape(PhiTokens.CornerRadius21)
+    val needsEdgeBorder = !semantic.isDark || semantic.accent == MaterialTheme.colorScheme.onBackground
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(PhiTokens.CornerRadius21),
+        shape = cardShape,
         modifier = modifier
             .fillMaxWidth()
-            .border(
-                width = PhiTokens.BorderHairline,
-                color = MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius21)
+            .then(
+                if (needsEdgeBorder) {
+                    Modifier.border(
+                        width = PhiTokens.BorderHairline,
+                        color = MaterialTheme.colorScheme.outline,
+                        shape = cardShape
+                    )
+                } else {
+                    Modifier
+                }
             )
     ) {
         Column(
@@ -367,14 +412,21 @@ fun VeloraLoadingSkeleton(
 ) {
     val transition = rememberInfiniteTransition(label = "velora_skeleton")
     val pulseAlpha by transition.animateFloat(
-        initialValue = if (reducedMotion) 0.60f else 0.35f,
-        targetValue = if (reducedMotion) 0.60f else 0.85f,
+        initialValue = if (reducedMotion) 0.60f else 0.38f,
+        targetValue = if (reducedMotion) 0.60f else 0.84f,
         animationSpec = infiniteRepeatable(
-            animation = tween(VeloraMotionTokens.SkeletonPulseMs),
+            animation = tween(
+                durationMillis = VeloraMotionTokens.SkeletonPulseMs,
+                easing = VeloraMotionTokens.ArrivalEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
         label = "skeleton_alpha"
     )
+    val titleFractions = remember { listOf(0.62f, 0.48f, 0.72f, 0.54f) }
+    val subtitleFractions = remember { listOf(0.42f, 0.34f, 0.50f, 0.38f) }
+    val semantic = MaterialTheme.veloraColors
+
     Column(
         verticalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
         modifier = modifier
@@ -386,15 +438,55 @@ fun VeloraLoadingSkeleton(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary
         )
-        repeat(rowCount) {
-            Box(
+        repeat(rowCount) { index ->
+            val titleWidth = titleFractions[index % titleFractions.size]
+            val subWidth = subtitleFractions[index % subtitleFractions.size]
+            Surface(
+                color = semantic.bgSecondary,
+                shape = RoundedCornerShape(PhiTokens.CornerRadius13),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(PhiTokens.Space55)
                     .alpha(pulseAlpha)
-                    .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
+                    modifier = Modifier.padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space8)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(PhiTokens.AvatarSize48)
+                            .clip(RoundedCornerShape(PhiTokens.CornerRadius8))
+                            .background(semantic.surfaceCard)
+                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(PhiTokens.Space8),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(titleWidth)
+                                .height(PhiTokens.Space13)
+                                .clip(RoundedCornerShape(PhiTokens.CornerRadius8))
+                                .background(semantic.surfaceCard)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(subWidth)
+                                .height(PhiTokens.Space8)
+                                .clip(RoundedCornerShape(PhiTokens.CornerRadius8))
+                                .background(semantic.surfaceWell)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .width(PhiTokens.Space34)
+                            .height(PhiTokens.Space13)
+                            .clip(RoundedCornerShape(PhiTokens.CornerRadius8))
+                            .background(semantic.surfaceCard)
+                    )
+                }
+            }
         }
     }
 }
@@ -455,12 +547,17 @@ fun VeloraSeekBar(
     durationMs: Long,
     onSeekTo: (Long) -> Unit,
     modifier: Modifier = Modifier,
-    sliderTestTag: String = "player_seek_slider"
+    sliderTestTag: String = "player_seek_slider",
+    loopStartMs: Long? = null,
+    loopEndMs: Long? = null
 ) {
     val safeDuration = durationMs.coerceAtLeast(1L)
     var dragFraction by remember { mutableStateOf<Float?>(null) }
     val effectiveMs = dragFraction?.let { (it * safeDuration).toLong() } ?: positionMs.coerceIn(0L, safeDuration)
     val fraction = (effectiveMs.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+    val hasLoopMarkers = durationMs > 0L && (loopStartMs != null || loopEndMs != null)
+    val loopAccent = MaterialTheme.colorScheme.primary
+    val loopTrackBg = MaterialTheme.colorScheme.surfaceVariant
 
     Column(modifier = modifier.fillMaxWidth()) {
         Slider(
@@ -480,8 +577,58 @@ fun VeloraSeekBar(
                 .fillMaxWidth()
                 .testTag(sliderTestTag)
         )
+        if (hasLoopMarkers) {
+            val startFrac = loopStartMs?.let { (it.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f) }
+            val endFrac = loopEndMs?.let { (it.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f) }
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(PhiTokens.Space8)
+                    .testTag("seekbar_ab_markers")
+            ) {
+                val centerY = size.height / 2f
+                drawLine(
+                    color = loopTrackBg,
+                    start = Offset(0f, centerY),
+                    end = Offset(size.width, centerY),
+                    strokeWidth = size.height * 0.25f,
+                    cap = StrokeCap.Round
+                )
+                if (startFrac != null && endFrac != null && endFrac > startFrac) {
+                    val startX = startFrac * size.width
+                    val endX = endFrac * size.width
+                    drawRect(
+                        color = loopAccent.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA),
+                        topLeft = Offset(startX, 0f),
+                        size = Size((endX - startX).coerceAtLeast(2f), size.height)
+                    )
+                }
+                startFrac?.let { sf ->
+                    val x = sf * size.width
+                    drawLine(
+                        color = loopAccent,
+                        start = Offset(x, 0f),
+                        end = Offset(x, size.height),
+                        strokeWidth = size.height * 0.35f,
+                        cap = StrokeCap.Round
+                    )
+                }
+                endFrac?.let { ef ->
+                    val x = ef * size.width
+                    drawLine(
+                        color = loopAccent,
+                        start = Offset(x, 0f),
+                        end = Offset(x, size.height),
+                        strokeWidth = size.height * 0.35f,
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(PhiTokens.Space4))
+        }
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
@@ -490,6 +637,27 @@ fun VeloraSeekBar(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.testTag("elapsed_time_label")
             )
+            if (hasLoopMarkers) {
+                val aLabel = loopStartMs?.let { Track.formatDurationMs(it) } ?: "--:--"
+                val bLabel = loopEndMs?.let { Track.formatDurationMs(it) } ?: "--:--"
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = RoundedCornerShape(PhiTokens.CornerRadius8),
+                    modifier = Modifier
+                        .semantics(mergeDescendants = true) {}
+                        .testTag("seekbar_ab_loop_badge")
+                ) {
+                    Text(
+                        text = mixedScriptText("A $aLabel → B $bLabel"),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(
+                            horizontal = PhiTokens.Space8,
+                            vertical = PhiTokens.Space2
+                        )
+                    )
+                }
+            }
             Text(
                 text = Track.formatDurationMs(durationMs),
                 style = MaterialTheme.typography.labelMedium,
@@ -566,7 +734,9 @@ fun VeloraTransportControls(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(PhiTokens.IconSize34)
+                    modifier = Modifier
+                        .size(PhiTokens.IconSize34)
+                        .padding(start = if (isPlaying) PhiTokens.Space2 - PhiTokens.Space2 else PhiTokens.Space2)
                 )
             }
         }
@@ -619,16 +789,53 @@ fun TrackRowItem(
     modifier: Modifier = Modifier
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val semantic = MaterialTheme.veloraColors
+    val rowBg by animateColorAsState(
+        targetValue = if (isActive) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        animationSpec = tween(
+            durationMillis = VeloraMotionTokens.FeedbackMs,
+            easing = VeloraMotionTokens.TouchResponseEasing
+        ),
+        label = "track_row_bg"
+    )
+    val titleColor by animateColorAsState(
+        targetValue = if (isActive) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        animationSpec = tween(
+            durationMillis = VeloraMotionTokens.FeedbackMs,
+            easing = VeloraMotionTokens.TouchResponseEasing
+        ),
+        label = "track_row_title"
+    )
+    val rowShape = RoundedCornerShape(PhiTokens.CornerRadius13)
+    val showBorder = isActive || !semantic.isDark
 
     Surface(
-        color = if (isActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+        color = rowBg,
+        shape = rowShape,
         modifier = modifier
             .fillMaxWidth()
-            .border(
-                width = PhiTokens.BorderHairline,
-                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius13)
+            .then(
+                if (showBorder) {
+                    Modifier.border(
+                        width = PhiTokens.BorderHairline,
+                        color = if (isActive) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA)
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        },
+                        shape = rowShape
+                    )
+                } else {
+                    Modifier
+                }
             )
             .clickable(onClick = onPlay)
             .testTag("track_row_${track.id}")
@@ -659,11 +866,14 @@ fun TrackRowItem(
 
             Spacer(modifier = Modifier.width(PhiTokens.Space13))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(PhiTokens.Space2),
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
                     text = mixedScriptText(track.title),
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -756,7 +966,6 @@ fun MiniPlayerBar(
         isPlaying = engineState.isPlaying
     ),
     onTogglePlayPause: () -> Unit,
-    onSkipPrevious: () -> Unit = {},
     onSkipNext: () -> Unit,
     onOpenPlayer: () -> Unit,
     modifier: Modifier = Modifier
@@ -770,7 +979,7 @@ fun MiniPlayerBar(
     }
 
     Surface(
-        color = semantic.surfaceElevated,
+        color = semantic.surfaceRaised,
         shadowElevation = VeloraElevation.Level3,
         shape = RoundedCornerShape(PhiTokens.CornerRadius21),
         modifier = modifier
@@ -813,13 +1022,14 @@ fun MiniPlayerBar(
                     )
                 }
                 Spacer(modifier = Modifier.width(PhiTokens.Space13))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(PhiTokens.Space2),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    VeloraRollingLabel(
                         text = mixedScriptText(track.title),
                         style = MaterialTheme.typography.titleMedium,
-                        color = semantic.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        color = semantic.textPrimary
                     )
                     Text(
                         text = mixedScriptText(
@@ -829,18 +1039,6 @@ fun MiniPlayerBar(
                         color = semantic.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
-                    )
-                }
-                IconButton(
-                    onClick = onSkipPrevious,
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .testTag("mini_player_prev")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Skip Previous",
-                        tint = semantic.textPrimary
                     )
                 }
                 IconButton(
@@ -939,19 +1137,34 @@ fun VeloraMediaShelfCard(
     modifier: Modifier = Modifier
 ) {
     val semantic = MaterialTheme.veloraColors
+    val cardColor by animateColorAsState(
+        targetValue = if (isActive) semantic.accentContainer else semantic.surfaceCard,
+        animationSpec = tween(
+            durationMillis = VeloraMotionTokens.FeedbackMs,
+            easing = VeloraMotionTokens.TouchResponseEasing
+        ),
+        label = "shelf_card_bg"
+    )
+    val cardShape = RoundedCornerShape(PhiTokens.CornerRadius13)
     Surface(
-        color = if (isActive) semantic.accentContainer else semantic.surfaceCard,
-        shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+        color = cardColor,
+        shape = cardShape,
         modifier = modifier
             .width(PhiTokens.ShelfCardWidth)
-            .border(
-                width = PhiTokens.BorderHairline,
-                color = if (isActive) {
-                    semantic.accent.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA)
+            .then(
+                if (isActive || !semantic.isDark) {
+                    Modifier.border(
+                        width = PhiTokens.BorderHairline,
+                        color = if (isActive) {
+                            semantic.accent.copy(alpha = VeloraAlphaTokens.ACCENT_BORDER_ALPHA)
+                        } else {
+                            semantic.divider
+                        },
+                        shape = cardShape
+                    )
                 } else {
-                    semantic.divider
-                },
-                shape = RoundedCornerShape(PhiTokens.CornerRadius13)
+                    Modifier
+                }
             )
             .clickable(onClick = onClick)
             .testTag("shelf_card_${track.id}")

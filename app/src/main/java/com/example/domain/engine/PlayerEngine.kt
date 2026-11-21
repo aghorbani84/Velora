@@ -4,6 +4,7 @@ import com.example.domain.model.AudioTrackInfo
 import com.example.domain.model.EqSpecification
 import com.example.domain.model.SubtitleTrackInfo
 import com.example.domain.model.Track
+import com.example.domain.model.VeloraCompatibilityMatrix
 import com.example.domain.model.VideoAspectMode
 import com.example.domain.model.VisualizerMode
 import kotlinx.coroutines.flow.StateFlow
@@ -39,12 +40,39 @@ data class EnginePlaybackState(
     val videoAspectMode: VideoAspectMode = VideoAspectMode.FIT,
     val videoWidth: Int = 0,
     val videoHeight: Int = 0,
+    val audioBitDepth: Int = 0,
+    val audioChannelCount: Int = 0,
     val engineAvailable: Boolean = false,
     val audioSessionId: Int = 0,
     val errorMessage: String? = null
 ) {
     val isPlaying: Boolean
         get() = status == PlaybackStatus.PLAYING
+
+    fun audioSpecSummary(track: Track, formatBadge: String): String {
+        val parts = mutableListOf(
+            formatBadge,
+            "${track.sampleRateHz}Hz",
+            "${track.bitrateKbps} kbps"
+        )
+        if (audioBitDepth > 0) {
+            parts.add("${audioBitDepth}-bit")
+        } else if (VeloraCompatibilityMatrix.inspectMediaFormat(track.uri, track.mediaType).isLosslessOrHiRes) {
+            parts.add("Lossless")
+        }
+        if (audioChannelCount > 0) {
+            parts.add(formatAudioChannelLabel(audioChannelCount))
+        }
+        return parts.joinToString(" • ")
+    }
+}
+
+fun formatAudioChannelLabel(channelCount: Int): String = when (channelCount) {
+    1 -> "Mono"
+    2 -> "Stereo"
+    6 -> "5.1"
+    8 -> "7.1"
+    else -> "${channelCount}ch"
 }
 
 interface PlayerEngine {
