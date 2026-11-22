@@ -430,6 +430,8 @@ class Media3PlayerEngine(
         _playbackState.update { it.copy(subtitlesEnabled = enabled) }
     }
 
+    override fun bufferedPositionMs(): Long = exoPlayerInstance?.bufferedPosition?.coerceAtLeast(0L) ?: 0L
+
     override fun selectSubtitleTrack(trackId: String?) {
         val player = exoPlayerInstance ?: return
         if (trackId == null) {

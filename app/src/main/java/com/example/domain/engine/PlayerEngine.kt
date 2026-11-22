@@ -93,6 +93,9 @@ interface PlayerEngine {
     fun setVisualizerMode(mode: VisualizerMode)
     fun setSubtitlesEnabled(enabled: Boolean)
     fun selectSubtitleTrack(trackId: String?)
+
+    /** Buffered position of the current media in ms; 0 when the engine cannot tell. */
+    fun bufferedPositionMs(): Long = 0L
     fun selectAudioTrack(trackId: String)
     fun setVideoAspectMode(mode: VideoAspectMode)
     fun clearError()

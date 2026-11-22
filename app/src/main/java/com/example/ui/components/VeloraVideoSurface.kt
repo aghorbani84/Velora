@@ -70,14 +70,6 @@ fun VeloraVideoSurface(
 }
 
 /**
- * Buffered position of the underlying player in ms (0 when unknown). Read through the
- * same platform adapter boundary as [VeloraVideoSurface], so screens never touch ExoPlayer.
- */
-@OptIn(UnstableApi::class)
-fun PlayerEngine?.bufferedPositionMs(): Long =
-    (this as? Media3PlayerEngine)?.exoPlayer?.bufferedPosition?.coerceAtLeast(0L) ?: 0L
-
-/**
  * Shared cinema gesture modifier for Now Playing, inline Video, and Fullscreen Video surfaces (F16).
  * Handles tap/double-tap seek, vertical brightness/volume swipe, and horizontal timeline drag scrub.
  */

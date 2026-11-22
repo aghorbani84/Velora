@@ -125,7 +125,6 @@ import com.example.ui.components.VeloraEmptyState
 import com.example.ui.components.VeloraPrimaryButton
 import com.example.ui.components.VeloraSecondaryButton
 import com.example.ui.components.VeloraVideoSurface
-import com.example.ui.components.bufferedPositionMs
 import com.example.ui.components.veloraCinemaGestures
 import com.example.ui.theme.PhiTokens
 import com.example.ui.viewmodel.FazoraUiState
@@ -534,10 +533,10 @@ fun VideoPlayerScreen(
     } else {
         0f
     }
-    // Buffered progress through the platform adapter; refreshes whenever the
+    // Buffered progress through the PlayerEngine port; refreshes whenever the
     // screen recomposes on position ticks, which is plenty for a buffered bar.
     val bufferedFraction = if (durationMs > 0L) {
-        (playerEngine.bufferedPositionMs().toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+        ((playerEngine?.bufferedPositionMs() ?: 0L).toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
     } else {
         0f
     }
@@ -907,7 +906,7 @@ fun VideoPlayerScreen(
 
             val showPlayCover = !isCurrentTrackVideo && activeVideo != null &&
                 !isPlaybackError && !isPlaybackEnded && !controlsLocked
-            if (showPlayCover && activeVideo != null) {
+            if (showPlayCover) {
                 Column(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
