@@ -70,6 +70,14 @@ fun VeloraVideoSurface(
 }
 
 /**
+ * Buffered position of the underlying player in ms (0 when unknown). Read through the
+ * same platform adapter boundary as [VeloraVideoSurface], so screens never touch ExoPlayer.
+ */
+@OptIn(UnstableApi::class)
+fun PlayerEngine?.bufferedPositionMs(): Long =
+    (this as? Media3PlayerEngine)?.exoPlayer?.bufferedPosition?.coerceAtLeast(0L) ?: 0L
+
+/**
  * Shared cinema gesture modifier for Now Playing, inline Video, and Fullscreen Video surfaces (F16).
  * Handles tap/double-tap seek, vertical brightness/volume swipe, and horizontal timeline drag scrub.
  */
@@ -86,7 +94,10 @@ fun Modifier.veloraCinemaGestures(
     onTogglePlayPause: () -> Unit,
     onSetBrightness: (Float) -> Unit,
     onSetVolume: (Float) -> Unit,
-    onHudNotice: (String) -> Unit
+    onHudNotice: (String) -> Unit,
+    // Off for the embedded video player: it sits in a scrollable list and vertical
+    // swipes would fight list scrolling. Fullscreen and Now Playing keep them.
+    verticalSwipesEnabled: Boolean = true
 ): Modifier {
     val lockedState by rememberUpdatedState(controlsLocked)
     val positionState by rememberUpdatedState(positionMs)
@@ -100,6 +111,7 @@ fun Modifier.veloraCinemaGestures(
     val setBrightnessState by rememberUpdatedState(onSetBrightness)
     val setVolumeState by rememberUpdatedState(onSetVolume)
     val hudNoticeState by rememberUpdatedState(onHudNotice)
+    val verticalSwipesState by rememberUpdatedState(verticalSwipesEnabled)
 
     return this
         .pointerInput(Unit) {
@@ -137,7 +149,7 @@ fun Modifier.veloraCinemaGestures(
             detectVerticalDragGestures(
                 onDragStart = { offset -> dragStartX = offset.x },
                 onVerticalDrag = { change, dragAmount ->
-                    if (!lockedState) {
+                    if (!lockedState && verticalSwipesState) {
                         change.consume()
                         val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
                             startX = dragStartX,

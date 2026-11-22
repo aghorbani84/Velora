@@ -52,6 +52,7 @@ class MediaLibraryScanner(
         val dedupById = linkedMapOf<String, Track>()
         val dedupByUri = linkedSetOf<String>()
         var scannedCounter = 0
+        var lastProgressEmitMs = 0L
 
         fun registerTrack(track: Track) {
             if (!PhiDesignMetrics.isSafeMediaFolder(track.folderPath)) return
@@ -60,7 +61,12 @@ class MediaLibraryScanner(
             dedupByUri.add(track.uri)
             dedupById[track.id] = track
             scannedCounter++
-            if (scannedCounter == 1 || scannedCounter % 8 == 0) {
+            // Throttle progress emissions: the UI state combine rebuilds on every
+            // scanProgress update, so emit the first track immediately, then at most
+            // once per throttle window, and let the final update flush exact counts.
+            val nowMs = System.currentTimeMillis()
+            if (scannedCounter == 1 || nowMs - lastProgressEmitMs >= SCAN_PROGRESS_THROTTLE_MS) {
+                lastProgressEmitMs = nowMs
                 _scanProgress.update {
                     it.copy(
                         scannedCount = scannedCounter,
@@ -116,6 +122,8 @@ class MediaLibraryScanner(
             _scanProgress.update {
                 it.copy(
                     isScanning = false,
+                    scannedCount = scannedCounter,
+                    indexedCount = dedupById.size,
                     lastScanDurationMs = elapsed,
                     errorMessage = "Scan interrupted: ${e.localizedMessage ?: "Permission denied"}"
                 )
@@ -462,6 +470,7 @@ class MediaLibraryScanner(
 
     companion object {
         private const val TAG = "MediaLibraryScanner"
+        private const val SCAN_PROGRESS_THROTTLE_MS = 200L
 
         val SUPPORTED_AUDIO_EXTENSIONS = setOf("mp3", "flac", "wav", "ogg", "m4a", "aac", "opus")
         val SUPPORTED_VIDEO_EXTENSIONS = setOf("mp4", "mkv", "webm", "mov", "3gp")
