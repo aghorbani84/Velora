@@ -55,11 +55,13 @@ internal object VeloraStageLayout {
      * height to the stage.
      */
     fun stageBlockHeightCap(maxWidth: Dp, availableHeight: Dp): Dp {
-        val artworkByWidth = maxWidth * PhiTokens.ARTWORK_STAGE_MAX_FRACTION
+        val safeHeight = availableHeight.coerceAtLeast(0.dp)
+        val spectrumHeight = minOf(PhiTokens.SpectrumHeight, safeHeight)
+        val artworkByWidth = maxWidth.coerceAtLeast(0.dp) * PhiTokens.ARTWORK_STAGE_MAX_FRACTION
         val artworkByRemainder =
-            availableHeight - CONTROLS_AREA_MIN_HEIGHT - PhiTokens.SpectrumHeight
+            safeHeight - CONTROLS_AREA_MIN_HEIGHT - spectrumHeight
         val artwork = minOf(artworkByWidth, artworkByRemainder).coerceAtLeast(0.dp)
-        return artwork + PhiTokens.SpectrumHeight
+        return artwork + spectrumHeight
     }
 
     /**
@@ -69,6 +71,6 @@ internal object VeloraStageLayout {
      * than pretending the floor was met.
      */
     fun controlsAreaHeight(maxWidth: Dp, availableHeight: Dp): Dp =
-        (availableHeight - stageBlockHeightCap(maxWidth, availableHeight))
+        (availableHeight.coerceAtLeast(0.dp) - stageBlockHeightCap(maxWidth, availableHeight))
             .coerceAtLeast(0.dp)
 }
