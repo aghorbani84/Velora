@@ -61,4 +61,22 @@ class VeloraStageLayoutTest {
         assertTrue("stage $stage exceeds the 300.dp window", stage <= 300.dp)
         assertTrue("stage $stage + controls $controls overflow the window", stage + controls <= 300.dp)
     }
+    @Test
+    fun `ultra short 100dp window clamps spectrum to available height`() {
+        val stage = VeloraStageLayout.stageBlockHeightCap(320.dp, 100.dp)
+        val controls = VeloraStageLayout.controlsAreaHeight(320.dp, 100.dp)
+
+        assertTrue("stage $stage exceeds 100.dp", stage <= 100.dp)
+        assertTrue("stage $stage + controls $controls overflow 100.dp", stage + controls <= 100.dp)
+    }
+
+    @Test
+    fun `zero height window returns zero stage and controls`() {
+        val stage = VeloraStageLayout.stageBlockHeightCap(320.dp, 0.dp)
+        val controls = VeloraStageLayout.controlsAreaHeight(320.dp, 0.dp)
+
+        assertTrue("stage must be zero, got $stage", stage == 0.dp)
+        assertTrue("controls must be zero, got $controls", controls == 0.dp)
+    }
+
 }
