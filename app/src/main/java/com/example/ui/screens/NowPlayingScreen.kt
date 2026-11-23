@@ -220,14 +220,21 @@ fun PlayerAndEqScreen(
         }
     }
 
-    LazyColumn(
-        contentPadding = PaddingValues(PhiTokens.Space21),
-        verticalArrangement = Arrangement.spacedBy(PhiTokens.Space21),
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .testTag("player_and_eq_screen")
     ) {
+        // A LazyColumn item has unbounded vertical constraints; use the screen
+        // viewport to select a compact stage before the item is measured.
+        val compactViewport = maxHeight < 600.dp
+        LazyColumn(
+            contentPadding = PaddingValues(PhiTokens.Space21),
+            verticalArrangement = Arrangement.spacedBy(PhiTokens.Space21),
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("player_and_eq_screen")
+        ) {
         engine.errorMessage?.let { msg ->
             item {
                 VeloraErrorBanner(
@@ -244,6 +251,7 @@ fun PlayerAndEqScreen(
                 positionState = positionState,
                 tier = tier,
                 isPersian = isPersian,
+                compactViewport = compactViewport,
                 gestureHudNotice = gestureHudNotice,
                 onHudNotice = { gestureHudNotice = it },
                 onTogglePlayPause = onTogglePlayPause,
@@ -334,6 +342,7 @@ fun PlayerAndEqScreen(
                 )
             }
         }
+        }
     }
 }
 
@@ -343,6 +352,7 @@ private fun NowPlayingStageCard(
     positionState: PlaybackPositionState,
     tier: ExperienceTier,
     isPersian: Boolean,
+    compactViewport: Boolean,
     gestureHudNotice: String?,
     onHudNotice: (String) -> Unit,
     onTogglePlayPause: () -> Unit,
@@ -371,6 +381,7 @@ private fun NowPlayingStageCard(
         subtitle = track?.let {
             mixedScriptText("${it.artist} • ${it.album} • ${it.formatBadge} ${it.sampleRateHz / 1000.0}kHz")
         } ?: if (isPersian) "یک آهنگ از کتابخانه انتخاب کنید" else "Select a track from your library",
+        contentPadding = if (compactViewport) PaddingValues(PhiTokens.Space13) else PaddingValues(PhiTokens.Space21),
         headerAction = if (track != null && tier != ExperienceTier.SIMPLE) {
             {
                 Row {
@@ -409,12 +420,15 @@ private fun NowPlayingStageCard(
         }
         // Apple Music cover stage capped strictly <= PhiTokens.ARTWORK_STAGE_MAX_FRACTION (0.618f) of width
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val stageHeightCap = (maxWidth * PhiTokens.ARTWORK_STAGE_MAX_FRACTION).coerceAtLeast(PhiTokens.SpectrumHeight)
+            val spectrumHeight = if (compactViewport) 72.dp else PhiTokens.SpectrumHeight
+            val artworkSize = if (compactViewport) PhiTokens.Space55 else PhiTokens.Space55 + PhiTokens.Space21
+            val stageGap = if (compactViewport) PhiTokens.Space8 else PhiTokens.Space13
+            val stageHeightCap = (maxWidth * PhiTokens.ARTWORK_STAGE_MAX_FRACTION).coerceAtLeast(spectrumHeight)
             Column(
-                verticalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
+                verticalArrangement = Arrangement.spacedBy(stageGap),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = stageHeightCap + PhiTokens.SpectrumHeight)
+                    .heightIn(max = stageHeightCap + spectrumHeight)
             ) {
                 Surface(
                     color = semantic.surfaceElevated,
@@ -430,13 +444,13 @@ private fun NowPlayingStageCard(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
-                        modifier = Modifier.padding(PhiTokens.Space13)
+                        horizontalArrangement = Arrangement.spacedBy(stageGap),
+                        modifier = Modifier.padding(if (compactViewport) PhiTokens.Space8 else PhiTokens.Space13)
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(PhiTokens.Space55 + PhiTokens.Space21)
+                                .size(artworkSize)
                                 .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
                                 .background(
                                     Brush.linearGradient(
@@ -478,6 +492,7 @@ private fun NowPlayingStageCard(
                     eqBandGainsDb = engine.eqBandGainsDb,
                     isPlaying = positionState.isPlaying,
                     visualizerMode = engine.visualizerMode,
+                    spectrumHeight = spectrumHeight,
                     modifier = Modifier.veloraCinemaGestures(
                         controlsLocked = false,
                         positionMs = positionState.positionMs,
@@ -526,7 +541,7 @@ private fun NowPlayingStageCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(PhiTokens.Space13))
+        Spacer(modifier = Modifier.height(if (compactViewport) PhiTokens.Space8 else PhiTokens.Space13))
 
         VeloraSeekBar(
             positionMs = positionState.positionMs,
@@ -536,7 +551,7 @@ private fun NowPlayingStageCard(
             loopEndMs = uiState.studioDspState.loopEndMs
         )
 
-        Spacer(modifier = Modifier.height(PhiTokens.Space8))
+        Spacer(modifier = Modifier.height(if (compactViewport) PhiTokens.Space4 else PhiTokens.Space8))
 
         VeloraTransportControls(
             isPlaying = positionState.isPlaying,
