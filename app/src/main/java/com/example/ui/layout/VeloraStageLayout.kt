@@ -15,21 +15,16 @@ import com.example.ui.theme.PhiTokens
  * > 317dp**; when the remainder is smaller than 317dp the stage shrinks below
  * > 61.8% (**never the controls**)
  *
- * Production currently enforces only the width half of that sentence:
- * `NowPlayingScreen.kt:411-416` caps the stage at
- * `maxWidth * ARTWORK_STAGE_MAX_FRACTION + SpectrumHeight`, so no height is
- * ever reserved for the controls and the stage cannot shrink when the window
- * is short. The consequence was measured, not guessed - CI run #77 of PR #4:
- * `assertIsDisplayed()` failed on `transport_play_pause_button`
- * (SimpleModeCompositionTest.kt:326) and on `transport_shuffle_button`
- * (`:371`), i.e. `VeloraSeekBar` (NowPlayingScreen.kt:524) and
- * `VeloraTransportControls` (`:532`) had been laid out below the window.
+ * A compact viewport mitigation now reduces artwork, spectrum height and card
+ * padding below 600dp, with a display-level test for a 320x470dp window. This
+ * still does not reserve the full 317dp controls + queue floor or guarantee a
+ * queue row is visible; the floor remains a specification/helper, not a fully
+ * wired production constraint. The original short-window CI failure was run #77
+ * of PR #4, where transport tags were outside the measured viewport.
  *
- * This object holds the number and the arithmetic in one place. It is not yet
- * wired into `NowPlayingStageCard`: doing so needs the available height from
- * `LocalWindowInfo` (a `BoxWithConstraints` inside a `LazyColumn` item sees
- * infinite height), and that edit ships together with a display-level
- * assertion on a small window. See issue #5.
+ * This object holds the number and arithmetic in one place. It is not wired
+ * into production layout yet; issue #5 remains open for the complete measured
+ * controls/queue reservation and one-row queue viewport.
  */
 internal object VeloraStageLayout {
 
