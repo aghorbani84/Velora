@@ -227,7 +227,7 @@ fun PlayerAndEqScreen(
     ) {
         // A LazyColumn item has unbounded vertical constraints; use the screen
         // viewport to select a compact stage before the item is measured.
-        val compactViewport = maxHeight < 600.dp
+        val compactViewport = maxHeight < PhiTokens.WideScreenBreakpoint
         LazyColumn(
             contentPadding = PaddingValues(PhiTokens.Space21),
             verticalArrangement = Arrangement.spacedBy(PhiTokens.Space21),
@@ -341,7 +341,7 @@ fun PlayerAndEqScreen(
                         onRemoveFromQueue = onRemoveFromQueue
                     )
                 }
-        }
+            }
         }
     }
 }
@@ -420,7 +420,7 @@ private fun NowPlayingStageCard(
         }
         // Apple Music cover stage capped strictly <= PhiTokens.ARTWORK_STAGE_MAX_FRACTION (0.618f) of width
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val spectrumHeight = if (compactViewport) 72.dp else PhiTokens.SpectrumHeight
+            val spectrumHeight = if (compactViewport) PhiTokens.CompactSpectrumHeight else PhiTokens.SpectrumHeight
             val artworkSize = if (compactViewport) PhiTokens.Space55 else PhiTokens.Space55 + PhiTokens.Space21
             val stageGap = if (compactViewport) PhiTokens.Space8 else PhiTokens.Space13
             val stageHeightCap = (maxWidth * PhiTokens.ARTWORK_STAGE_MAX_FRACTION).coerceAtLeast(spectrumHeight)
