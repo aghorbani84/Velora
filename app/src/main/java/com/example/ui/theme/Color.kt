@@ -255,6 +255,7 @@ object PhiTokens {
     val AvatarSize48 = 48.dp
     val HeroCrestSize = 55.dp
     val SpectrumHeight = 144.dp
+    val CompactSpectrumHeight = 72.dp
     val VideoSurfaceHeight = 233.dp
     val CardWidthCompact = 233.dp
     val ShelfCardWidth = 156.dp
