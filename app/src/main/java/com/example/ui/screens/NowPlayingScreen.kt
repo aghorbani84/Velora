@@ -235,112 +235,112 @@ fun PlayerAndEqScreen(
                 .fillMaxSize()
                 .testTag("player_and_eq_screen")
         ) {
-        engine.errorMessage?.let { msg ->
-            item {
-                VeloraErrorBanner(
-                    message = msg,
-                    actionLabel = if (isPersian) "بستن" else "Dismiss",
-                    onAction = onClearError
-                )
-            }
-        }
-
-        item {
-            NowPlayingStageCard(
-                uiState = uiState,
-                positionState = positionState,
-                tier = tier,
-                isPersian = isPersian,
-                compactViewport = compactViewport,
-                gestureHudNotice = gestureHudNotice,
-                onHudNotice = { gestureHudNotice = it },
-                onTogglePlayPause = onTogglePlayPause,
-                onStop = onStop,
-                onPrevious = onPrevious,
-                onNext = onNext,
-                onSeekTo = onSeekTo,
-                onToggleShuffle = onToggleShuffle,
-                onCycleRepeat = onCycleRepeat,
-                onVolumeChange = onVolumeChange,
-                onToggleMute = onToggleMute,
-                onSetVisualizerMode = onSetVisualizerMode,
-                onToggleFavorite = onToggleFavorite,
-                onOpenExactSeek = { showExactSeekDialog = true },
-                onOpenTagEditor = { showTagEditorDialog = true },
-                onOpenQueueSheet = { showQueueSheet = true },
-                onOpenLyricsSheet = { showLyricsSheet = true }
-            )
-        }
-
-        if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.TEN_BAND_EQ)) {
-            item {
-                EqualizerAndStudioDspSection(
-                    uiState = uiState,
-                    isPersian = isPersian,
-                    onSetEqEnabled = onSetEqEnabled,
-                    onSetEqBandGain = onSetEqBandGain,
-                    onApplyPreset = onApplyPreset,
-                    onSaveCustomPreset = onSaveCustomPreset,
-                    onDeleteCustomPreset = onDeleteCustomPreset,
-                    onSetPreampDb = onSetPreampDb,
-                    onSetBassBoost = onSetBassBoost,
-                    onSetStereoWidth = onSetStereoWidth,
-                    onSetCrossfadeSec = onSetCrossfadeSec,
-                    onSetLoopPointA = onSetLoopPointA,
-                    onSetLoopPointB = onSetLoopPointB,
-                    onClearLoop = onClearLoop,
-                    onSetSleepTimerMinutes = onSetSleepTimerMinutes
-                )
-            }
-        } else {
-            item {
-                VeloraSectionCard(
-                    eyebrow = if (isPersian) "سطح کاربری فعلی: ${tier.labelFa}" else "ACTIVE TIER: ${tier.labelEn}",
-                    title = if (isPersian) "استودیو صوتی و اکولایزر ۱۰ باندی" else "10-Band EQ & Studio DSP Rack",
-                    subtitle = if (isPersian) {
-                        "برای دسترسی به اکولایزر ۱۰ باندی Biquad، تقویت ساب‌بیس و حلقه A-B، سطح کاربری حرفه‌ای (PRO) را فعال کنید."
-                    } else {
-                        "Switch to Studio Pro tier to unlock the 10-band Biquad equalizer, sub-bass boost, and A-B loop."
-                    }
-                ) {
-                    VeloraPrimaryButton(
-                        text = if (isPersian) "ارتقا به حالت حرفه‌ای (PRO)" else "Switch to Studio Pro",
-                        icon = Icons.Default.Tune,
-                        onClick = { onSetExperienceTier(ExperienceTier.PRO) },
-                        tag = "open_studio_pro_button"
+            engine.errorMessage?.let { msg ->
+                item {
+                    VeloraErrorBanner(
+                        message = msg,
+                        actionLabel = if (isPersian) "بستن" else "Dismiss",
+                        onAction = onClearError
                     )
                 }
             }
-        }
 
-        if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.LYRICS_VIEWER)) {
             item {
-                SynchronizedLyricsAndBookmarksSection(
-                    lyrics = uiState.activeLyrics,
-                    positionMs = positionState.positionMs,
-                    lyricsOffsetMs = uiState.lyricsOffsetMs,
-                    bookmarks = uiState.timeMachineBookmarks,
+                NowPlayingStageCard(
+                    uiState = uiState,
+                    positionState = positionState,
                     tier = tier,
                     isPersian = isPersian,
-                    onAdjustOffset = onAdjustLyricsOffset,
+                    compactViewport = compactViewport,
+                    gestureHudNotice = gestureHudNotice,
+                    onHudNotice = { gestureHudNotice = it },
+                    onTogglePlayPause = onTogglePlayPause,
+                    onStop = onStop,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
                     onSeekTo = onSeekTo,
-                    onAddBookmark = onAddBookmark,
-                    onStampLyricLine = onStampLyricLine,
-                    onAddNewLyricLineAtPos = onAddNewLyricLineAtPos,
-                    onExportLrc = onExportLrc
+                    onToggleShuffle = onToggleShuffle,
+                    onCycleRepeat = onCycleRepeat,
+                    onVolumeChange = onVolumeChange,
+                    onToggleMute = onToggleMute,
+                    onSetVisualizerMode = onSetVisualizerMode,
+                    onToggleFavorite = onToggleFavorite,
+                    onOpenExactSeek = { showExactSeekDialog = true },
+                    onOpenTagEditor = { showTagEditorDialog = true },
+                    onOpenQueueSheet = { showQueueSheet = true },
+                    onOpenLyricsSheet = { showLyricsSheet = true }
                 )
             }
-        }
 
-        if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.QUEUE_AND_MODES)) {
-            item {
-                QueueSectionCard(
-                    uiState = uiState,
-                    isPersian = isPersian,
-                    onSelectQueueTrack = onSelectQueueTrack,
-                    onRemoveFromQueue = onRemoveFromQueue
-                )
+            if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.TEN_BAND_EQ)) {
+                item {
+                    EqualizerAndStudioDspSection(
+                        uiState = uiState,
+                        isPersian = isPersian,
+                        onSetEqEnabled = onSetEqEnabled,
+                        onSetEqBandGain = onSetEqBandGain,
+                        onApplyPreset = onApplyPreset,
+                        onSaveCustomPreset = onSaveCustomPreset,
+                        onDeleteCustomPreset = onDeleteCustomPreset,
+                        onSetPreampDb = onSetPreampDb,
+                        onSetBassBoost = onSetBassBoost,
+                        onSetStereoWidth = onSetStereoWidth,
+                        onSetCrossfadeSec = onSetCrossfadeSec,
+                        onSetLoopPointA = onSetLoopPointA,
+                        onSetLoopPointB = onSetLoopPointB,
+                        onClearLoop = onClearLoop,
+                        onSetSleepTimerMinutes = onSetSleepTimerMinutes
+                    )
+                }
+            } else {
+                item {
+                    VeloraSectionCard(
+                        eyebrow = if (isPersian) "سطح کاربری فعلی: ${tier.labelFa}" else "ACTIVE TIER: ${tier.labelEn}",
+                        title = if (isPersian) "استودیو صوتی و اکولایزر ۱۰ باندی" else "10-Band EQ & Studio DSP Rack",
+                        subtitle = if (isPersian) {
+                            "برای دسترسی به اکولایزر ۱۰ باندی Biquad، تقویت ساب‌بیس و حلقه A-B، سطح کاربری حرفه‌ای (PRO) را فعال کنید."
+                        } else {
+                            "Switch to Studio Pro tier to unlock the 10-band Biquad equalizer, sub-bass boost, and A-B loop."
+                        }
+                    ) {
+                        VeloraPrimaryButton(
+                            text = if (isPersian) "ارتقا به حالت حرفه‌ای (PRO)" else "Switch to Studio Pro",
+                            icon = Icons.Default.Tune,
+                            onClick = { onSetExperienceTier(ExperienceTier.PRO) },
+                            tag = "open_studio_pro_button"
+                        )
+                    }
+                }
             }
+
+            if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.LYRICS_VIEWER)) {
+                item {
+                    SynchronizedLyricsAndBookmarksSection(
+                        lyrics = uiState.activeLyrics,
+                        positionMs = positionState.positionMs,
+                        lyricsOffsetMs = uiState.lyricsOffsetMs,
+                        bookmarks = uiState.timeMachineBookmarks,
+                        tier = tier,
+                        isPersian = isPersian,
+                        onAdjustOffset = onAdjustLyricsOffset,
+                        onSeekTo = onSeekTo,
+                        onAddBookmark = onAddBookmark,
+                        onStampLyricLine = onStampLyricLine,
+                        onAddNewLyricLineAtPos = onAddNewLyricLineAtPos,
+                        onExportLrc = onExportLrc
+                    )
+                }
+            }
+
+            if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.QUEUE_AND_MODES)) {
+                item {
+                    QueueSectionCard(
+                        uiState = uiState,
+                        isPersian = isPersian,
+                        onSelectQueueTrack = onSelectQueueTrack,
+                        onRemoveFromQueue = onRemoveFromQueue
+                    )
+                }
         }
         }
     }
