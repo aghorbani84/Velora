@@ -263,6 +263,7 @@ fun VeloraSectionCard(
     subtitle: String? = null,
     modifier: Modifier = Modifier,
     headerAction: (@Composable () -> Unit)? = null,
+    contentPadding: PaddingValues = PaddingValues(PhiTokens.Space21),
     content: @Composable ColumnScope.() -> Unit
 ) {
     val semantic = MaterialTheme.veloraColors
@@ -288,7 +289,7 @@ fun VeloraSectionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(PhiTokens.Space21)
+                .padding(contentPadding)
         ) {
             if (eyebrow != null || title != null || headerAction != null) {
                 Row(
