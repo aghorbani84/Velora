@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import com.example.domain.model.BiquadEqDsp
 import com.example.domain.model.VisualizerMode
 import com.example.ui.theme.PhiTokens
@@ -42,6 +43,7 @@ fun SpectrumAnalyzerCanvas(
     eqBandGainsDb: List<Float>,
     isPlaying: Boolean,
     visualizerMode: VisualizerMode = VisualizerMode.SPECTRUM_BARS,
+    spectrumHeight: Dp = PhiTokens.SpectrumHeight,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -72,7 +74,7 @@ fun SpectrumAnalyzerCanvas(
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(PhiTokens.SpectrumHeight)
+            .height(spectrumHeight)
             .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
             .background(surfaceColor)
             .border(
