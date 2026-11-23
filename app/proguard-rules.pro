@@ -1,9 +1,16 @@
 # ==============================================================================
-# VELORA — Production R8 / ProGuard Configuration (WP-4 Release Hardening)
+# VELORA — Production R8 Full-Mode Obfuscation & Resource Shrinking Rules
 # ==============================================================================
 
--keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod,*Annotation*
+# Preserve stack-trace line numbers while stripping real source file names for security
+-keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,*Annotation*
 -renamesourcefileattribute SourceFile
+
+# Strip verbose and debug Android logs from production release DEX for security & size
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}
 
 # 1. AndroidX Media3 ExoPlayer & MediaSessionService (rely on library consumer rules + service entry point)
 -dontwarn androidx.media3.**
@@ -11,29 +18,32 @@
     public <init>();
 }
 
-# 2. AndroidX Room SQLite v3 Entities, DAOs & Database
+# 2. AndroidX Room SQLite v4 Entities, DAOs, Relations & Generated Database Impl
 -keep class * extends androidx.room.RoomDatabase { *; }
 -keep @androidx.room.Entity class * { *; }
 -keep @androidx.room.Dao class * { *; }
+-keepclassmembers class com.example.data.local.** {
+    @androidx.room.Embedded <fields>;
+    @androidx.room.Relation <fields>;
+}
 
-# 3. Koin Dependency Injection & ViewModels
+# 3. Koin Dependency Injection & Lifecycle ViewModels
 -dontwarn org.koin.**
 -keep class * extends androidx.lifecycle.ViewModel {
     <init>(...);
 }
 
 # 4. Firebase Firestore, Auth & Google Identity (Credential Manager)
+# R8 full mode strips unreferenced default constructors/getters unless explicitly kept.
 -dontwarn com.google.firebase.**
--keepclassmembers class com.example.data.firebase.CloudPlaylistDto {
+-keep @com.google.firebase.firestore.IgnoreExtraProperties class * {
     <init>(...);
     public <methods>;
     public <fields>;
 }
--keepclassmembers class com.example.data.firebase.CloudEqPresetDto {
-    <init>(...);
-    public <methods>;
-    public <fields>;
-}
+-keep class com.example.data.firebase.FirestoreUserProfile { *; }
+-keep class com.example.data.firebase.FirestoreCloudPlaylist { *; }
+-keep class com.example.data.firebase.FirestoreCloudEqPreset { *; }
 
 # 5. Jetpack DataStore Preferences & Kotlinx Coroutines
 -keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
