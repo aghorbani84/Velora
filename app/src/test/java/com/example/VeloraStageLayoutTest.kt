@@ -1,6 +1,7 @@
-package com.example.ui.layout
+package com.example
 
 import androidx.compose.ui.unit.dp
+import com.example.ui.layout.VeloraStageLayout
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
