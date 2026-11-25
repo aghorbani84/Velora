@@ -2,209 +2,96 @@
 
 <img src="docs/assets/velora-banner.svg" alt="VELORA — Beyond Playback" width="100%" />
 
-<br/>
+# VELORA
 
-[![Download Latest APK](https://img.shields.io/badge/⬇_Download_APK-VELORA_v2.6.1-6EE7FF?style=for-the-badge&logo=android&logoColor=070A12)](../../releases/latest)
-[![All Releases](https://img.shields.io/badge/Releases-Signed_APK_%26_AAB-D9BD83?style=for-the-badge&logo=github&logoColor=070A12)](../../releases)
-[![Android CI](https://img.shields.io/badge/CI-Build_%26_Detekt_Passing-2ECC71?style=for-the-badge&logo=githubactions&logoColor=070A12)](../../actions/workflows/android.yml)
-[![Release Pipeline](https://img.shields.io/badge/CD-Auto_Release_Enabled-F5C451?style=for-the-badge&logo=githubactions&logoColor=070A12)](../../actions/workflows/release.yml)
+**An offline-first Android music and video player with a 10-band equalizer, smart local library, and synced lyrics.**
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![Media3 ExoPlayer](https://img.shields.io/badge/AndroidX_Media3-1.5.1-00C853?style=flat-square&logo=android&logoColor=white)](https://developer.android.com/media/media3)
-[![Room Database](https://img.shields.io/badge/Room_SQLite-2.7.0_(v3)-6EE7FF?style=flat-square&logo=sqlite&logoColor=white)](https://developer.android.com/training/data-storage/room)
-[![Koin DI](https://img.shields.io/badge/Koin_DI-4.0.2-D9BD83?style=flat-square)](https://insert-koin.io)
-[![Detekt](https://img.shields.io/badge/Detekt-1.23.8_(0_Issues)-BDA36B?style=flat-square)](https://detekt.dev)
-[![License: MIT](https://img.shields.io/badge/License-MIT-F5F2EB?style=flat-square)](LICENSE)
-
-**An intelligent, extensible, privacy-first multimedia ecosystem engineered with a Dark Saffron & Champagne Gold identity.**  
-*پلتفرم چندرسانه‌ای هوشمند، ماژولار و حریم‌خصوصی‌محور با معماری صوتی و تصویری حرفه‌ای*
-
-[📥 **Download APK**](../../releases/latest) • [🏛️ **Architecture**](#-system-architecture--imediaorchestrator) • [🎨 **Design System**](#-dark-saffron--champagne-gold-design-system) • [🎛️ **10-Band DSP & RTA**](#-acoustic-dsp--real-time-spectrum-engine) • [🇮🇷 **راهنمای فارسی**](#-معرفی-و-راهنمای-فارسی-velora)
+[![Android CI](https://github.com/aghorbani84/Velora/actions/workflows/android.yml/badge.svg)](https://github.com/aghorbani84/Velora/actions/workflows/android.yml)
+[![Latest release](https://img.shields.io/github/v/release/aghorbani84/Velora?label=release)](https://github.com/aghorbani84/Velora/releases/latest)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)
+![Min SDK](https://img.shields.io/badge/minSdk-26-3DDC84?logo=android&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 </div>
 
----
+## Overview
 
-## 📥 Direct Download & Releases (دانلود مستقیم نسخه نصبی)
+VELORA is a native Android media player written in Kotlin with Jetpack Compose and AndroidX Media3 (ExoPlayer). It indexes the audio and video already on your device, plays them through a custom DSP pipeline, and keeps your library, playlists, and history in a local Room database. It targets Android 8.0+ (API 26) and supports English and Persian (RTL).
 
-All commits to `main`/`master` and version tags (`v*.*.*`) automatically trigger the **[VELORA Release & APK Publisher](.github/workflows/release.yml)** pipeline, publishing signed installable binaries and cryptographic checksums directly to **[GitHub Releases](../../releases/latest)**.
+## Features
 
-| Artifact File | Description | Target Architecture | Min SDK | Direct Link |
-| :--- | :--- | :--- | :--- | :--- |
-| **`VELORA-v2.6.1-release-signed.apk`** | **Recommended Production APK** (Signed & R8 Optimized) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26) | [**Download Latest Release ⬇**](../../releases/latest) |
-| **`VELORA-v2.6.1-universal-release.apk`** | Universal Signed Release Mirror | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26) | [**Download from Releases ⬇**](../../releases/latest) |
-| **`VELORA-v2.6.1-universal-debug.apk`** | Developer & Diagnostic APK (Includes TestTags & Debug Symbols) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | Android 8.0+ (API 26) | [**Download from Releases ⬇**](../../releases/latest) |
-| **`SHA256SUMS.txt`** | Cryptographic SHA-256 Checksums for Binary Verification | Plaintext Manifest | — | [**Verify Checksums 🔐**](../../releases/latest) |
+- **Audio and video playback** – Media3 ExoPlayer with a foreground `MediaSessionService` for background playback and system media controls; picture-in-picture for video
+- **10-band equalizer** – cascaded biquad peaking filters from 31.25 Hz to 16 kHz applied in the PCM pipeline, with presets, custom presets, and a live spectrum/waveform visualizer
+- **Local library** – incremental MediaStore and folder (SAF) scanning with de-duplication; audio (`mp3`, `flac`, `wav`, `ogg`, `m4a`, `aac`, `opus`) and video (`mp4`, `mkv`, `webm`, `mov`, `3gp`)
+- **Playlists and history** – Room database (schema v4 with explicit migrations) for playlists, EQ presets, and playback history
+- **Search and smart mixes** – fuzzy, typo-tolerant search and locally generated playlists (for example Most Played and Continue Listening)
+- **Lyrics and subtitles** – time-synced lyrics/subtitles with offset adjustment, RTL text support, and SRT / WebVTT export
+- **Bookmarks** – save timestamps inside tracks and videos
+- **Radio** – curated and custom internet radio stations
+- **Stream URL validation** – scheme allowlisting and manifest checks for HTTPS, HLS (`.m3u8`), and DASH (`.mpd`) links
+- **Optional cloud playlists** – Google sign-in with Firebase Auth and Firestore playlist sync; the player works fully without it
+- **Resilient settings** – Jetpack DataStore with corruption recovery that keeps a backup of the damaged file
 
-### Verifying Downloaded Binaries
+## Download
+
+Signed APKs and SHA-256 checksums are published on the [Releases page](https://github.com/aghorbani84/Velora/releases/latest). Verify a download with:
+
 ```bash
-# Verify APK authenticity against the published SHA-256 manifest
 sha256sum -c SHA256SUMS.txt
 ```
 
-> **One-Click Manual Release:** Maintainers can also trigger a custom versioned release at any time from **[Actions → VELORA Release & APK Publisher → Run workflow](../../actions/workflows/release.yml)** or by pushing a tag:
-> ```bash
-> git tag -a v2.6.1 -m "VELORA v2.6.1 — Beyond Playback"
-> git push origin v2.6.1
-> ```
+## Tech stack
 
----
+| Area | Tools |
+| --- | --- |
+| Language | Kotlin 2.2, Coroutines (`StateFlow` / `SharedFlow`) |
+| UI | Jetpack Compose, Material 3, Navigation Compose, Coil |
+| Playback | AndroidX Media3 1.5 (ExoPlayer, Session, UI) |
+| Persistence | Room 2.7 (KSP), DataStore Preferences |
+| Dependency injection | Koin 4 |
+| Cloud (optional) | Firebase Auth, Cloud Firestore, Credential Manager |
+| Quality | Detekt, Android Lint, JUnit, Robolectric |
+| CI/CD | GitHub Actions (CI on pushes and PRs; release builds on `v*.*.*` tags) |
 
-## 🏛️ System Architecture & `IMediaOrchestrator`
+## Getting started
 
-VELORA is architected around explicit domain boundaries (`ui` $\rightarrow$ `orchestrator` $\rightarrow$ `domain` $\rightarrow$ `data`) wired via **Koin 4.0.2** dependency injection and reactive **Kotlin Coroutines (`StateFlow` / `SharedFlow`)**.
-
-<div align="center">
-  <img src="docs/assets/velora-architecture.svg" alt="VELORA Layered Multimedia Architecture" width="100%" />
-</div>
-
-### Central Coordination Contract (`com.example.orchestrator.IMediaOrchestrator`)
-
-Every playback transition, queue mutation, Room history write, and DataStore session checkpoint flows through `IMediaOrchestrator` implemented by `MediaOrchestrator`:
-
-```kotlin
-package com.example.orchestrator
-
-interface IMediaOrchestrator {
-    val playbackState: StateFlow<PlaybackState>
-    val orchestratorState: StateFlow<MediaOrchestratorState>
-    val events: SharedFlow<VeloraMediaEvent>
-
-    fun play(mediaItem: Track, queueContext: List<Track> = emptyList(), startPositionMs: Long = 0L)
-    fun playUri(rawUri: String, title: String = "External Media", startPositionMs: Long = 0L)
-    fun resume()
-    fun pause()
-    fun togglePlayPause(fallbackTracks: List<Track> = emptyList())
-    fun skipToNext()
-    fun skipToPrevious()
-    fun stop()
-    fun seekTo(position: Long)
-}
-```
-
-### Core Subsystems
-
-| Subsystem | Implementation Class | Responsibility |
-| :--- | :--- | :--- |
-| **Media Orchestrator** | `MediaOrchestrator` (`IMediaOrchestrator`) | Central state machine coordinating `PlayerEngine`, Room history, DataStore session persistence, queue management, and domain events. |
-| **Audio & Video Playback** | `Media3PlayerEngine` + `VeloraPlaybackService` | AndroidX Media3 ExoPlayer & foreground `MediaSessionService` with bilateral seek clamping (`[0, durationMs]`), audio focus, and explicit error surfacing. |
-| **10-Band DSP & RTA** | `TenBandBiquadAudioProcessor` | Real-time 10-band cascaded Direct Form II Transposed RBJ peaking biquad filter (`31.25 Hz`–`16 kHz`) + Goertzel RTA spectrum + 64-point oscilloscope waveform. |
-| **Offline Library & History** | `VeloraLibraryRepository` (`VeloraDatabase` v4) | Incremental `MediaStore` + SAF folder indexing, deduplication by `uri` & `id`, explicit Room migrations (`1→4`), custom EQ presets, playlists, and offline playback history. |
-| **Atomic Settings Store** | `VeloraSettingsRepository` | Jetpack DataStore Preferences with `ReplaceFileCorruptionHandler` creating timestamped `.corrupt.<timestamp>.bak` forensic backups before safe recovery. |
-| **OmniSearch Engine** | `VeloraOmniSearchEngine` | Prefix, substring, Levenshtein typo-tolerant fuzzy matching, and semantic intent queries (`favorite`, `unfinished`, `hi-res`, `night`). |
-| **Smart Playlist Engine** | `VeloraSmartPlaylistEngine` | Deterministic, explainable local recommendation mixes (*Daily Saffron Mix*, *Most Played*, *Continue Listening*, *Hidden Gems & Hi-Res*, *Favorite Collection*). |
-| **Lyrics & Subtitle Studio** | `VeloraLyricsAndSubtitleEngine` + `VeloraSubtitleExporter` | Time-synchronized lyrics & subtitles with `±250ms` offset calibration, RTL/Unicode support (Persian, Arabic, Japanese, English), and `SRT` / `WebVTT` export. |
-| **Media Copilot & Graph** | `VeloraMediaCopilot` + `VeloraPersonalMediaGraph` | Natural-language deterministic command router and artist/album/format relationship graph. |
-| **Secure Stream Validation** | `VeloraDownloadValidator` + `PhiDesignMetrics` | Secure Stream Validation (`HTTPS`/`HLS`/`DASH` URL sanitization) and authorized magnet verification with strict local path-traversal guards. |
-| **Sandboxed Plugin Engine** | `VeloraPluginRegistry` | Capability-based Tier 1 declarative plugin lifecycle with strict permission boundaries. |
-
----
-
-## 🎨 Dark Saffron & Champagne Gold Design System
-
-VELORA rejects generic neon templates in favor of a calm, atmospheric **Dark Saffron & Champagne Gold** palette engineered to exceed **WCAG 2.1 AA** contrast standards and **Golden Ratio ($\varphi = 1.61803398875$)** spatial proportions.
-
-| Token Name | Hex Code | Role | WCAG 2.1 Contrast vs Obsidian (`#070A12`) |
-| :--- | :--- | :--- | :--- |
-| `VeloraObsidian` | `#070A12` | Primary Canvas Background | — (Base Surface) |
-| `VeloraSecondaryBg` | `#121216` | Secondary Structural Surface | — |
-| `VeloraElevated` | `#19191F` | Elevated Navigation & Sheet Surface | — |
-| `VeloraCard` | `#202027` | Media Card & Control Container | — |
-| `VeloraPrimarySaffron` | `#6EE7FF` | Primary Brand Accent & Active Indicator | **9.84 : 1** (`AAA` / `AA` PASS) |
-| `VeloraDeepSaffron` | `#C88712` | Pressed / Secondary Accent Tone | **7.12 : 1** (`AAA` / `AA` PASS) |
-| `VeloraBrightSaffron` | `#F5C451` | Active Waveform & Peak Highlight | **12.65 : 1** (`AAA` PASS) |
-| `VeloraChampagneGold` | `#D9BD83` | Hi-Res Badge & Editorial Highlight | **11.10 : 1** (`AAA` PASS) |
-| `VeloraSoftGold` | `#BDA36B` | Secondary Metadata Accent | **8.31 : 1** (`AAA` / `AA` PASS) |
-| `VeloraPrimaryText` | `#F5F2EB` | Primary Typography (Ivory) | **17.41 : 1** (`AAA` PASS) |
-| `VeloraSecondaryText` | `#A5A29B` | Secondary Subtitles & Labels | **7.89 : 1** (`AAA` / `AA` PASS) |
-| `VeloraMutedText` | `#77746E` | Muted Timestamps & Captions | **4.52 : 1** (`AA` PASS) |
-| `VeloraDivider` | `#2A2927` | 1dp Subtle Hairline Borders | — |
-
-- **Fibonacci Spacing Grid:** `8.dp`, `13.dp`, `21.dp`, `34.dp`, `55.dp` (`0.0%` departure across layout tokens; $\ge 48\text{dp}$ minimum touch targets on all interactive controls).
-- **Canonical Adaptive Split:** `61.8%` (`0.618f`) primary stage / `38.2%` (`0.382f`) supporting intelligence & queue pane on expanded/tablet screens.
-- **Full RTL & Bilingual Support:** Complete English (`values/strings.xml`) and Persian (`values-fa/strings.xml`) localization with automatic layout mirroring.
-
----
-
-## 🎛️ Acoustic DSP & Real-Time Spectrum Engine
-
-`TenBandBiquadAudioProcessor` implements `androidx.media3.common.audio.AudioProcessor` directly in the PCM pipeline:
-
-1. **10-Band Cascaded Direct Form II Transposed Peaking Biquad Equalizer:**
-   - ISO Center Frequencies: `31.25 Hz`, `62.5 Hz`, `125 Hz`, `250 Hz`, `500 Hz`, `1 kHz`, `2 kHz`, `4 kHz`, `8 kHz`, `16 kHz` ($Q = \sqrt{2} \approx 1.4142$, gain range `[-12.0 dB, +12.0 dB]`).
-   - Difference equation per stage with state variables $(z_1, z_2)$:
-     $$y[n] = b_0 x[n] + z_1[n-1], \quad z_1[n] = b_1 x[n] - a_1 y[n] + z_2[n-1], \quad z_2[n] = b_2 x[n] - a_2 y[n]$$
-   - **Zero Algorithmic Lookahead:** Adds `0` lookahead frames; buffer latency is strictly $L = N_{\text{frames}} / f_s$ (`10.67 ms` at `48 kHz`).
-2. **Real-Time Goertzel 10-Band RTA & 64-Point Time-Domain Waveform:**
-   - Computes narrowband energy at all 10 ISO frequencies using a precomputed 512-sample Hann window alongside a normalized 64-sample oscilloscope waveform throttled to 20 Hz (`50 ms`, or `200 ms` in Battery Saver mode) for the Compose canvas visualizer.
-
----
-
-## 📱 Android Architecture & Format Compatibility
-
-VELORA is currently a dedicated **Android-only (`Media3 ExoPlayer` + `Jetpack Compose`)** application (`:app` module, `minSdk 26`, `targetSdk 36`). All UI screens (`app/src/main/java/com/example/ui/screens/`), navigation (`NavGraph.kt`), and state holders (`VeloraViewModel` + `MediaOrchestrator`) are strictly separated following Clean Architecture principles.
-
-### Android Subsystem Verification Matrix (`VeloraPlatformMatrix`)
-
-| Android Subsystem | Implementation | Verification Scope |
-| :--- | :--- | :--- |
-| **Playback Engine (`API 26–36`)** | AndroidX Media3 ExoPlayer + `VeloraPlaybackService` (`MediaSessionService`) | Hardware & software decoding, background session controls, PiP, bilateral seek clamping |
-| **10-Band DSP & RTA** | `TenBandBiquadAudioProcessor` + Hardware 5-Band Millibel Sync | Cascaded RBJ biquad IIR filtering + Goertzel 10-band RTA & 64-point oscilloscope |
-| **Offline Database & Settings** | Room SQLite v4 (`VeloraDatabase`) + Jetpack DataStore (`VeloraSettingsRepository`) | Incremental `MediaStore`/SAF indexing, explicit migrations (`1→4`), playlists, playback history, `.corrupt.<timestamp>.bak` recovery |
-| **Secure Stream Validation** | `VeloraDownloadValidator` (`HTTPS` / `HLS .m3u8` / `DASH .mpd` URL sanitization) | Scheme allowlisting, private/loopback/IPv6-mapped host rejection, and path-traversal sanitization |
-| **Sandboxed Plugins** | `VeloraPluginRegistry` (Tier 1 Declarative Registry) | Compliant with Google Play no-dynamic-code-loading (no `.dex`/`.jar`/`.so` loading) |
-
-### Supported Media Formats (`VeloraCompatibilityMatrix`)
-
-- **Lossless & Studio Audio:** `FLAC`, `WAV` (PCM 16/24/32-bit float), `ALAC`, `AIFF`
-- **Compressed Audio:** `MP3`, `AAC` (`.m4a`), `OGG Vorbis`, `Opus`
-- **Video Containers:** `MP4`, `MKV` (Matroska), `WebM`, `MOV`
-- **Adaptive Network Streams:** `HLS` (`.m3u8`), `MPEG-DASH` (`.mpd`), Progressive `HTTPS`
-
----
-
-## 🛠️ Build, Static Analysis & Test Commands
+Requirements: JDK 21 (as used in CI) and the Android SDK (compile SDK 36).
 
 ```bash
-# 1. Run Detekt static code analysis & Android Lint
-./gradlew detekt lintDebug
+git clone https://github.com/aghorbani84/Velora.git
+cd Velora
 
-# 2. Run full Unit + Robolectric Suite (DSP math, Queue invariants, OmniSearch, Security, Room v4 migrations, DataStore recovery, IMediaOrchestrator)
-./gradlew :app:testDebugUnitTest
-
-# 4. Assemble Debug & Release APKs
-./gradlew assembleDebug assembleRelease
+./gradlew assembleDebug              # build a debug APK
+./gradlew :app:testDebugUnitTest     # unit + Robolectric tests
+./gradlew detekt lintDebug           # static analysis
 ```
 
----
+Firebase sign-in and cloud playlists are optional: the app initializes them only when a Firebase configuration is present and otherwise runs fully offline. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for project conventions.
 
-<div dir="rtl" align="right">
+## Architecture
 
-## 🇮🇷 معرفی و راهنمای فارسی VELORA
+The app follows a layered structure (`ui → orchestrator → domain → data`) wired with Koin. Every playback action, queue change, history write, and session checkpoint goes through a single `IMediaOrchestrator` implemented by `MediaOrchestrator`, which coordinates the `PlayerEngine`, Room, and DataStore.
 
-**VELORA** (*فراتر از پخش — Beyond Playback*) یک پلتفرم چندرسانه‌ای نسل جدید، هوشمند و حریم‌خصوصی‌محور ویژه **اندروید** است که با معماری تمیز (**Clean Architecture**)، زبان **Kotlin**، رابط کاربری **Jetpack Compose (Material 3)** و موتور پخش **AndroidX Media3 ExoPlayer** با هویت بصری اختصاصی **Dark Saffron & Champagne Gold (زعفرانی تیره و طلایی شامپاینی)** مهندسی شده است.
-
-### ✨ قابلیت‌های کلیدی
-- **هماهنگ‌کننده مرکزی رسانه (`IMediaOrchestrator` و `MediaOrchestrator`)**: مدیریت یکپارچه پخش صوت و تصویر، صف پخش، تاریخچه آفلاین Room و تنظیمات اتمیک DataStore با استفاده از `StateFlow` و تزریق وابستگی `Koin`.
-- **اکولایزر حرفه‌ای ۱۰ باندی Biquad DSP و تحلیلگر طیف زنده (RTA + Waveform)**: پردازش مستقیم سیگنال صوتی در خط لوله PCM با ۱۰ فیلتر استاندارد ISO (از `31.25 Hz` تا `16 kHz`) همراه با نمایشگر طیف فرکانسی Goertzel و موج نوسان‌نگار ۶۴ نقطه‌ای.
-- **موتورهای هوش رسانه و دستیار هوشمند (`VeloraMediaCopilot`)**:
-  - **OmniSearch**: جستجوی فازی مقاوم در برابر خطای تایپی (الگوریتم Levenshtein) و جستجوی معنایی (`favorite`، `unfinished`، `hi-res`، `night`).
-  - **لیست‌های پخش هوشمند (`VeloraSmartPlaylistEngine`)**: تولید خودکار ۵ میکس هوشمند محلی (*Daily Saffron Mix*، *Most Played*، *Continue Listening*، *Hidden Gems & Hi-Res* و *Favorite Collection*).
-  - **موتور متن ترانه و زیرنویس (`VeloraLyricsAndSubtitleEngine`)**: پشتیبانی کامل از زبان فارسی (راست‌به‌چپ)، تنظیم دقیق زمان‌بندی (`±250ms`) و خروجی استاندارد `SRT` و `WebVTT`.
-  - **ماشین زمان رسانه (`Media Time Machine`)**: ثبت نشانک‌های زمانی (Bookmarks) روی لحظات دلخواه موسیقی و ویدیو.
-- **اعتبارسنجی امن استریم و افزونه‌های Sandboxed**: پشتیبانی از استریم‌های `HLS (.m3u8)`، `MPEG-DASH (.mpd)` و `HTTPS` با پالایش و اعتبارسنجی امن نشانی‌های اینترنتی و جلوگیری از پیمایش مسیر (`VeloraDownloadValidator`) و رجیستری افزونه‌های امن Tier 1.
-
-### 📲 دانلود و نصب
-برای دریافت آخرین فایل نصبی (`.apk`) امضاشده، به بخش **[Releases (انتشارها)](../../releases/latest)** در بالای همین مخزن مراجعه کنید و فایل **`VELORA-v2.6.1-release-signed.apk`** را دانلود و نصب نمایید.
-
+<div align="center">
+  <img src="docs/assets/velora-architecture.svg" alt="VELORA architecture diagram" width="100%" />
 </div>
 
----
+```
+app/src/main/java/com/example/
+├── orchestrator/   # IMediaOrchestrator contract
+├── domain/         # engine (MediaOrchestrator, PlayerEngine) and models
+├── data/           # playback (Media3, DSP), local (Room), scanner, settings, firebase
+├── di/             # Koin modules
+└── ui/             # Compose screens, components, navigation, theme, view models
+```
 
-## 📄 License & Governance
+More detail: [`docs/architecture.md`](docs/architecture.md) · [`docs/decisions/`](docs/decisions) · [`CHANGELOG.md`](CHANGELOG.md) · [`SECURITY.md`](SECURITY.md)
 
-- **License:** Distributed under the [MIT License](LICENSE).
-- **Contributing:** See [CONTRIBUTING.md](CONTRIBUTING.md) for architectural boundaries, Detekt rules, and PR guidelines.
-- **Security Policy:** See [SECURITY.md](SECURITY.md) for sandboxing architecture, Secure Stream Validation (`HTTPS`/`HLS`/`DASH` URL sanitization), path-traversal guards, and vulnerability reporting.
-- **Changelog:** See [CHANGELOG.md](CHANGELOG.md) for detailed release history.
+## License
+
+Released under the [MIT License](LICENSE).
+
+## Author
+
+Built by [aghorbani84](https://github.com/aghorbani84).
