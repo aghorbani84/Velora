@@ -104,6 +104,7 @@ data class AppSettings(
     val appLanguageCode: String = "en",
     val isSimpleMode: Boolean = true,
     val experienceTier: ExperienceTier = if (isSimpleMode) ExperienceTier.SIMPLE else ExperienceTier.PRO,
+    val videoGestureHintSeen: Boolean = false,
     val autoScanOnStartup: Boolean = true,
     val onlyValidMusicInSearch: Boolean = true,
     val backgroundVideoAudioEnabled: Boolean = true,

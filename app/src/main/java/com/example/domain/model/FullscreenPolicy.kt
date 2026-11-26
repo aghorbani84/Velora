@@ -4,6 +4,11 @@ package com.example.domain.model
  * Pure, framework-free decisions for experience-tier gating (SIMPLE, STANDARD, PRO)
  * and video fullscreen orientation locking. Kept free of Android/Compose imports so
  * the rules are unit-testable without a device or emulator.
+ *
+ * Video player UX (ported from PR #2 onto the 3-tier system): the overlay shows
+ * exactly transport + seek + fullscreen in every tier. PiP, lock, speed, aspect,
+ * subtitles, audio-track and bookmarks live behind ONE "more" bottom sheet that
+ * exists only in the PRO tier; SIMPLE and STANDARD hide those controls.
  */
 enum class VideoControlGroup {
     TRANSPORT,
@@ -15,7 +20,8 @@ enum class VideoControlGroup {
     ASPECT,
     SUBTITLES,
     AUDIO_TRACK,
-    BOOKMARK
+    BOOKMARK,
+    LOCK
 }
 
 enum class MusicControlGroup {
@@ -39,26 +45,50 @@ object FullscreenPolicy {
     fun shouldLockLandscape(nativeRatio: Float): Boolean = nativeRatio > 1.0f
 
     /**
-     * Legacy boolean overload for backward compatibility with existing tests.
+     * Legacy boolean overload kept for existing tests: `true` maps to SIMPLE,
+     * `false` to PRO.
      */
-    fun isProControlVisible(isSimpleMode: Boolean, group: VideoControlGroup): Boolean {
-        val tier = if (isSimpleMode) ExperienceTier.SIMPLE else ExperienceTier.PRO
-        return isVideoControlVisible(tier, group)
-    }
+    fun isProControlVisible(isSimpleMode: Boolean, group: VideoControlGroup): Boolean =
+        isVideoControlVisible(tierOf(isSimpleMode), group)
 
     /**
-     * 3-Tier Video Control Policy:
-     * - SIMPLE & STANDARD: Only basic transport, seek, fullscreen, PiP, and picking a video.
-     * - PRO: All controls including speed, aspect ratio, subtitles, audio-track selection, and bookmarks.
+     * Directly visible on the player overlay (embedded and fullscreen).
+     * Identical in every tier: transport, seek, fullscreen. Everything else
+     * lives behind the "more" sheet (PRO) or is hidden (SIMPLE, STANDARD).
+     * PICK_VIDEO is not an overlay control: it is a library action below the
+     * player, shown in the PRO tier only.
      */
+    @Suppress("UnusedParameter") // Intentional: overlay visibility is tier-independent by design; kept for symmetry with isInMoreSheet.
     fun isVideoControlVisible(tier: ExperienceTier, group: VideoControlGroup): Boolean {
-        if (tier == ExperienceTier.PRO) return true
         return group == VideoControlGroup.TRANSPORT ||
             group == VideoControlGroup.SEEK ||
-            group == VideoControlGroup.FULLSCREEN ||
-            group == VideoControlGroup.PIP ||
-            group == VideoControlGroup.PICK_VIDEO
+            group == VideoControlGroup.FULLSCREEN
     }
+
+    /** Legacy boolean overload kept for existing tests. */
+    fun isInMoreSheet(isSimpleMode: Boolean, group: VideoControlGroup): Boolean =
+        isInMoreSheet(tierOf(isSimpleMode), group)
+
+    /**
+     * Lives behind the single "more" bottom sheet. The sheet exists only in
+     * the PRO tier; in SIMPLE and STANDARD these controls are hidden entirely.
+     */
+    fun isInMoreSheet(tier: ExperienceTier, group: VideoControlGroup): Boolean {
+        if (tier != ExperienceTier.PRO) return false
+        return group == VideoControlGroup.PIP ||
+            group == VideoControlGroup.LOCK ||
+            group == VideoControlGroup.SPEED ||
+            group == VideoControlGroup.ASPECT ||
+            group == VideoControlGroup.SUBTITLES ||
+            group == VideoControlGroup.AUDIO_TRACK ||
+            group == VideoControlGroup.BOOKMARK
+    }
+
+    /** True when the PRO-only "pick a video" library action is shown below the player. */
+    fun isPickVideoVisible(tier: ExperienceTier): Boolean = tier == ExperienceTier.PRO
+
+    private fun tierOf(isSimpleMode: Boolean): ExperienceTier =
+        if (isSimpleMode) ExperienceTier.SIMPLE else ExperienceTier.PRO
 
     /**
      * 3-Tier Music & Audio Control Policy:

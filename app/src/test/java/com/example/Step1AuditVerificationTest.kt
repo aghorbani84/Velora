@@ -173,6 +173,9 @@ class Step1AuditVerificationTest {
         }
 
         composeRule.waitForIdle()
+        // Speed lives behind the PRO-only "more" sheet (video player UX, PR #2).
+        composeRule.onNodeWithTag("video_more_button").performClick()
+        composeRule.waitForIdle()
         composeRule.onNodeWithTag("video_speed_chip_0.75")
             .performScrollTo()
             .assertIsDisplayed()

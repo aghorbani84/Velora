@@ -122,6 +122,10 @@ class VeloraSettingsRepository(
         }
     }
 
+    suspend fun updateVideoGestureHintSeen(seen: Boolean) {
+        dataStore.edit { it[KEY_VIDEO_GESTURE_HINT_SEEN] = seen }
+    }
+
     suspend fun updateAutoScanOnStartup(enabled: Boolean) {
         dataStore.edit { it[KEY_AUTO_SCAN_STARTUP] = enabled }
     }
@@ -254,6 +258,7 @@ class VeloraSettingsRepository(
             appLanguageCode = prefs[KEY_APP_LANGUAGE] ?: "en",
             isSimpleMode = resolvedTier == com.example.domain.model.ExperienceTier.SIMPLE,
             experienceTier = resolvedTier,
+            videoGestureHintSeen = prefs[KEY_VIDEO_GESTURE_HINT_SEEN] ?: false,
             autoScanOnStartup = prefs[KEY_AUTO_SCAN_STARTUP] ?: true,
             onlyValidMusicInSearch = prefs[KEY_ONLY_VALID_MUSIC] ?: true,
             backgroundVideoAudioEnabled = prefs[KEY_BG_VIDEO_AUDIO] ?: true,
@@ -288,6 +293,7 @@ class VeloraSettingsRepository(
         private val KEY_APP_LANGUAGE = stringPreferencesKey("app_language_code")
         private val KEY_SIMPLE_MODE = booleanPreferencesKey("is_simple_mode")
         private val KEY_EXPERIENCE_TIER = stringPreferencesKey("experience_tier")
+        private val KEY_VIDEO_GESTURE_HINT_SEEN = booleanPreferencesKey("video_gesture_hint_seen")
         private val KEY_AUTO_SCAN_STARTUP = booleanPreferencesKey("auto_scan_startup")
         private val KEY_ONLY_VALID_MUSIC = booleanPreferencesKey("only_valid_music")
         private val KEY_BG_VIDEO_AUDIO = booleanPreferencesKey("bg_video_audio")

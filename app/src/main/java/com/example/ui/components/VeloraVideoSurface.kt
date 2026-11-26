@@ -86,7 +86,10 @@ fun Modifier.veloraCinemaGestures(
     onTogglePlayPause: () -> Unit,
     onSetBrightness: (Float) -> Unit,
     onSetVolume: (Float) -> Unit,
-    onHudNotice: (String) -> Unit
+    onHudNotice: (String) -> Unit,
+    // Off for the embedded video player: it sits in a scrollable list and vertical
+    // swipes would fight list scrolling. Fullscreen and Now Playing keep them.
+    verticalSwipesEnabled: Boolean = true
 ): Modifier {
     val lockedState by rememberUpdatedState(controlsLocked)
     val positionState by rememberUpdatedState(positionMs)
@@ -100,6 +103,7 @@ fun Modifier.veloraCinemaGestures(
     val setBrightnessState by rememberUpdatedState(onSetBrightness)
     val setVolumeState by rememberUpdatedState(onSetVolume)
     val hudNoticeState by rememberUpdatedState(onHudNotice)
+    val verticalSwipesState by rememberUpdatedState(verticalSwipesEnabled)
 
     return this
         .pointerInput(Unit) {
@@ -137,7 +141,7 @@ fun Modifier.veloraCinemaGestures(
             detectVerticalDragGestures(
                 onDragStart = { offset -> dragStartX = offset.x },
                 onVerticalDrag = { change, dragAmount ->
-                    if (!lockedState) {
+                    if (!lockedState && verticalSwipesState) {
                         change.consume()
                         val swipe = VeloraGestureEngine.resolveVerticalSwipeGesture(
                             startX = dragStartX,

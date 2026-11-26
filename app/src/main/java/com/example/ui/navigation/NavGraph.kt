@@ -66,6 +66,7 @@ import com.example.ui.viewmodel.setSubtitleColorTheme
 import com.example.ui.viewmodel.setSubtitleFontScale
 import com.example.ui.viewmodel.setThemePaletteMode
 import com.example.ui.viewmodel.setVideoBrightnessLevel
+import com.example.ui.viewmodel.setVideoGestureHintSeen
 import com.example.ui.viewmodel.stampLyricLineAtCurrentPosition
 import com.example.ui.viewmodel.toggleDeclarativePlugin
 import com.example.ui.viewmodel.tuneRadioStation
@@ -251,6 +252,7 @@ fun VeloraNavGraph(
                 onSetPlaybackSpeed = { viewModel.setPlaybackSpeed(it) },
                 onSetAspectMode = { viewModel.setVideoAspectMode(it) },
                 onSetSubtitlesEnabled = { viewModel.setSubtitlesEnabled(it) },
+                onSelectSubtitleTrack = { viewModel.selectSubtitleTrack(it) },
                 onSelectAudioTrack = { viewModel.selectAudioTrack(it) },
                 onAddTrackToQueue = { viewModel.addTrackToQueue(it) },
                 onAddTrackToPlaylist = { pid, tid -> viewModel.addTrackToPlaylist(pid, tid) },
@@ -270,6 +272,7 @@ fun VeloraNavGraph(
                 onSetSubtitleFontScale = { viewModel.setSubtitleFontScale(it) },
                 onSetSubtitleColorTheme = { viewModel.setSubtitleColorTheme(it) },
                 onAddVideoBookmark = { viewModel.addTimeMachineBookmark("Cinema Scene") },
+                onVideoGestureHintSeen = { viewModel.setVideoGestureHintSeen() },
                 isSimpleMode = uiState.settings.isSimpleMode
             )
         }
