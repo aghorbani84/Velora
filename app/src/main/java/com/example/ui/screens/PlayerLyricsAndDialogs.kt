@@ -258,6 +258,7 @@ internal fun QueueSectionCard(
         }
     }
 }
+
 @Composable
 internal fun SaveEqPresetDialog(
     isPersian: Boolean,
