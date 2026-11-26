@@ -248,13 +248,6 @@ internal fun QueueSectionCard(
             }
         }
     }
-}       tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
