@@ -13,8 +13,8 @@ import androidx.compose.ui.unit.dp
 import com.example.domain.model.MediaType
 import com.example.domain.model.PlaybackQueue
 import com.example.domain.model.Track
-import com.example.ui.viewmodel.VeloraUiState
 import com.example.ui.screens.QueueSectionCard
+import com.example.ui.viewmodel.VeloraUiState
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
