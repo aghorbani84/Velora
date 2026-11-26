@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkAdd
@@ -163,16 +166,7 @@ internal fun SynchronizedLyricsAndBookmarksSection(
                         VeloraSecondaryButton(
                             text = "${bm.formattedTimestamp} • ${bm.trackTitle}",
                             onClick = { onSeekTo(bm.timestampMs) },
-                            tag = "bookmark_chip_${bm.id}"
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
+   @Composable
 internal fun QueueSectionCard(
     uiState: FazoraUiState,
     isPersian: Boolean,
@@ -185,44 +179,76 @@ internal fun QueueSectionCard(
         title = if (isPersian) "صف پخش (${queueItems.size})" else "Playback Queue (${queueItems.size})",
         modifier = Modifier.testTag("queue_list_section")
     ) {
-        queueItems.forEachIndexed { index, item ->
-            val isCurrent = index == uiState.queue.currentIndex
-            Surface(
-                color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(PhiTokens.CornerRadius13),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = PhiTokens.Space4)
-                    .clickable { onSelectQueueTrack(item) }
-                    .testTag("queue_item_$index")
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space8)
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = mixedScriptText(item.title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = mixedScriptText("${item.artist} • ${item.formattedDuration}"),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(
-                        onClick = { onRemoveFromQueue(item.id) },
+        // Bound the nested list so it scrolls independently inside the screen
+        // LazyColumn and always has room for at least one 56dp queue row.
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp, max = 224.dp)
+                .testTag("queue_list_scroll_container"),
+            verticalArrangement = Arrangement.spacedBy(PhiTokens.Space4)
+        ) {
+            if (queueItems.isEmpty()) {
+                item(key = "queue-empty") {
+                    Text(
+                        text = if (isPersian) "صف پخش خالی است" else "Queue is empty",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
-                            .minimumInteractiveComponentSize()
-                            .testTag("remove_queue_item_$index")
+                            .heightIn(min = 56.dp)
+                            .padding(vertical = PhiTokens.Space13)
+                            .testTag("queue_empty_state")
+                    )
+                }
+            } else {
+                itemsIndexed(queueItems, key = { _, item -> item.id }) { index, item ->
+                    val isCurrent = index == uiState.queue.currentIndex
+                    Surface(
+                        color = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(PhiTokens.CornerRadius13),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectQueueTrack(item) }
+                            .testTag("queue_item_$index")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = "Remove from Queue",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .heightIn(min = 56.dp)
+                                .padding(horizontal = PhiTokens.Space13, vertical = PhiTokens.Space4)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = mixedScriptText(item.title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = mixedScriptText("${item.artist} • ${item.formattedDuration}"),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            IconButton(
+                                onClick = { onRemoveFromQueue(item.id) },
+                                modifier = Modifier
+                                    .minimumInteractiveComponentSize()
+                                    .testTag("remove_queue_item_$index")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = "Remove from Queue",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}       tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
