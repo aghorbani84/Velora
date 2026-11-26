@@ -166,7 +166,16 @@ internal fun SynchronizedLyricsAndBookmarksSection(
                         VeloraSecondaryButton(
                             text = "${bm.formattedTimestamp} • ${bm.trackTitle}",
                             onClick = { onSeekTo(bm.timestampMs) },
-   @Composable
+                            tag = "bookmark_chip_${bm.id}"
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun QueueSectionCard(
     uiState: FazoraUiState,
     isPersian: Boolean,
@@ -179,8 +188,8 @@ internal fun QueueSectionCard(
         title = if (isPersian) "صف پخش (${queueItems.size})" else "Playback Queue (${queueItems.size})",
         modifier = Modifier.testTag("queue_list_section")
     ) {
-        // Bound the nested list so it scrolls independently inside the screen
-        // LazyColumn and always has room for at least one 56dp queue row.
+        // Bound this nested list so it scrolls independently and keeps one
+        // complete 56dp queue row available in a short viewport.
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -249,7 +258,6 @@ internal fun QueueSectionCard(
         }
     }
 }
-
 @Composable
 internal fun SaveEqPresetDialog(
     isPersian: Boolean,
