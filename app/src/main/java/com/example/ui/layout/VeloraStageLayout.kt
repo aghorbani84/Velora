@@ -15,21 +15,16 @@ import com.example.ui.theme.PhiTokens
  * > 317dp**; when the remainder is smaller than 317dp the stage shrinks below
  * > 61.8% (**never the controls**)
  *
- * Production currently enforces only the width half of that sentence:
- * `NowPlayingScreen.kt:411-416` caps the stage at
- * `maxWidth * ARTWORK_STAGE_MAX_FRACTION + SpectrumHeight`, so no height is
- * ever reserved for the controls and the stage cannot shrink when the window
- * is short. The consequence was measured, not guessed - CI run #77 of PR #4:
- * `assertIsDisplayed()` failed on `transport_play_pause_button`
- * (SimpleModeCompositionTest.kt:326) and on `transport_shuffle_button`
- * (`:371`), i.e. `VeloraSeekBar` (NowPlayingScreen.kt:524) and
- * `VeloraTransportControls` (`:532`) had been laid out below the window.
+ * A compact viewport mitigation now reduces artwork, spectrum height and card
+ * padding below 600dp, with a display-level test for a 320x470dp window. This
+ * still does not reserve the full 317dp controls + queue floor or guarantee a
+ * queue row is visible; the floor remains a specification/helper, not a fully
+ * wired production constraint. The original short-window CI failure was run #77
+ * of PR #4, where transport tags were outside the measured viewport.
  *
- * This object holds the number and the arithmetic in one place. It is not yet
- * wired into `NowPlayingStageCard`: doing so needs the available height from
- * `LocalWindowInfo` (a `BoxWithConstraints` inside a `LazyColumn` item sees
- * infinite height), and that edit ships together with a display-level
- * assertion on a small window. See issue #5.
+ * This object holds the number and arithmetic in one place. It is not wired
+ * into production layout yet; issue #5 remains open for the complete measured
+ * controls/queue reservation and one-row queue viewport.
  */
 internal object VeloraStageLayout {
 
@@ -45,32 +40,40 @@ internal object VeloraStageLayout {
      * Maximum height of the stage block (artwork row + spectrum strip) inside
      * a window that offers [availableHeight], when the row is [maxWidth] wide.
      *
-     * Two independent limits compete and the tighter one wins:
-     * - the golden-ratio fraction of the width;
-     * - whatever is left after [CONTROLS_AREA_MIN_HEIGHT] and the fixed
-     *   [PhiTokens.SpectrumHeight] strip are taken.
+     * The stage is limited by both its width cap and the height left after
+     * reserving the controls/queue floor. The requested spectrum strip is
+     * reduced too when the viewport cannot fit it without violating that
+     * floor; artwork is reduced first, then the spectrum strip.
      *
-     * When the second one goes negative the artwork row collapses to zero and
-     * the block keeps only the spectrum strip, so the controls never lose
-     * height to the stage.
+     * [preferredSpectrumHeight] allows the compact layout to request a smaller
+     * strip without changing the R-S3 arithmetic.
      */
-    fun stageBlockHeightCap(maxWidth: Dp, availableHeight: Dp): Dp {
+    fun stageBlockHeightCap(
+        maxWidth: Dp,
+        availableHeight: Dp,
+        preferredSpectrumHeight: Dp = PhiTokens.SpectrumHeight
+    ): Dp {
         val safeHeight = availableHeight.coerceAtLeast(0.dp)
-        val spectrumHeight = minOf(PhiTokens.SpectrumHeight, safeHeight)
+        val controlsFloor = minOf(CONTROLS_AREA_MIN_HEIGHT, safeHeight)
+        val stageBudget = (safeHeight - controlsFloor).coerceAtLeast(0.dp)
+        val spectrumHeight = minOf(preferredSpectrumHeight.coerceAtLeast(0.dp), stageBudget)
         val artworkByWidth = maxWidth.coerceAtLeast(0.dp) * PhiTokens.ARTWORK_STAGE_MAX_FRACTION
-        val artworkByRemainder =
-            safeHeight - CONTROLS_AREA_MIN_HEIGHT - spectrumHeight
+        val artworkByRemainder = (stageBudget - spectrumHeight).coerceAtLeast(0.dp)
         val artwork = minOf(artworkByWidth, artworkByRemainder).coerceAtLeast(0.dp)
         return artwork + spectrumHeight
     }
 
     /**
-     * Height left for controls + queue. Equals or exceeds
-     * [CONTROLS_AREA_MIN_HEIGHT] whenever the window itself is tall enough;
-     * on a window shorter than the floor it reports the real remainder rather
-     * than pretending the floor was met.
+     * Height left for controls + queue. It is at least [CONTROLS_AREA_MIN_HEIGHT]
+     * whenever the viewport itself is tall enough; below that viewport height,
+     * it reports the real available height instead of claiming the floor was met.
      */
-    fun controlsAreaHeight(maxWidth: Dp, availableHeight: Dp): Dp =
-        (availableHeight.coerceAtLeast(0.dp) - stageBlockHeightCap(maxWidth, availableHeight))
+    fun controlsAreaHeight(
+        maxWidth: Dp,
+        availableHeight: Dp,
+        preferredSpectrumHeight: Dp = PhiTokens.SpectrumHeight
+    ): Dp =
+        (availableHeight.coerceAtLeast(0.dp) -
+            stageBlockHeightCap(maxWidth, availableHeight, preferredSpectrumHeight))
             .coerceAtLeast(0.dp)
 }

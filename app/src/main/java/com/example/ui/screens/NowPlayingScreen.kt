@@ -220,118 +220,127 @@ fun PlayerAndEqScreen(
         }
     }
 
-    LazyColumn(
-        contentPadding = PaddingValues(PhiTokens.Space21),
-        verticalArrangement = Arrangement.spacedBy(PhiTokens.Space21),
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .testTag("player_and_eq_screen")
     ) {
-        engine.errorMessage?.let { msg ->
-            item {
-                VeloraErrorBanner(
-                    message = msg,
-                    actionLabel = if (isPersian) "بستن" else "Dismiss",
-                    onAction = onClearError
-                )
-            }
-        }
-
-        item {
-            NowPlayingStageCard(
-                uiState = uiState,
-                positionState = positionState,
-                tier = tier,
-                isPersian = isPersian,
-                gestureHudNotice = gestureHudNotice,
-                onHudNotice = { gestureHudNotice = it },
-                onTogglePlayPause = onTogglePlayPause,
-                onStop = onStop,
-                onPrevious = onPrevious,
-                onNext = onNext,
-                onSeekTo = onSeekTo,
-                onToggleShuffle = onToggleShuffle,
-                onCycleRepeat = onCycleRepeat,
-                onVolumeChange = onVolumeChange,
-                onToggleMute = onToggleMute,
-                onSetVisualizerMode = onSetVisualizerMode,
-                onToggleFavorite = onToggleFavorite,
-                onOpenExactSeek = { showExactSeekDialog = true },
-                onOpenTagEditor = { showTagEditorDialog = true },
-                onOpenQueueSheet = { showQueueSheet = true },
-                onOpenLyricsSheet = { showLyricsSheet = true }
-            )
-        }
-
-        if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.TEN_BAND_EQ)) {
-            item {
-                EqualizerAndStudioDspSection(
-                    uiState = uiState,
-                    isPersian = isPersian,
-                    onSetEqEnabled = onSetEqEnabled,
-                    onSetEqBandGain = onSetEqBandGain,
-                    onApplyPreset = onApplyPreset,
-                    onSaveCustomPreset = onSaveCustomPreset,
-                    onDeleteCustomPreset = onDeleteCustomPreset,
-                    onSetPreampDb = onSetPreampDb,
-                    onSetBassBoost = onSetBassBoost,
-                    onSetStereoWidth = onSetStereoWidth,
-                    onSetCrossfadeSec = onSetCrossfadeSec,
-                    onSetLoopPointA = onSetLoopPointA,
-                    onSetLoopPointB = onSetLoopPointB,
-                    onClearLoop = onClearLoop,
-                    onSetSleepTimerMinutes = onSetSleepTimerMinutes
-                )
-            }
-        } else {
-            item {
-                VeloraSectionCard(
-                    eyebrow = if (isPersian) "سطح کاربری فعلی: ${tier.labelFa}" else "ACTIVE TIER: ${tier.labelEn}",
-                    title = if (isPersian) "استودیو صوتی و اکولایزر ۱۰ باندی" else "10-Band EQ & Studio DSP Rack",
-                    subtitle = if (isPersian) {
-                        "برای دسترسی به اکولایزر ۱۰ باندی Biquad، تقویت ساب‌بیس و حلقه A-B، سطح کاربری حرفه‌ای (PRO) را فعال کنید."
-                    } else {
-                        "Switch to Studio Pro tier to unlock the 10-band Biquad equalizer, sub-bass boost, and A-B loop."
-                    }
-                ) {
-                    VeloraPrimaryButton(
-                        text = if (isPersian) "ارتقا به حالت حرفه‌ای (PRO)" else "Switch to Studio Pro",
-                        icon = Icons.Default.Tune,
-                        onClick = { onSetExperienceTier(ExperienceTier.PRO) },
-                        tag = "open_studio_pro_button"
+        // A LazyColumn item has unbounded vertical constraints; use the screen
+        // viewport to select a compact stage before the item is measured.
+        val compactViewport = maxHeight < PhiTokens.WideScreenBreakpoint
+        LazyColumn(
+            contentPadding = PaddingValues(PhiTokens.Space21),
+            verticalArrangement = Arrangement.spacedBy(PhiTokens.Space21),
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("player_and_eq_screen")
+        ) {
+            engine.errorMessage?.let { msg ->
+                item {
+                    VeloraErrorBanner(
+                        message = msg,
+                        actionLabel = if (isPersian) "بستن" else "Dismiss",
+                        onAction = onClearError
                     )
                 }
             }
-        }
 
-        if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.LYRICS_VIEWER)) {
             item {
-                SynchronizedLyricsAndBookmarksSection(
-                    lyrics = uiState.activeLyrics,
-                    positionMs = positionState.positionMs,
-                    lyricsOffsetMs = uiState.lyricsOffsetMs,
-                    bookmarks = uiState.timeMachineBookmarks,
+                NowPlayingStageCard(
+                    uiState = uiState,
+                    positionState = positionState,
                     tier = tier,
                     isPersian = isPersian,
-                    onAdjustOffset = onAdjustLyricsOffset,
+                    compactViewport = compactViewport,
+                    gestureHudNotice = gestureHudNotice,
+                    onHudNotice = { gestureHudNotice = it },
+                    onTogglePlayPause = onTogglePlayPause,
+                    onStop = onStop,
+                    onPrevious = onPrevious,
+                    onNext = onNext,
                     onSeekTo = onSeekTo,
-                    onAddBookmark = onAddBookmark,
-                    onStampLyricLine = onStampLyricLine,
-                    onAddNewLyricLineAtPos = onAddNewLyricLineAtPos,
-                    onExportLrc = onExportLrc
+                    onToggleShuffle = onToggleShuffle,
+                    onCycleRepeat = onCycleRepeat,
+                    onVolumeChange = onVolumeChange,
+                    onToggleMute = onToggleMute,
+                    onSetVisualizerMode = onSetVisualizerMode,
+                    onToggleFavorite = onToggleFavorite,
+                    onOpenExactSeek = { showExactSeekDialog = true },
+                    onOpenTagEditor = { showTagEditorDialog = true },
+                    onOpenQueueSheet = { showQueueSheet = true },
+                    onOpenLyricsSheet = { showLyricsSheet = true }
                 )
             }
-        }
 
-        if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.QUEUE_AND_MODES)) {
-            item {
-                QueueSectionCard(
-                    uiState = uiState,
-                    isPersian = isPersian,
-                    onSelectQueueTrack = onSelectQueueTrack,
-                    onRemoveFromQueue = onRemoveFromQueue
-                )
+            if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.TEN_BAND_EQ)) {
+                item {
+                    EqualizerAndStudioDspSection(
+                        uiState = uiState,
+                        isPersian = isPersian,
+                        onSetEqEnabled = onSetEqEnabled,
+                        onSetEqBandGain = onSetEqBandGain,
+                        onApplyPreset = onApplyPreset,
+                        onSaveCustomPreset = onSaveCustomPreset,
+                        onDeleteCustomPreset = onDeleteCustomPreset,
+                        onSetPreampDb = onSetPreampDb,
+                        onSetBassBoost = onSetBassBoost,
+                        onSetStereoWidth = onSetStereoWidth,
+                        onSetCrossfadeSec = onSetCrossfadeSec,
+                        onSetLoopPointA = onSetLoopPointA,
+                        onSetLoopPointB = onSetLoopPointB,
+                        onClearLoop = onClearLoop,
+                        onSetSleepTimerMinutes = onSetSleepTimerMinutes
+                    )
+                }
+            } else {
+                item {
+                    VeloraSectionCard(
+                        eyebrow = if (isPersian) "سطح کاربری فعلی: ${tier.labelFa}" else "ACTIVE TIER: ${tier.labelEn}",
+                        title = if (isPersian) "استودیو صوتی و اکولایزر ۱۰ باندی" else "10-Band EQ & Studio DSP Rack",
+                        subtitle = if (isPersian) {
+                            "برای دسترسی به اکولایزر ۱۰ باندی Biquad، تقویت ساب‌بیس و حلقه A-B، سطح کاربری حرفه‌ای (PRO) را فعال کنید."
+                        } else {
+                            "Switch to Studio Pro tier to unlock the 10-band Biquad equalizer, sub-bass boost, and A-B loop."
+                        }
+                    ) {
+                        VeloraPrimaryButton(
+                            text = if (isPersian) "ارتقا به حالت حرفه‌ای (PRO)" else "Switch to Studio Pro",
+                            icon = Icons.Default.Tune,
+                            onClick = { onSetExperienceTier(ExperienceTier.PRO) },
+                            tag = "open_studio_pro_button"
+                        )
+                    }
+                }
+            }
+
+            if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.LYRICS_VIEWER)) {
+                item {
+                    SynchronizedLyricsAndBookmarksSection(
+                        lyrics = uiState.activeLyrics,
+                        positionMs = positionState.positionMs,
+                        lyricsOffsetMs = uiState.lyricsOffsetMs,
+                        bookmarks = uiState.timeMachineBookmarks,
+                        tier = tier,
+                        isPersian = isPersian,
+                        onAdjustOffset = onAdjustLyricsOffset,
+                        onSeekTo = onSeekTo,
+                        onAddBookmark = onAddBookmark,
+                        onStampLyricLine = onStampLyricLine,
+                        onAddNewLyricLineAtPos = onAddNewLyricLineAtPos,
+                        onExportLrc = onExportLrc
+                    )
+                }
+            }
+
+            if (FullscreenPolicy.isMusicControlVisible(tier, MusicControlGroup.QUEUE_AND_MODES)) {
+                item {
+                    QueueSectionCard(
+                        uiState = uiState,
+                        isPersian = isPersian,
+                        onSelectQueueTrack = onSelectQueueTrack,
+                        onRemoveFromQueue = onRemoveFromQueue
+                    )
+                }
             }
         }
     }
@@ -343,6 +352,7 @@ private fun NowPlayingStageCard(
     positionState: PlaybackPositionState,
     tier: ExperienceTier,
     isPersian: Boolean,
+    compactViewport: Boolean,
     gestureHudNotice: String?,
     onHudNotice: (String) -> Unit,
     onTogglePlayPause: () -> Unit,
@@ -371,6 +381,7 @@ private fun NowPlayingStageCard(
         subtitle = track?.let {
             mixedScriptText("${it.artist} • ${it.album} • ${it.formatBadge} ${it.sampleRateHz / 1000.0}kHz")
         } ?: if (isPersian) "یک آهنگ از کتابخانه انتخاب کنید" else "Select a track from your library",
+        contentPadding = if (compactViewport) PaddingValues(PhiTokens.Space13) else PaddingValues(PhiTokens.Space21),
         headerAction = if (track != null && tier != ExperienceTier.SIMPLE) {
             {
                 Row {
@@ -409,12 +420,15 @@ private fun NowPlayingStageCard(
         }
         // Apple Music cover stage capped strictly <= PhiTokens.ARTWORK_STAGE_MAX_FRACTION (0.618f) of width
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val stageHeightCap = (maxWidth * PhiTokens.ARTWORK_STAGE_MAX_FRACTION).coerceAtLeast(PhiTokens.SpectrumHeight)
+            val spectrumHeight = if (compactViewport) PhiTokens.CompactSpectrumHeight else PhiTokens.SpectrumHeight
+            val artworkSize = if (compactViewport) PhiTokens.Space55 else PhiTokens.Space55 + PhiTokens.Space21
+            val stageGap = if (compactViewport) PhiTokens.Space8 else PhiTokens.Space13
+            val stageHeightCap = (maxWidth * PhiTokens.ARTWORK_STAGE_MAX_FRACTION).coerceAtLeast(spectrumHeight)
             Column(
-                verticalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
+                verticalArrangement = Arrangement.spacedBy(stageGap),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = stageHeightCap + PhiTokens.SpectrumHeight)
+                    .heightIn(max = stageHeightCap + spectrumHeight)
             ) {
                 Surface(
                     color = semantic.surfaceElevated,
@@ -430,13 +444,13 @@ private fun NowPlayingStageCard(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(PhiTokens.Space13),
-                        modifier = Modifier.padding(PhiTokens.Space13)
+                        horizontalArrangement = Arrangement.spacedBy(stageGap),
+                        modifier = Modifier.padding(if (compactViewport) PhiTokens.Space8 else PhiTokens.Space13)
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .size(PhiTokens.Space55 + PhiTokens.Space21)
+                                .size(artworkSize)
                                 .clip(RoundedCornerShape(PhiTokens.CornerRadius13))
                                 .background(
                                     Brush.linearGradient(
@@ -478,6 +492,7 @@ private fun NowPlayingStageCard(
                     eqBandGainsDb = engine.eqBandGainsDb,
                     isPlaying = positionState.isPlaying,
                     visualizerMode = engine.visualizerMode,
+                    spectrumHeight = spectrumHeight,
                     modifier = Modifier.veloraCinemaGestures(
                         controlsLocked = false,
                         positionMs = positionState.positionMs,
@@ -526,7 +541,7 @@ private fun NowPlayingStageCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(PhiTokens.Space13))
+        Spacer(modifier = Modifier.height(if (compactViewport) PhiTokens.Space8 else PhiTokens.Space13))
 
         VeloraSeekBar(
             positionMs = positionState.positionMs,
@@ -536,7 +551,7 @@ private fun NowPlayingStageCard(
             loopEndMs = uiState.studioDspState.loopEndMs
         )
 
-        Spacer(modifier = Modifier.height(PhiTokens.Space8))
+        Spacer(modifier = Modifier.height(if (compactViewport) PhiTokens.Space4 else PhiTokens.Space8))
 
         VeloraTransportControls(
             isPlaying = positionState.isPlaying,

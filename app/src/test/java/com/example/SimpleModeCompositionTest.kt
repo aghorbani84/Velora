@@ -1,14 +1,20 @@
 package com.example
 
 import android.app.Application
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.dp
 import com.example.domain.model.AppSettings
 import com.example.domain.model.ExperienceTier
 import com.example.domain.model.MediaType
@@ -330,6 +336,34 @@ class SimpleModeCompositionTest {
         composeRule.onNodeWithTag("player_seek_slider").assertIsDisplayed()
         assertNoProNodes()
         assertNoNodesWithTags(playerProTags, playerProPrefixes)
+    }
+
+    @Test
+    fun `SIMPLE player keeps core controls visible in compact viewport`() {
+        val state = simpleState()
+        composeRule.setContent {
+            MaterialTheme {
+                Box(modifier = Modifier.size(320.dp, 470.dp)) {
+                    PlayerAndEqScreen(
+                        uiState = state,
+                        onTogglePlayPause = {}, onStop = {}, onPrevious = {},
+                        onNext = {}, onSeekTo = {}, onToggleShuffle = {},
+                        onCycleRepeat = {}, onVolumeChange = {}, onToggleMute = {},
+                        onSetEqEnabled = {}, onSetEqBandGain = { _, _ -> },
+                        onApplyPreset = {}, onSaveCustomPreset = {},
+                        onDeleteCustomPreset = {}, onSelectQueueTrack = {},
+                        onRemoveFromQueue = {}, onClearError = {},
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+        }
+        composeRule.onNodeWithTag("player_and_eq_screen").assertIsDisplayed()
+        composeRule.onNodeWithTag("player_seek_slider").assertIsDisplayed()
+        composeRule.onNodeWithTag("transport_prev_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("transport_play_pause_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("transport_next_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("spectrum_analyzer_canvas").assertHeightIsEqualTo(72.dp)
     }
 
     @Test
